@@ -1,0 +1,21 @@
+﻿name: master_mobile
+description: PDO Lite Next mobile app for masters.
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.10.8
+
+dependencies:
+  flutter:
+    sdk: flutter
+  shared_ui:
+    path: ../../packages/shared_ui
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

@@ -1,0 +1,15 @@
+﻿name: import_engine
+version: 0.1.0
+publish_to: none
+description: Preview-first import engine for machine versions.
+
+environment:
+  sdk: ^3.10.8
+
+dependencies:
+  domain:
+    path: ../domain
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6

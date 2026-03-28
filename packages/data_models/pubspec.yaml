@@ -1,0 +1,15 @@
+﻿name: data_models
+version: 0.1.0
+publish_to: none
+description: Shared DTOs for PDO Lite Next backend and clients.
+
+environment:
+  sdk: ^3.10.8
+
+dependencies:
+  domain:
+    path: ../domain
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6

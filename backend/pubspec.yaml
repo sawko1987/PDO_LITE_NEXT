@@ -1,0 +1,19 @@
+﻿name: backend
+version: 0.1.0
+publish_to: none
+description: Local backend for PDO Lite Next.
+
+environment:
+  sdk: ^3.10.8
+
+dependencies:
+  data_models:
+    path: ../packages/data_models
+  import_engine:
+    path: ../packages/import_engine
+  shelf: ^1.4.2
+  shelf_router: ^1.1.4
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6
