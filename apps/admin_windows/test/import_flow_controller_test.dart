@@ -245,6 +245,50 @@ class FakeAdminBackendClient implements AdminBackendClient {
       meta: const {'resource': 'machines'},
     );
   }
+
+  @override
+  Future<PlanDetailDto> createPlan(CreatePlanRequestDto request) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<PlanDetailDto> getPlan(String planId) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<ApiListResponseDto<MachineVersionSummaryDto>> listMachineVersions(
+    String machineId,
+  ) async {
+    return const ApiListResponseDto(
+      items: [],
+      meta: {'resource': 'machine_versions'},
+    );
+  }
+
+  @override
+  Future<ApiListResponseDto<PlanSummaryDto>> listPlans() async {
+    return const ApiListResponseDto(items: [], meta: {'resource': 'plans'});
+  }
+
+  @override
+  Future<ApiListResponseDto<PlanningSourceOccurrenceDto>> listPlanningSource(
+    String machineId,
+    String versionId,
+  ) async {
+    return const ApiListResponseDto(
+      items: [],
+      meta: {'resource': 'planning_source'},
+    );
+  }
+
+  @override
+  Future<PlanReleaseResultDto> releasePlan(
+    String planId,
+    ReleasePlanRequestDto request,
+  ) async {
+    throw UnimplementedError();
+  }
 }
 
 ImportSessionSummaryDto buildSession({

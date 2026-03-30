@@ -24,6 +24,64 @@ class HttpAdminBackendClient implements AdminBackendClient {
   }
 
   @override
+  Future<ApiListResponseDto<MachineVersionSummaryDto>> listMachineVersions(
+    String machineId,
+  ) async {
+    final json = await _getJsonObject('/v1/machines/$machineId/versions');
+    return ApiListResponseDto<MachineVersionSummaryDto>.fromJson(
+      json,
+      MachineVersionSummaryDto.fromJson,
+    );
+  }
+
+  @override
+  Future<ApiListResponseDto<PlanningSourceOccurrenceDto>> listPlanningSource(
+    String machineId,
+    String versionId,
+  ) async {
+    final json = await _getJsonObject(
+      '/v1/machines/$machineId/versions/$versionId/planning-source',
+    );
+    return ApiListResponseDto<PlanningSourceOccurrenceDto>.fromJson(
+      json,
+      PlanningSourceOccurrenceDto.fromJson,
+    );
+  }
+
+  @override
+  Future<ApiListResponseDto<PlanSummaryDto>> listPlans() async {
+    final json = await _getJsonObject('/v1/plans');
+    return ApiListResponseDto<PlanSummaryDto>.fromJson(
+      json,
+      PlanSummaryDto.fromJson,
+    );
+  }
+
+  @override
+  Future<PlanDetailDto> getPlan(String planId) async {
+    final json = await _getJsonObject('/v1/plans/$planId');
+    return PlanDetailDto.fromJson(json);
+  }
+
+  @override
+  Future<PlanDetailDto> createPlan(CreatePlanRequestDto request) async {
+    final json = await _postJsonObject('/v1/plans', request.toJson());
+    return PlanDetailDto.fromJson(json);
+  }
+
+  @override
+  Future<PlanReleaseResultDto> releasePlan(
+    String planId,
+    ReleasePlanRequestDto request,
+  ) async {
+    final json = await _postJsonObject(
+      '/v1/plans/$planId/release',
+      request.toJson(),
+    );
+    return PlanReleaseResultDto.fromJson(json);
+  }
+
+  @override
   Future<ImportSessionSummaryDto> createImportPreview(
     CreateImportPreviewRequestDto request,
   ) async {

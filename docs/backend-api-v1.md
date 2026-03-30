@@ -74,6 +74,22 @@
 Ошибки:
 - `404 machine_not_found`
 
+### `GET /v1/machines/{machineId}/versions/{versionId}/planning-source`
+Назначение: источник планирования для выбранной версии машины.
+
+Элемент списка:
+- `id`
+- `catalogItemId`
+- `displayName`
+- `pathKey`
+- `quantityPerMachine`
+- `workshop`
+- `operationCount`
+
+Ошибки:
+- `404 machine_not_found`
+- `404 machine_version_not_found`
+
 ## Планы и задания
 
 ### `GET /v1/plans`
@@ -88,6 +104,83 @@
 - `status`
 - `itemCount`
 - `revisionCount`
+
+### `POST /v1/plans`
+Назначение: создать `draft`-план по конкретной версии машины.
+
+Тело запроса:
+- `requestId`
+- `machineId`
+- `versionId`
+- `title`
+- `items[]`
+
+Элемент `items[]`:
+- `structureOccurrenceId`
+- `requestedQuantity`
+
+Ответ `201`:
+- детальный объект плана;
+- `status = draft`;
+- `canRelease`;
+- `items[]` с source occurrence контекстом.
+
+Ошибки:
+- `404 machine_not_found`
+- `404 machine_version_not_found`
+- `404 structure_occurrence_not_found`
+- `409 plan_request_replayed_with_different_payload`
+- `422 plan_requires_items`
+- `422 duplicate_structure_occurrence`
+- `422 invalid_requested_quantity`
+- `422 structure_occurrence_version_mismatch`
+
+### `GET /v1/plans/{planId}`
+Назначение: получить детальный план с плановыми позициями.
+
+Поля ответа:
+- `id`
+- `machineId`
+- `versionId`
+- `title`
+- `createdAt`
+- `status`
+- `canRelease`
+- `itemCount`
+- `revisionCount`
+- `items[]`
+
+Элемент `items[]`:
+- `id`
+- `structureOccurrenceId`
+- `catalogItemId`
+- `displayName`
+- `pathKey`
+- `requestedQuantity`
+- `hasRecordedExecution`
+- `canEdit`
+- `workshop`
+
+Ошибки:
+- `404 plan_not_found`
+
+### `POST /v1/plans/{planId}/release`
+Назначение: перевести `draft`-план в `released` и сгенерировать задания по операциям.
+
+Тело запроса:
+- `requestId`
+- `releasedBy`
+
+Ответ `200`:
+- `planId`
+- `status`
+- `generatedTaskCount`
+
+Ошибки:
+- `404 plan_not_found`
+- `409 plan_release_not_allowed`
+- `409 plan_request_replayed_with_different_payload`
+- `422 invalid_request`
 
 ### `GET /v1/tasks`
 Назначение: сводный список выданных заданий.

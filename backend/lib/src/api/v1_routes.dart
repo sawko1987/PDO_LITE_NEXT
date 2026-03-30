@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:data_models/data_models.dart';
+import 'package:domain/domain.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
@@ -57,6 +58,35 @@ Router buildV1Router(
         );
       }
     })
+    ..get('/machines/<machineId>/versions/<versionId>/planning-source', (
+      Request request,
+      String machineId,
+      String versionId,
+    ) {
+      try {
+        final items = store
+            .listPlanningSource(machineId, versionId)
+            .map(
+              (occurrence) => PlanningSourceOccurrenceDto.fromDomain(
+                occurrence,
+                operationCount: store.operationCountForOccurrence(occurrence.id),
+              ),
+            )
+            .toList(growable: false);
+        final dto = ApiListResponseDto(
+          items: items,
+          meta: {
+            'source': 'local_contract_seed',
+            'resource': 'planning_source',
+            'machineId': machineId,
+            'versionId': versionId,
+          },
+        );
+        return jsonResponse(dto.toJson((item) => item.toJson()));
+      } on DemoStoreNotFound catch (error) {
+        return _storeErrorResponse(error.code, error.message, error.details, 404);
+      }
+    })
     ..post('/import-sessions/preview', (Request request) async {
       try {
         final body = await _readJsonBody(request);
@@ -108,6 +138,74 @@ Router buildV1Router(
         },
       );
       return jsonResponse(dto.toJson((item) => item.toJson()));
+    })
+    ..post('/plans', (Request request) async {
+      try {
+        final body = await _readJsonBody(request);
+        final dto = CreatePlanRequestDto.fromJson(body);
+        final plan = store.createPlan(
+          CreatePlanCommand(
+            requestId: dto.requestId,
+            machineId: dto.machineId,
+            versionId: dto.versionId,
+            title: dto.title,
+            items: dto
+                .items
+                .map(
+                  (item) => CreatePlanItemCommand(
+                    structureOccurrenceId: item.structureOccurrenceId,
+                    requestedQuantity: item.requestedQuantity,
+                  ),
+                )
+                .toList(growable: false),
+          ),
+        );
+        return jsonResponse(_toPlanDetailDto(plan, store).toJson(), statusCode: 201);
+      } on DemoStoreNotFound catch (error) {
+        return _storeErrorResponse(error.code, error.message, error.details, 404);
+      } on DemoStoreValidation catch (error) {
+        return _storeErrorResponse(error.code, error.message, error.details, 422);
+      } on DemoStoreConflict catch (error) {
+        return _storeErrorResponse(error.code, error.message, error.details, 409);
+      } on FormatException {
+        return _invalidJsonResponse();
+      }
+    })
+    ..get('/plans/<planId>', (Request request, String planId) {
+      try {
+        final plan = store.getPlan(planId);
+        return jsonResponse(_toPlanDetailDto(plan, store).toJson());
+      } on DemoStoreNotFound catch (error) {
+        return _storeErrorResponse(error.code, error.message, error.details, 404);
+      }
+    })
+    ..post('/plans/<planId>/release', (Request request, String planId) async {
+      try {
+        final body = await _readJsonBody(request);
+        final dto = ReleasePlanRequestDto.fromJson(body);
+        final result = store.releasePlan(
+          ReleasePlanCommand(
+            requestId: dto.requestId,
+            planId: planId,
+            releasedBy: dto.releasedBy,
+          ),
+        );
+        return jsonResponse(
+          PlanReleaseResultDto(
+            planId: result.planId,
+            status: result.status.name,
+            generatedTaskCount: result.generatedTaskCount,
+          ).toJson(),
+        );
+      } on DemoStoreNotFound catch (error) {
+        return _storeErrorResponse(error.code, error.message, error.details, 404);
+      } on DemoStoreValidation catch (error) {
+        return _storeErrorResponse(error.code, error.message, error.details, 422);
+      } on DemoStoreConflict catch (error) {
+        return _storeErrorResponse(error.code, error.message, error.details, 409);
+      } on FormatException {
+        return _invalidJsonResponse();
+      }
     })
     ..get('/tasks', (Request request) {
       final items = store
@@ -224,4 +322,30 @@ Response _importErrorResponse(ImportSessionException error) {
     ).toJson(),
     statusCode: error.statusCode,
   );
+}
+
+Response _storeErrorResponse(
+  String code,
+  String message,
+  Map<String, Object?> details,
+  int statusCode,
+) {
+  return jsonResponse(
+    ApiErrorDto(code: code, message: message, details: details).toJson(),
+    statusCode: statusCode,
+  );
+}
+
+PlanDetailDto _toPlanDetailDto(Plan plan, DemoContractStore store) {
+  final items = plan.items
+      .map((item) {
+        final occurrence = store.getStructureOccurrence(item.structureOccurrenceId);
+        return PlanDetailItemDto.fromDomain(
+          item,
+          occurrence: occurrence,
+          canEdit: plan.canEditItem(item),
+        );
+      })
+      .toList(growable: false);
+  return PlanDetailDto.fromDomain(plan, items: items);
 }

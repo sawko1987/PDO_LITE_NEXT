@@ -98,6 +98,73 @@ void main() {
     },
   );
 
+  test('draft plan can be released only when it has items', () {
+    final emptyDraft = Plan(
+      id: 'plan-empty',
+      machineId: 'machine-1',
+      versionId: 'ver-1',
+      title: 'Empty draft',
+      createdAt: DateTime.utc(2026, 3, 28),
+      items: const [],
+    );
+    final filledDraft = Plan(
+      id: 'plan-filled',
+      machineId: 'machine-1',
+      versionId: 'ver-1',
+      title: 'Filled draft',
+      createdAt: DateTime.utc(2026, 3, 28),
+      items: const [
+        PlanItem(
+          id: 'item-1',
+          source: PlanItemSource(
+            machineId: 'machine-1',
+            versionId: 'ver-1',
+            structureOccurrenceId: 'occ-1',
+            catalogItemId: 'cat-1',
+          ),
+          requestedQuantity: 2,
+        ),
+      ],
+    );
+
+    expect(emptyDraft.canRelease, isFalse);
+    expect(filledDraft.canRelease, isTrue);
+  });
+
+  test('plan detects duplicate structure occurrences', () {
+    final plan = Plan(
+      id: 'plan-duplicates',
+      machineId: 'machine-1',
+      versionId: 'ver-1',
+      title: 'Duplicate draft',
+      createdAt: DateTime.utc(2026, 3, 28),
+      items: const [
+        PlanItem(
+          id: 'item-1',
+          source: PlanItemSource(
+            machineId: 'machine-1',
+            versionId: 'ver-1',
+            structureOccurrenceId: 'occ-1',
+            catalogItemId: 'cat-1',
+          ),
+          requestedQuantity: 2,
+        ),
+        PlanItem(
+          id: 'item-2',
+          source: PlanItemSource(
+            machineId: 'machine-1',
+            versionId: 'ver-1',
+            structureOccurrenceId: 'occ-1',
+            catalogItemId: 'cat-2',
+          ),
+          requestedQuantity: 3,
+        ),
+      ],
+    );
+
+    expect(plan.hasDuplicateStructureOccurrences, isTrue);
+  });
+
   test('completion is blocked by open tasks, problems, and wip', () {
     const policy = CompletionPolicy();
 

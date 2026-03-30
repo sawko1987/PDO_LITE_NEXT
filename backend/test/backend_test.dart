@@ -45,6 +45,24 @@ void main() {
     expect((body['items'] as List).first['isImmutable'], isTrue);
   });
 
+  test('planning source endpoint returns occurrences for selected version', () async {
+    final handler = buildHandler();
+    final response = await handler(
+      Request(
+        'GET',
+        Uri.parse(
+          'http://localhost/v1/machines/machine-1/versions/ver-2026-03/planning-source',
+        ),
+      ),
+    );
+    final body = jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+
+    expect(response.statusCode, 200);
+    expect(body['count'], 2);
+    expect((body['items'] as List).first['displayName'], 'Frame');
+    expect((body['items'] as List).last['operationCount'], 2);
+  });
+
   test('unknown machine returns error envelope', () async {
     final handler = buildHandler();
     final response = await handler(
@@ -72,6 +90,247 @@ void main() {
     expect(response.statusCode, 200);
     expect(body['count'], 1);
     expect((body['items'] as List).single['isAccepted'], isTrue);
+  });
+
+  test('create plan returns draft plan detail', () async {
+    final handler = buildHandler();
+    final response = await handler(
+      _jsonRequest('POST', 'http://localhost/v1/plans', {
+        'requestId': 'create-plan-1',
+        'machineId': 'machine-1',
+        'versionId': 'ver-2026-03',
+        'title': 'New draft plan',
+        'items': [
+          {'structureOccurrenceId': 'occ-1', 'requestedQuantity': 3},
+          {'structureOccurrenceId': 'occ-2', 'requestedQuantity': 2},
+        ],
+      }),
+    );
+    final body = jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+
+    expect(response.statusCode, 201);
+    expect(body['status'], 'draft');
+    expect(body['canRelease'], isTrue);
+    expect(body['itemCount'], 2);
+    expect((body['items'] as List).last['displayName'], 'Body Panel');
+  });
+
+  test('get plan detail returns nested items', () async {
+    final handler = buildHandler();
+    final createResponse = await handler(
+      _jsonRequest('POST', 'http://localhost/v1/plans', {
+        'requestId': 'create-plan-detail',
+        'machineId': 'machine-1',
+        'versionId': 'ver-2026-03',
+        'title': 'Detail check',
+        'items': [
+          {'structureOccurrenceId': 'occ-1', 'requestedQuantity': 5},
+        ],
+      }),
+    );
+    final createBody =
+        jsonDecode(await createResponse.readAsString()) as Map<String, dynamic>;
+    final planId = createBody['id'] as String;
+
+    final response = await handler(
+      Request('GET', Uri.parse('http://localhost/v1/plans/$planId')),
+    );
+    final body = jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+
+    expect(response.statusCode, 200);
+    expect(body['id'], planId);
+    expect((body['items'] as List).single['structureOccurrenceId'], 'occ-1');
+  });
+
+  test('create plan is idempotent for repeated requestId and payload', () async {
+    final handler = buildHandler();
+    final first = await handler(
+      _jsonRequest('POST', 'http://localhost/v1/plans', {
+        'requestId': 'create-plan-idempotent',
+        'machineId': 'machine-1',
+        'versionId': 'ver-2026-03',
+        'title': 'Idempotent plan',
+        'items': [
+          {'structureOccurrenceId': 'occ-1', 'requestedQuantity': 4},
+        ],
+      }),
+    );
+    final second = await handler(
+      _jsonRequest('POST', 'http://localhost/v1/plans', {
+        'requestId': 'create-plan-idempotent',
+        'machineId': 'machine-1',
+        'versionId': 'ver-2026-03',
+        'title': 'Idempotent plan',
+        'items': [
+          {'structureOccurrenceId': 'occ-1', 'requestedQuantity': 4},
+        ],
+      }),
+    );
+
+    final firstBody = jsonDecode(await first.readAsString()) as Map<String, dynamic>;
+    final secondBody =
+        jsonDecode(await second.readAsString()) as Map<String, dynamic>;
+    expect(first.statusCode, 201);
+    expect(second.statusCode, 201);
+    expect(secondBody['id'], firstBody['id']);
+  });
+
+  test('create plan rejects duplicate structure occurrences', () async {
+    final handler = buildHandler();
+    final response = await handler(
+      _jsonRequest('POST', 'http://localhost/v1/plans', {
+        'requestId': 'create-plan-duplicate',
+        'machineId': 'machine-1',
+        'versionId': 'ver-2026-03',
+        'title': 'Duplicate occurrence',
+        'items': [
+          {'structureOccurrenceId': 'occ-1', 'requestedQuantity': 4},
+          {'structureOccurrenceId': 'occ-1', 'requestedQuantity': 2},
+        ],
+      }),
+    );
+    final body = jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+
+    expect(response.statusCode, 422);
+    expect(
+      (body['error'] as Map<String, dynamic>)['code'],
+      'duplicate_structure_occurrence',
+    );
+  });
+
+  test('create plan rejects same requestId with different payload', () async {
+    final handler = buildHandler();
+    final first = await handler(
+      _jsonRequest('POST', 'http://localhost/v1/plans', {
+        'requestId': 'create-plan-replay',
+        'machineId': 'machine-1',
+        'versionId': 'ver-2026-03',
+        'title': 'Replay plan',
+        'items': [
+          {'structureOccurrenceId': 'occ-1', 'requestedQuantity': 4},
+        ],
+      }),
+    );
+    expect(first.statusCode, 201);
+
+    final replay = await handler(
+      _jsonRequest('POST', 'http://localhost/v1/plans', {
+        'requestId': 'create-plan-replay',
+        'machineId': 'machine-1',
+        'versionId': 'ver-2026-03',
+        'title': 'Replay plan changed',
+        'items': [
+          {'structureOccurrenceId': 'occ-2', 'requestedQuantity': 1},
+        ],
+      }),
+    );
+    final body = jsonDecode(await replay.readAsString()) as Map<String, dynamic>;
+
+    expect(replay.statusCode, 409);
+    expect(
+      (body['error'] as Map<String, dynamic>)['code'],
+      'plan_request_replayed_with_different_payload',
+    );
+  });
+
+  test('release plan creates tasks from operation occurrences', () async {
+    final handler = buildHandler();
+    final createResponse = await handler(
+      _jsonRequest('POST', 'http://localhost/v1/plans', {
+        'requestId': 'create-plan-release',
+        'machineId': 'machine-1',
+        'versionId': 'ver-2026-03',
+        'title': 'Release me',
+        'items': [
+          {'structureOccurrenceId': 'occ-2', 'requestedQuantity': 3},
+        ],
+      }),
+    );
+    final createBody =
+        jsonDecode(await createResponse.readAsString()) as Map<String, dynamic>;
+    final planId = createBody['id'] as String;
+
+    final releaseResponse = await handler(
+      _jsonRequest('POST', 'http://localhost/v1/plans/$planId/release', {
+        'requestId': 'release-plan-1',
+        'releasedBy': 'planner-1',
+      }),
+    );
+    final releaseBody =
+        jsonDecode(await releaseResponse.readAsString()) as Map<String, dynamic>;
+
+    final detailResponse = await handler(
+      Request('GET', Uri.parse('http://localhost/v1/plans/$planId')),
+    );
+    final detailBody =
+        jsonDecode(await detailResponse.readAsString()) as Map<String, dynamic>;
+
+    final tasksResponse = await handler(
+      Request('GET', Uri.parse('http://localhost/v1/tasks')),
+    );
+    final tasksBody =
+        jsonDecode(await tasksResponse.readAsString()) as Map<String, dynamic>;
+
+    expect(releaseResponse.statusCode, 200);
+    expect(releaseBody['status'], 'released');
+    expect(releaseBody['generatedTaskCount'], 2);
+    expect(detailBody['status'], 'released');
+    expect(tasksBody['count'], 4);
+  });
+
+  test('release plan is idempotent for repeated requestId and payload', () async {
+    final handler = buildHandler();
+    final createResponse = await handler(
+      _jsonRequest('POST', 'http://localhost/v1/plans', {
+        'requestId': 'create-plan-release-idempotent',
+        'machineId': 'machine-1',
+        'versionId': 'ver-2026-03',
+        'title': 'Release once',
+        'items': [
+          {'structureOccurrenceId': 'occ-1', 'requestedQuantity': 1},
+        ],
+      }),
+    );
+    final createBody =
+        jsonDecode(await createResponse.readAsString()) as Map<String, dynamic>;
+    final planId = createBody['id'] as String;
+
+    final first = await handler(
+      _jsonRequest('POST', 'http://localhost/v1/plans/$planId/release', {
+        'requestId': 'release-plan-idempotent',
+        'releasedBy': 'planner-1',
+      }),
+    );
+    final second = await handler(
+      _jsonRequest('POST', 'http://localhost/v1/plans/$planId/release', {
+        'requestId': 'release-plan-idempotent',
+        'releasedBy': 'planner-1',
+      }),
+    );
+
+    final firstBody = jsonDecode(await first.readAsString()) as Map<String, dynamic>;
+    final secondBody =
+        jsonDecode(await second.readAsString()) as Map<String, dynamic>;
+    expect(first.statusCode, 200);
+    expect(second.statusCode, 200);
+    expect(secondBody['generatedTaskCount'], firstBody['generatedTaskCount']);
+  });
+
+  test('release plan rejects lifecycle conflicts', () async {
+    final handler = buildHandler();
+    final response = await handler(
+      _jsonRequest('POST', 'http://localhost/v1/plans/plan-1/release', {
+        'requestId': 'release-existing-plan',
+        'releasedBy': 'planner-1',
+      }),
+    );
+    final body = jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+
+    expect(response.statusCode, 409);
+    expect(
+      (body['error'] as Map<String, dynamic>)['code'],
+      'plan_release_not_allowed',
+    );
   });
 
   test('preview session endpoint creates import session from xlsx', () async {

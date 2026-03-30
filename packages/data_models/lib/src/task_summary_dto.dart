@@ -23,6 +23,18 @@ class TaskSummaryDto {
     );
   }
 
+  factory TaskSummaryDto.fromJson(Map<String, Object?> json) {
+    return TaskSummaryDto(
+      id: json['id'] as String? ?? '',
+      planItemId: json['planItemId'] as String? ?? '',
+      operationOccurrenceId: json['operationOccurrenceId'] as String? ?? '',
+      requiredQuantity: (json['requiredQuantity'] as num?)?.toDouble() ?? 0,
+      assigneeId: json['assigneeId'] as String?,
+      status: json['status'] as String? ?? '',
+      isClosed: json['isClosed'] as bool? ?? false,
+    );
+  }
+
   final String id;
   final String planItemId;
   final String operationOccurrenceId;

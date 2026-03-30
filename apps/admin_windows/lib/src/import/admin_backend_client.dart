@@ -3,6 +3,26 @@ import 'package:data_models/data_models.dart';
 abstract interface class AdminBackendClient {
   Future<ApiListResponseDto<MachineSummaryDto>> listMachines();
 
+  Future<ApiListResponseDto<MachineVersionSummaryDto>> listMachineVersions(
+    String machineId,
+  );
+
+  Future<ApiListResponseDto<PlanningSourceOccurrenceDto>> listPlanningSource(
+    String machineId,
+    String versionId,
+  );
+
+  Future<ApiListResponseDto<PlanSummaryDto>> listPlans();
+
+  Future<PlanDetailDto> getPlan(String planId);
+
+  Future<PlanDetailDto> createPlan(CreatePlanRequestDto request);
+
+  Future<PlanReleaseResultDto> releasePlan(
+    String planId,
+    ReleasePlanRequestDto request,
+  );
+
   Future<ImportSessionSummaryDto> createImportPreview(
     CreateImportPreviewRequestDto request,
   );

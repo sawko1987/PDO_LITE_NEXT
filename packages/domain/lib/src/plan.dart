@@ -23,7 +23,19 @@ class Plan {
   final PlanStatus status;
   final List<PlanRevision> revisions;
 
+  bool get hasItems => items.isNotEmpty;
   bool get isReleased => status == PlanStatus.released;
+  bool get canRelease => status == PlanStatus.draft && hasItems;
+
+  bool get hasDuplicateStructureOccurrences {
+    final occurrenceIds = <String>{};
+    for (final item in items) {
+      if (!occurrenceIds.add(item.source.structureOccurrenceId)) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   bool canEditItem(PlanItem item) {
     if (!isReleased) {
@@ -40,10 +52,12 @@ class PlanItem {
     required this.source,
     required this.requestedQuantity,
     this.hasRecordedExecution = false,
-  });
+  }) : assert(requestedQuantity > 0, 'requestedQuantity must be positive.');
 
   final String id;
   final PlanItemSource source;
   final double requestedQuantity;
   final bool hasRecordedExecution;
+
+  String get structureOccurrenceId => source.structureOccurrenceId;
 }
