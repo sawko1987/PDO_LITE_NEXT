@@ -9,6 +9,8 @@ environment:
 dependencies:
   data_models:
     path: ../packages/data_models
+  domain:
+    path: ../packages/domain
   import_engine:
     path: ../packages/import_engine
   shelf: ^1.4.2

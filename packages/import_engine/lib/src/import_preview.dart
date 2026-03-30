@@ -1,4 +1,4 @@
-﻿import 'package:domain/domain.dart';
+import 'package:domain/domain.dart';
 
 class ImportPreview {
   const ImportPreview({
@@ -7,6 +7,7 @@ class ImportPreview {
     required this.operationOccurrences,
     required this.conflicts,
     required this.skippedRows,
+    this.warnings = const [],
   });
 
   final List<CatalogItem> catalogItems;
@@ -14,13 +15,14 @@ class ImportPreview {
   final List<OperationOccurrence> operationOccurrences;
   final List<ImportConflict> conflicts;
   final List<SkippedImportRow> skippedRows;
+  final List<ImportWarning> warnings;
 }
 
 class ImportConflict {
   const ImportConflict({
     required this.rowNumber,
     required this.reason,
-    required this.candidates,
+    this.candidates = const [],
   });
 
   final int rowNumber;
@@ -38,4 +40,16 @@ class SkippedImportRow {
   final int rowNumber;
   final String reason;
   final String name;
+}
+
+class ImportWarning {
+  const ImportWarning({
+    required this.code,
+    required this.message,
+    this.rowNumber,
+  });
+
+  final String code;
+  final String message;
+  final int? rowNumber;
 }

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Workbook>
+  <Worksheet Name="Import">
+    <Table>
+      <Row>
+        <Cell><Data>machine_name</Data></Cell>
+        <Cell><Data>machine_code</Data></Cell>
+        <Cell><Data>position_number</Data></Cell>
+        <Cell><Data>name</Data></Cell>
+        <Cell><Data>code</Data></Cell>
+        <Cell><Data>object_type</Data></Cell>
+        <Cell><Data>owner_name</Data></Cell>
+        <Cell><Data>nom_sv</Data></Cell>
+        <Cell><Data>workshop</Data></Cell>
+        <Cell><Data>quantity</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data>Machine 200</Data></Cell>
+        <Cell><Data>PDO-200</Data></Cell>
+        <Cell><Data>10</Data></Cell>
+        <Cell><Data>Place A</Data></Cell>
+        <Cell><Data>PLACE-A</Data></Cell>
+        <Cell><Data>place</Data></Cell>
+        <Cell><Data></Data></Cell>
+        <Cell><Data></Data></Cell>
+        <Cell><Data>Weld</Data></Cell>
+        <Cell><Data>1</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data>Machine 200</Data></Cell>
+        <Cell><Data>PDO-200</Data></Cell>
+        <Cell><Data>11</Data></Cell>
+        <Cell><Data>Detail B</Data></Cell>
+        <Cell><Data>DET-B</Data></Cell>
+        <Cell><Data>detail</Data></Cell>
+        <Cell><Data>Place A</Data></Cell>
+        <Cell><Data>10</Data></Cell>
+        <Cell><Data></Data></Cell>
+        <Cell><Data>5</Data></Cell>
+      </Row>
+      <Row>
+        <Cell><Data>Machine 200</Data></Cell>
+        <Cell><Data>PDO-200</Data></Cell>
+        <Cell><Data>12</Data></Cell>
+        <Cell><Data>Polish</Data></Cell>
+        <Cell><Data>OP-2</Data></Cell>
+        <Cell><Data>operation</Data></Cell>
+        <Cell><Data>Detail B</Data></Cell>
+        <Cell><Data>11</Data></Cell>
+        <Cell><Data></Data></Cell>
+        <Cell><Data>2</Data></Cell>
+      </Row>
+    </Table>
+  </Worksheet>
+</Workbook>

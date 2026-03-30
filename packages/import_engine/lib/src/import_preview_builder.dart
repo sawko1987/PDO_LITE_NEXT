@@ -1,4 +1,4 @@
-﻿import 'package:domain/domain.dart';
+import 'package:domain/domain.dart';
 
 import 'import_object_type.dart';
 import 'import_preview.dart';
@@ -10,6 +10,8 @@ class ImportPreviewBuilder {
   ImportPreview build({
     required String machineVersionId,
     required List<NormalizedImportRow> rows,
+    List<ImportConflict> externalConflicts = const [],
+    List<ImportWarning> externalWarnings = const [],
   }) {
     final catalogItemsByCode = <String, CatalogItem>{};
     final occurrencesByRow = <int, StructureOccurrence>{};
@@ -17,7 +19,7 @@ class ImportPreviewBuilder {
     final structuralRowsByName = <String, List<NormalizedImportRow>>{};
     final structureOccurrences = <StructureOccurrence>[];
     final operationOccurrences = <OperationOccurrence>[];
-    final conflicts = <ImportConflict>[];
+    final conflicts = <ImportConflict>[...externalConflicts];
     final skippedRows = <SkippedImportRow>[];
 
     for (final row in rows.where((row) => !row.isOperation)) {
@@ -32,8 +34,15 @@ class ImportPreviewBuilder {
         continue;
       }
 
-      final parent = _resolveParent(row: row, rowsByName: structuralRowsByName, rowsByPosition: occurrencesByPosition, occurrencesByRow: occurrencesByRow);
-      if (row.ownerName != null && row.ownerName!.trim().isNotEmpty && parent.conflict != null) {
+      final parent = _resolveParent(
+        row: row,
+        rowsByName: structuralRowsByName,
+        rowsByPosition: occurrencesByPosition,
+        occurrencesByRow: occurrencesByRow,
+      );
+      if (row.ownerName != null &&
+          row.ownerName!.trim().isNotEmpty &&
+          parent.conflict != null) {
         conflicts.add(parent.conflict!);
         continue;
       }
@@ -48,16 +57,21 @@ class ImportPreviewBuilder {
         ),
       );
 
-      final inheritedWorkshop = (row.workshop == null || row.workshop!.trim().isEmpty) && parent.occurrence?.workshop != null;
+      final inheritedWorkshop =
+          (row.workshop == null || row.workshop!.trim().isEmpty) &&
+          parent.occurrence?.workshop != null;
       final occurrence = StructureOccurrence(
         id: 'occ:${row.rowNumber}',
         versionId: machineVersionId,
         catalogItemId: catalogItem.id,
-        pathKey: '${parent.occurrence?.pathKey ?? 'root'}/${row.positionNumber}:${row.code}',
+        pathKey:
+            '${parent.occurrence?.pathKey ?? 'root'}/${row.positionNumber}:${row.code}',
         displayName: row.name,
         quantityPerMachine: row.quantity ?? 1,
         parentOccurrenceId: parent.occurrence?.id,
-        workshop: inheritedWorkshop ? parent.occurrence?.workshop : row.workshop,
+        workshop: inheritedWorkshop
+            ? parent.occurrence?.workshop
+            : row.workshop,
         inheritedWorkshop: inheritedWorkshop,
         sourcePositionNumber: row.positionNumber,
         sourceOwnerName: row.ownerName,
@@ -70,20 +84,26 @@ class ImportPreviewBuilder {
     }
 
     for (final row in rows.where((row) => row.isOperation)) {
-      final parent = _resolveParent(row: row, rowsByName: structuralRowsByName, rowsByPosition: occurrencesByPosition, occurrencesByRow: occurrencesByRow);
+      final parent = _resolveParent(
+        row: row,
+        rowsByName: structuralRowsByName,
+        rowsByPosition: occurrencesByPosition,
+        occurrencesByRow: occurrencesByRow,
+      );
       if (parent.occurrence == null) {
         conflicts.add(
           parent.conflict ??
               ImportConflict(
                 rowNumber: row.rowNumber,
                 reason: 'operation_parent_not_found',
-                candidates: const [],
               ),
         );
         continue;
       }
 
-      final inheritedWorkshop = (row.workshop == null || row.workshop!.trim().isEmpty) && parent.occurrence?.workshop != null;
+      final inheritedWorkshop =
+          (row.workshop == null || row.workshop!.trim().isEmpty) &&
+          parent.occurrence?.workshop != null;
       operationOccurrences.add(
         OperationOccurrence(
           id: 'op:${row.rowNumber}',
@@ -91,7 +111,9 @@ class ImportPreviewBuilder {
           structureOccurrenceId: parent.occurrence!.id,
           name: row.name,
           quantityPerMachine: parent.occurrence!.quantityPerMachine,
-          workshop: inheritedWorkshop ? parent.occurrence?.workshop : row.workshop,
+          workshop: inheritedWorkshop
+              ? parent.occurrence?.workshop
+              : row.workshop,
           inheritedWorkshop: inheritedWorkshop,
           sourcePositionNumber: row.positionNumber,
           sourceQuantity: row.quantity,
@@ -105,6 +127,7 @@ class ImportPreviewBuilder {
       operationOccurrences: operationOccurrences,
       conflicts: conflicts,
       skippedRows: skippedRows,
+      warnings: externalWarnings,
     );
   }
 
@@ -132,7 +155,6 @@ class ImportPreviewBuilder {
         conflict: ImportConflict(
           rowNumber: row.rowNumber,
           reason: 'parent_not_found',
-          candidates: const [],
         ),
       );
     }
@@ -142,12 +164,16 @@ class ImportPreviewBuilder {
         conflict: ImportConflict(
           rowNumber: row.rowNumber,
           reason: 'parent_ambiguous',
-          candidates: candidates.map((candidate) => candidate.positionNumber).toList(growable: false),
+          candidates: candidates
+              .map((candidate) => candidate.positionNumber)
+              .toList(growable: false),
         ),
       );
     }
 
-    return _ParentResolution(occurrence: occurrencesByRow[candidates.single.rowNumber]);
+    return _ParentResolution(
+      occurrence: occurrencesByRow[candidates.single.rowNumber],
+    );
   }
 
   bool _isSkippedSpecialProcess(NormalizedImportRow row) {
@@ -156,7 +182,8 @@ class ImportPreviewBuilder {
     }
 
     const blockedNames = {'ХимОбработка', 'Литье'};
-    return blockedNames.contains(row.name.trim()) || blockedNames.contains(row.ownerName?.trim());
+    return blockedNames.contains(row.name.trim()) ||
+        blockedNames.contains(row.ownerName?.trim());
   }
 
   CatalogItemKind _mapCatalogKind(ImportObjectType objectType) {
@@ -181,11 +208,8 @@ class ImportPreviewBuilder {
 class _ParentResolution {
   const _ParentResolution({this.occurrence, this.conflict});
 
-  const _ParentResolution.root()
-      : occurrence = null,
-        conflict = null;
+  const _ParentResolution.root() : occurrence = null, conflict = null;
 
   final StructureOccurrence? occurrence;
   final ImportConflict? conflict;
 }
-

@@ -1,30 +1,21 @@
-import 'dart:convert';
 import 'dart:io';
 
-import 'package:data_models/data_models.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_router/shelf_router.dart';
 
+import 'src/api/system_routes.dart';
+import 'src/api/v1_routes.dart';
+import 'src/import/import_session_service.dart';
+import 'src/store/demo_contract_store.dart';
+
 Handler buildHandler() {
-  final router = Router()
-    ..get('/health', (Request request) {
-      final dto = ServiceHealthDto(
-        status: 'ok',
-        service: 'pdo_lite_next_backend',
-        timestamp: DateTime.now().toUtc(),
-      );
-      return Response.ok(jsonEncode(dto.toJson()), headers: {'content-type': 'application/json'});
-    })
-    ..get('/bootstrap', (Request request) {
-      const dto = BootstrapSummaryDto(
-        sourceOfTruth: 'local_database',
-        importMode: 'preview_first_excel_import',
-        planSource: 'structure_occurrences',
-        taskGenerationMode: 'on_plan_release',
-      );
-      return Response.ok(jsonEncode(dto.toJson()), headers: {'content-type': 'application/json'});
-    });
+  final router = Router();
+  final store = DemoContractStore();
+  final importSessionService = ImportSessionService(store);
+
+  router.mount('/', buildSystemRouter().call);
+  router.mount('/v1/', buildV1Router(store, importSessionService).call);
 
   return const Pipeline().addMiddleware(logRequests()).addHandler(router.call);
 }

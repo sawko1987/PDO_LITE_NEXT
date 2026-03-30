@@ -1,4 +1,4 @@
-﻿enum ImportObjectType {
+enum ImportObjectType {
   machine,
   place,
   node,

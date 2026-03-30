@@ -9,6 +9,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  data_models:
+    path: ../../packages/data_models
+  file_selector: ^1.0.3
+  http: ^1.2.2
   shared_ui:
     path: ../../packages/shared_ui
 

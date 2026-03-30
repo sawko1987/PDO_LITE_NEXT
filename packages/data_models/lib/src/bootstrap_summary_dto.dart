@@ -1,4 +1,4 @@
-﻿class BootstrapSummaryDto {
+class BootstrapSummaryDto {
   const BootstrapSummaryDto({
     required this.sourceOfTruth,
     required this.importMode,
@@ -12,9 +12,9 @@
   final String taskGenerationMode;
 
   Map<String, Object?> toJson() => {
-        'sourceOfTruth': sourceOfTruth,
-        'importMode': importMode,
-        'planSource': planSource,
-        'taskGenerationMode': taskGenerationMode,
-      };
+    'sourceOfTruth': sourceOfTruth,
+    'importMode': importMode,
+    'planSource': planSource,
+    'taskGenerationMode': taskGenerationMode,
+  };
 }

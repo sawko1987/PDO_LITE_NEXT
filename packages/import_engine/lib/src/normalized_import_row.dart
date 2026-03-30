@@ -1,4 +1,4 @@
-﻿import 'import_object_type.dart';
+import 'import_object_type.dart';
 
 class NormalizedImportRow {
   const NormalizedImportRow({
