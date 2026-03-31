@@ -33,6 +33,8 @@ void main() {
         await controller.submitExecutionReport(
           taskId: 'task-1',
           reportedQuantity: 3,
+          outcome: 'partial',
+          reason: 'Need rework on remaining pieces.',
         );
 
         expect(controller.outboxItems.first.status, MasterOutboxStatus.sent);
@@ -40,8 +42,10 @@ void main() {
           controller.outboxItems.first.operationType,
           MasterOutboxOperationType.executionReport,
         );
+        expect(controller.outboxItems.first.reportOutcome, 'partial');
         expect(controller.selectedTask?.reportedQuantity, 9);
         expect(controller.selectedTask?.remainingQuantity, 3);
+        expect(controller.reportFeedbackMessage, 'WIP updated (3.0 pcs).');
       },
     );
 
@@ -56,6 +60,8 @@ void main() {
       await controller.submitExecutionReport(
         taskId: 'task-1',
         reportedQuantity: 2,
+        outcome: 'partial',
+        reason: 'Paused before finishing batch.',
       );
 
       expect(controller.outboxItems.first.status, MasterOutboxStatus.failed);
@@ -182,6 +188,7 @@ class _FakeMasterBackendClient implements MasterBackendClient {
         reportedBy: 'master-1',
         reportedAt: DateTime.utc(2026, 3, 31, 9),
         reportedQuantity: 6,
+        outcome: 'partial',
         acceptedAt: DateTime.utc(2026, 3, 31, 9, 5),
         isAccepted: true,
       ),
@@ -257,7 +264,9 @@ class _FakeMasterBackendClient implements MasterBackendClient {
 
     final task = _tasks[taskId]!;
     final reportedTotal = task.reportedQuantity + request.reportedQuantity;
-    final remaining = task.requiredQuantity - reportedTotal;
+    final remaining = reportedTotal >= task.requiredQuantity
+        ? 0.0
+        : task.requiredQuantity - reportedTotal;
     final nextStatus = remaining == 0 ? 'completed' : 'inProgress';
     final report = ExecutionReportDto(
       id: 'report-${_reports[taskId]!.length + 1}',
@@ -265,6 +274,7 @@ class _FakeMasterBackendClient implements MasterBackendClient {
       reportedBy: request.reportedBy,
       reportedAt: DateTime.utc(2026, 3, 31, 10),
       reportedQuantity: request.reportedQuantity,
+      outcome: request.outcome,
       reason: request.reason,
       acceptedAt: DateTime.utc(2026, 3, 31, 10, 1),
       isAccepted: true,
@@ -293,6 +303,14 @@ class _FakeMasterBackendClient implements MasterBackendClient {
       reportedQuantityTotal: reportedTotal,
       remainingQuantity: remaining,
       outboxStatus: 'sent',
+      wipEffect: request.outcome == 'completed'
+          ? const ExecutionReportWipEffectDto(type: 'consumed')
+          : ExecutionReportWipEffectDto(
+              type: 'updated',
+              wipEntryId: 'wip-1',
+              balanceQuantity: remaining,
+              status: 'open',
+            ),
     );
   }
 

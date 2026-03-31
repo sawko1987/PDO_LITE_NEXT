@@ -23,9 +23,7 @@ void main() {
           ),
         ],
       );
-      final controller = ImportFlowController(
-        client: client,
-      );
+      final controller = ImportFlowController(client: client);
       final planController = PlanBoardController(client: client);
 
       await tester.pumpWidget(
@@ -53,9 +51,7 @@ void main() {
         ),
       ],
     );
-    final controller = ImportFlowController(
-      client: client,
-    );
+    final controller = ImportFlowController(client: client);
     final planController = PlanBoardController(client: client);
     controller.setSelectedFile(
       fileName: 'conflict.mxl',
@@ -70,7 +66,10 @@ void main() {
 
     expect(find.text('Conflicts'), findsOneWidget);
     expect(find.text('Warnings'), findsOneWidget);
-    expect(find.textContaining('Current preview cannot be confirmed'), findsNothing);
+    expect(
+      find.textContaining('Current preview cannot be confirmed'),
+      findsNothing,
+    );
   });
 
   testWidgets('plans tab renders plan board and seeded plan index', (
@@ -90,7 +89,9 @@ void main() {
     await planController.bootstrap();
 
     await tester.pumpWidget(
-      MaterialApp(home: Scaffold(body: PlanWorkspace(controller: planController))),
+      MaterialApp(
+        home: Scaffold(body: PlanWorkspace(controller: planController)),
+      ),
     );
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
@@ -319,6 +320,28 @@ class _FakeBackendClient implements AdminBackendClient {
         ),
       ],
       meta: const {'resource': 'planning_source'},
+    );
+  }
+
+  @override
+  Future<ApiListResponseDto<WipEntryDto>> listWipEntries() async {
+    return const ApiListResponseDto(
+      items: [
+        WipEntryDto(
+          id: 'wip-1',
+          machineId: 'machine-1',
+          versionId: 'ver-1',
+          structureOccurrenceId: 'occ-1',
+          operationOccurrenceId: 'op-1',
+          balanceQuantity: 2,
+          status: 'open',
+          blocksCompletion: true,
+          taskId: 'task-1',
+          sourceReportId: 'report-1',
+          sourceOutcome: 'partial',
+        ),
+      ],
+      meta: {'resource': 'wip_entries'},
     );
   }
 

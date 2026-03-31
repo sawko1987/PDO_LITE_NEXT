@@ -6,20 +6,17 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('PlanBoardController', () {
     test('loads machines and plans during bootstrap', () async {
-      final controller = PlanBoardController(
-        client: _FakePlanBackendClient(),
-      );
+      final controller = PlanBoardController(client: _FakePlanBackendClient());
 
       await controller.bootstrap();
 
       expect(controller.machines, hasLength(1));
       expect(controller.plans.single.title, 'Seed plan');
+      expect(controller.wipEntries.single.id, 'wip-1');
     });
 
     test('selecting machine loads versions and planning source', () async {
-      final controller = PlanBoardController(
-        client: _FakePlanBackendClient(),
-      );
+      final controller = PlanBoardController(client: _FakePlanBackendClient());
 
       await controller.loadMachines();
       await controller.selectMachine('machine-1');
@@ -30,9 +27,7 @@ void main() {
     });
 
     test('create draft and release refresh active plan state', () async {
-      final controller = PlanBoardController(
-        client: _FakePlanBackendClient(),
-      );
+      final controller = PlanBoardController(client: _FakePlanBackendClient());
 
       await controller.loadMachines();
       await controller.selectMachine('machine-1');
@@ -206,6 +201,28 @@ class _FakePlanBackendClient implements AdminBackendClient {
         ),
       ],
       meta: {'resource': 'planning_source'},
+    );
+  }
+
+  @override
+  Future<ApiListResponseDto<WipEntryDto>> listWipEntries() async {
+    return const ApiListResponseDto(
+      items: [
+        WipEntryDto(
+          id: 'wip-1',
+          machineId: 'machine-1',
+          versionId: 'ver-1',
+          structureOccurrenceId: 'occ-1',
+          operationOccurrenceId: 'op-1',
+          balanceQuantity: 3,
+          status: 'open',
+          blocksCompletion: true,
+          taskId: 'task-1',
+          sourceReportId: 'report-1',
+          sourceOutcome: 'partial',
+        ),
+      ],
+      meta: {'resource': 'wip_entries'},
     );
   }
 

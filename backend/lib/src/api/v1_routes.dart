@@ -312,6 +312,7 @@ Router buildV1Router(
             taskId: taskId,
             reportedBy: dto.reportedBy,
             reportedQuantity: dto.reportedQuantity,
+            outcome: _parseExecutionReportOutcome(dto.outcome),
             reason: dto.reason,
           ),
         );
@@ -322,6 +323,12 @@ Router buildV1Router(
             reportedQuantityTotal: result.reportedQuantityTotal,
             remainingQuantity: result.remainingQuantity,
             outboxStatus: 'sent',
+            wipEffect: ExecutionReportWipEffectDto(
+              type: result.wipEffect.type,
+              wipEntryId: result.wipEffect.entry?.id,
+              balanceQuantity: result.wipEffect.entry?.balanceQuantity,
+              status: result.wipEffect.entry?.status.name,
+            ),
           ).toJson(),
           statusCode: 201,
         );
@@ -618,11 +625,26 @@ TaskDetailDto _toTaskDetailDto(ProductionTask task, DemoContractStore store) {
     workshop: operation.workshop ?? occurrence.workshop ?? '',
     requiredQuantity: task.requiredQuantity,
     reportedQuantity: reportedQuantity,
-    remainingQuantity: task.requiredQuantity - reportedQuantity,
+    remainingQuantity: reportedQuantity >= task.requiredQuantity
+        ? 0
+        : task.requiredQuantity - reportedQuantity,
     assigneeId: task.assigneeId,
     status: task.status.name,
     isClosed: task.isClosed,
   );
+}
+
+ExecutionReportOutcome _parseExecutionReportOutcome(String value) {
+  return switch (value) {
+    'completed' => ExecutionReportOutcome.completed,
+    'partial' => ExecutionReportOutcome.partial,
+    'not_completed' => ExecutionReportOutcome.notCompleted,
+    'overrun' => ExecutionReportOutcome.overrun,
+    _ => throw const DemoStoreValidation(
+      'invalid_report_outcome',
+      'Execution report outcome is not supported.',
+    ),
+  };
 }
 
 ProblemSummaryDto _toProblemSummaryDto(

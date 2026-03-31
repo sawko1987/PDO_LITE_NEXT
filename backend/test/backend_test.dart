@@ -99,6 +99,7 @@ void main() {
     expect(response.statusCode, 200);
     expect(body['count'], 1);
     expect((body['items'] as List).single['isAccepted'], isTrue);
+    expect((body['items'] as List).single['outcome'], 'partial');
   });
 
   test('tasks endpoint supports assignee filter', () async {
@@ -139,6 +140,8 @@ void main() {
         'requestId': 'report-task-1',
         'reportedBy': 'master-1',
         'reportedQuantity': 3,
+        'outcome': 'partial',
+        'reason': 'Need rework on the remaining pieces.',
       }),
     );
     final body =
@@ -153,6 +156,7 @@ void main() {
     expect(response.statusCode, 201);
     expect(body['taskStatus'], 'inProgress');
     expect(body['reportedQuantityTotal'], 9);
+    expect((body['wipEffect'] as Map<String, dynamic>)['type'], 'updated');
     expect(detailBody['remainingQuantity'], 3);
   });
 
@@ -165,6 +169,7 @@ void main() {
           'requestId': 'report-task-complete',
           'reportedBy': 'master-1',
           'reportedQuantity': 6,
+          'outcome': 'completed',
         }),
       );
       final body =
@@ -173,6 +178,7 @@ void main() {
       expect(response.statusCode, 201);
       expect(body['taskStatus'], 'completed');
       expect(body['remainingQuantity'], 0);
+      expect((body['wipEffect'] as Map<String, dynamic>)['type'], 'consumed');
     },
   );
 
@@ -185,6 +191,8 @@ void main() {
           'requestId': 'report-task-idempotent',
           'reportedBy': 'master-1',
           'reportedQuantity': 2,
+          'outcome': 'partial',
+          'reason': 'Paused for inspection.',
         }),
       );
       final second = await handler(
@@ -192,6 +200,8 @@ void main() {
           'requestId': 'report-task-idempotent',
           'reportedBy': 'master-1',
           'reportedQuantity': 2,
+          'outcome': 'partial',
+          'reason': 'Paused for inspection.',
         }),
       );
 
@@ -218,6 +228,8 @@ void main() {
           'requestId': 'report-task-replay',
           'reportedBy': 'master-1',
           'reportedQuantity': 2,
+          'outcome': 'partial',
+          'reason': 'First payload.',
         }),
       );
       expect(first.statusCode, 201);
@@ -227,6 +239,8 @@ void main() {
           'requestId': 'report-task-replay',
           'reportedBy': 'master-1',
           'reportedQuantity': 4,
+          'outcome': 'partial',
+          'reason': 'Different payload.',
         }),
       );
       final body =
@@ -240,24 +254,90 @@ void main() {
     },
   );
 
-  test('create execution report rejects quantity above remaining', () async {
-    final handler = buildHandler();
-    final response = await handler(
-      _jsonRequest('POST', 'http://localhost/v1/tasks/task-1/reports', {
-        'requestId': 'report-task-overflow',
-        'reportedBy': 'master-1',
-        'reportedQuantity': 7,
-      }),
-    );
-    final body =
-        jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+  test(
+    'create execution report accepts overrun and creates WIP entry',
+    () async {
+      final handler = buildHandler();
+      final response = await handler(
+        _jsonRequest('POST', 'http://localhost/v1/tasks/task-1/reports', {
+          'requestId': 'report-task-overflow',
+          'reportedBy': 'master-1',
+          'reportedQuantity': 7,
+          'outcome': 'overrun',
+          'reason': 'Finished extra unit from same setup.',
+        }),
+      );
+      final body =
+          jsonDecode(await response.readAsString()) as Map<String, dynamic>;
 
-    expect(response.statusCode, 422);
-    expect(
-      (body['error'] as Map<String, dynamic>)['code'],
-      'report_exceeds_required_quantity',
-    );
-  });
+      final wipResponse = await handler(
+        Request('GET', Uri.parse('http://localhost/v1/wip')),
+      );
+      final wipBody =
+          jsonDecode(await wipResponse.readAsString()) as Map<String, dynamic>;
+
+      expect(response.statusCode, 201);
+      expect(body['taskStatus'], 'completed');
+      expect(body['remainingQuantity'], 0);
+      expect((body['wipEffect'] as Map<String, dynamic>)['type'], 'updated');
+      expect((body['wipEffect'] as Map<String, dynamic>)['balanceQuantity'], 1);
+      expect(
+        (wipBody['items'] as List)
+            .where(
+              (item) => (item as Map<String, dynamic>)['taskId'] == 'task-1',
+            )
+            .single['sourceOutcome'],
+        'overrun',
+      );
+    },
+  );
+
+  test(
+    'create execution report accepts not completed with zero quantity',
+    () async {
+      final handler = buildHandler();
+      final response = await handler(
+        _jsonRequest('POST', 'http://localhost/v1/tasks/task-1/reports', {
+          'requestId': 'report-task-not-completed',
+          'reportedBy': 'master-1',
+          'reportedQuantity': 0,
+          'outcome': 'not_completed',
+          'reason': 'Machine was blocked for the whole shift.',
+        }),
+      );
+      final body =
+          jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+
+      expect(response.statusCode, 201);
+      expect(body['taskStatus'], 'inProgress');
+      expect(body['reportedQuantityTotal'], 6);
+      expect((body['wipEffect'] as Map<String, dynamic>)['type'], 'updated');
+      expect((body['wipEffect'] as Map<String, dynamic>)['balanceQuantity'], 6);
+    },
+  );
+
+  test(
+    'create execution report rejects outcome and quantity mismatch',
+    () async {
+      final handler = buildHandler();
+      final response = await handler(
+        _jsonRequest('POST', 'http://localhost/v1/tasks/task-1/reports', {
+          'requestId': 'report-task-invalid-outcome',
+          'reportedBy': 'master-1',
+          'reportedQuantity': 3,
+          'outcome': 'completed',
+        }),
+      );
+      final body =
+          jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+
+      expect(response.statusCode, 422);
+      expect(
+        (body['error'] as Map<String, dynamic>)['code'],
+        'invalid_report_outcome',
+      );
+    },
+  );
 
   test('create execution report rejects closed task', () async {
     final handler = buildHandler();
@@ -266,6 +346,7 @@ void main() {
         'requestId': 'report-task-close',
         'reportedBy': 'master-1',
         'reportedQuantity': 6,
+        'outcome': 'completed',
       }),
     );
 
@@ -274,6 +355,8 @@ void main() {
         'requestId': 'report-task-after-close',
         'reportedBy': 'master-1',
         'reportedQuantity': 1,
+        'outcome': 'partial',
+        'reason': 'Late replay after close.',
       }),
     );
     final body =

@@ -12,6 +12,7 @@ class PlanBoardController extends ChangeNotifier {
   final List<MachineVersionSummaryDto> _versions = [];
   final List<PlanningSourceOccurrenceDto> _planningSource = [];
   final List<PlanSummaryDto> _plans = [];
+  final List<WipEntryDto> _wipEntries = [];
   final Map<String, double> _draftQuantities = {};
   String? _selectedMachineId;
   String? _selectedVersionId;
@@ -25,6 +26,7 @@ class PlanBoardController extends ChangeNotifier {
   bool _isPlanningSourceLoading = false;
   bool _isSavingPlan = false;
   bool _isReleasingPlan = false;
+  bool _isWipLoading = false;
   int _requestSequence = 0;
 
   List<MachineSummaryDto> get machines => List.unmodifiable(_machines);
@@ -32,6 +34,7 @@ class PlanBoardController extends ChangeNotifier {
   List<PlanningSourceOccurrenceDto> get planningSource =>
       List.unmodifiable(_planningSource);
   List<PlanSummaryDto> get plans => List.unmodifiable(_plans);
+  List<WipEntryDto> get wipEntries => List.unmodifiable(_wipEntries);
   String? get selectedMachineId => _selectedMachineId;
   String? get selectedVersionId => _selectedVersionId;
   String get planTitle => _planTitle;
@@ -44,13 +47,35 @@ class PlanBoardController extends ChangeNotifier {
   bool get isPlanningSourceLoading => _isPlanningSourceLoading;
   bool get isSavingPlan => _isSavingPlan;
   bool get isReleasingPlan => _isReleasingPlan;
+  bool get isWipLoading => _isWipLoading;
   bool get isBusy =>
       _isMachinesLoading ||
       _isPlansLoading ||
       _isVersionsLoading ||
       _isPlanningSourceLoading ||
       _isSavingPlan ||
-      _isReleasingPlan;
+      _isReleasingPlan ||
+      _isWipLoading;
+
+  List<WipEntryDto> get visibleWipEntries {
+    final machineId = _activePlan?.machineId ?? _selectedMachineId;
+    final versionId = _activePlan?.versionId ?? _selectedVersionId;
+    return _wipEntries
+        .where((entry) {
+          if (machineId != null &&
+              machineId.isNotEmpty &&
+              entry.machineId != machineId) {
+            return false;
+          }
+          if (versionId != null &&
+              versionId.isNotEmpty &&
+              entry.versionId != versionId) {
+            return false;
+          }
+          return true;
+        })
+        .toList(growable: false);
+  }
 
   List<DraftPlanSelection> get draftSelections => _draftQuantities.entries
       .map(
@@ -91,7 +116,7 @@ class PlanBoardController extends ChangeNotifier {
       _activePlan!.canRelease;
 
   Future<void> bootstrap() async {
-    await Future.wait([loadMachines(), loadPlans()]);
+    await Future.wait([loadMachines(), loadPlans(), loadWipEntries()]);
   }
 
   Future<void> loadMachines() async {
@@ -112,6 +137,7 @@ class PlanBoardController extends ChangeNotifier {
         _planningSource.clear();
         _draftQuantities.clear();
       }
+      await loadWipEntries();
     } catch (error) {
       _errorMessage = _describeError(error);
     } finally {
@@ -150,6 +176,7 @@ class PlanBoardController extends ChangeNotifier {
     notifyListeners();
 
     if (machineId == null || machineId.isEmpty) {
+      await loadWipEntries();
       return;
     }
 
@@ -171,6 +198,7 @@ class PlanBoardController extends ChangeNotifier {
       if (preferredVersionId != null && preferredVersionId.isNotEmpty) {
         await _loadPlanningSource();
       }
+      await loadWipEntries();
     } catch (error) {
       _errorMessage = _describeError(error);
     } finally {
@@ -189,9 +217,11 @@ class PlanBoardController extends ChangeNotifier {
     notifyListeners();
 
     if (versionId == null || versionId.isEmpty) {
+      await loadWipEntries();
       return;
     }
     await _loadPlanningSource();
+    await loadWipEntries();
   }
 
   void setPlanTitle(String value) {
@@ -252,7 +282,7 @@ class PlanBoardController extends ChangeNotifier {
       _activePlan = detail;
       _draftQuantities.clear();
       _planTitle = '';
-      await loadPlans();
+      await Future.wait([loadPlans(), loadWipEntries()]);
     } catch (error) {
       _errorMessage = _describeError(error);
     } finally {
@@ -267,6 +297,7 @@ class PlanBoardController extends ChangeNotifier {
 
     try {
       _activePlan = await client.getPlan(planId);
+      await loadWipEntries();
     } catch (error) {
       _errorMessage = _describeError(error);
       notifyListeners();
@@ -294,7 +325,7 @@ class PlanBoardController extends ChangeNotifier {
         ),
       );
       _activePlan = await client.getPlan(plan.id);
-      await loadPlans();
+      await Future.wait([loadPlans(), loadWipEntries()]);
     } catch (error) {
       _errorMessage = _describeError(error);
     } finally {
@@ -325,6 +356,23 @@ class PlanBoardController extends ChangeNotifier {
       _errorMessage = _describeError(error);
     } finally {
       _isPlanningSourceLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadWipEntries() async {
+    _isWipLoading = true;
+    notifyListeners();
+
+    try {
+      final response = await client.listWipEntries();
+      _wipEntries
+        ..clear()
+        ..addAll(response.items);
+    } catch (error) {
+      _errorMessage = _describeError(error);
+    } finally {
+      _isWipLoading = false;
       notifyListeners();
     }
   }

@@ -283,6 +283,14 @@ class FakeAdminBackendClient implements AdminBackendClient {
   }
 
   @override
+  Future<ApiListResponseDto<WipEntryDto>> listWipEntries() async {
+    return const ApiListResponseDto(
+      items: [],
+      meta: {'resource': 'wip_entries'},
+    );
+  }
+
+  @override
   Future<PlanReleaseResultDto> releasePlan(
     String planId,
     ReleasePlanRequestDto request,

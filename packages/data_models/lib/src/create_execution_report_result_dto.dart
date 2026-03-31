@@ -1,4 +1,5 @@
 import 'execution_report_dto.dart';
+import 'execution_report_wip_effect_dto.dart';
 
 class CreateExecutionReportResultDto {
   const CreateExecutionReportResultDto({
@@ -7,6 +8,7 @@ class CreateExecutionReportResultDto {
     required this.reportedQuantityTotal,
     required this.remainingQuantity,
     required this.outboxStatus,
+    this.wipEffect,
   });
 
   factory CreateExecutionReportResultDto.fromJson(Map<String, Object?> json) {
@@ -20,6 +22,7 @@ class CreateExecutionReportResultDto {
           (json['reportedQuantityTotal'] as num?)?.toDouble() ?? 0,
       remainingQuantity: (json['remainingQuantity'] as num?)?.toDouble() ?? 0,
       outboxStatus: json['outboxStatus'] as String? ?? '',
+      wipEffect: _parseWipEffect(json['wipEffect']),
     );
   }
 
@@ -28,6 +31,7 @@ class CreateExecutionReportResultDto {
   final double reportedQuantityTotal;
   final double remainingQuantity;
   final String outboxStatus;
+  final ExecutionReportWipEffectDto? wipEffect;
 
   Map<String, Object?> toJson() => {
     'report': report.toJson(),
@@ -35,5 +39,14 @@ class CreateExecutionReportResultDto {
     'reportedQuantityTotal': reportedQuantityTotal,
     'remainingQuantity': remainingQuantity,
     'outboxStatus': outboxStatus,
+    'wipEffect': wipEffect?.toJson(),
   };
+}
+
+ExecutionReportWipEffectDto? _parseWipEffect(Object? rawValue) {
+  final effect = (rawValue as Map<Object?, Object?>?)?.cast<String, Object?>();
+  if (effect == null) {
+    return null;
+  }
+  return ExecutionReportWipEffectDto.fromJson(effect);
 }

@@ -23,6 +23,8 @@ abstract interface class AdminBackendClient {
     ReleasePlanRequestDto request,
   );
 
+  Future<ApiListResponseDto<WipEntryDto>> listWipEntries();
+
   Future<ImportSessionSummaryDto> createImportPreview(
     CreateImportPreviewRequestDto request,
   );

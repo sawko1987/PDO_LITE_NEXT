@@ -11,6 +11,7 @@ export 'src/create_plan_request_dto.dart';
 export 'src/create_problem_request_dto.dart';
 export 'src/create_import_preview_request_dto.dart';
 export 'src/execution_report_dto.dart';
+export 'src/execution_report_wip_effect_dto.dart';
 export 'src/import_conflict_dto.dart';
 export 'src/import_preview_dto.dart';
 export 'src/import_session_summary_dto.dart';

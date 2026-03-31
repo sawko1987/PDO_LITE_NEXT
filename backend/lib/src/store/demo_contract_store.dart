@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:domain/domain.dart';
 
 class DemoContractStore {
@@ -166,6 +168,7 @@ class DemoContractStore {
             reportedBy: 'master-1',
             reportedAt: DateTime.utc(2026, 3, 28, 10, 30),
             reportedQuantity: 6,
+            outcome: ExecutionReportOutcome.partial,
             acceptedAt: DateTime.utc(2026, 3, 28, 10, 35),
           ),
         ],
@@ -193,14 +196,17 @@ class DemoContractStore {
           ),
         ],
       },
-      _wipEntries = const [
+      _wipEntries = [
         WipEntry(
           id: 'wip-1',
           machineId: 'machine-1',
           versionId: 'ver-2026-03',
           structureOccurrenceId: 'occ-1',
           operationOccurrenceId: 'op-1',
-          balanceQuantity: 2,
+          balanceQuantity: 6,
+          taskId: 'task-1',
+          sourceReportId: 'report-1',
+          sourceOutcome: ExecutionReportOutcome.partial,
           status: WipEntryStatus.open,
         ),
       ],
@@ -587,19 +593,13 @@ class DemoContractStore {
     }
 
     final currentReported = reportedQuantityForTask(command.taskId);
+    final remainingBefore = task.requiredQuantity - currentReported;
+    _validateExecutionReportOutcome(
+      command: command,
+      task: task,
+      remainingBefore: remainingBefore,
+    );
     final nextReported = currentReported + command.reportedQuantity;
-    if (nextReported > task.requiredQuantity) {
-      throw DemoStoreValidation(
-        'report_exceeds_required_quantity',
-        'Execution report exceeds remaining task quantity.',
-        details: {
-          'taskId': command.taskId,
-          'requiredQuantity': task.requiredQuantity,
-          'reportedQuantityTotal': currentReported,
-          'incomingReportedQuantity': command.reportedQuantity,
-        },
-      );
-    }
 
     final report = ExecutionReport(
       id: 'report-${++_reportSequence}',
@@ -607,15 +607,19 @@ class DemoContractStore {
       reportedBy: command.reportedBy,
       reportedAt: DateTime.now().toUtc(),
       reportedQuantity: command.reportedQuantity,
+      outcome: command.outcome,
       reason: command.reason,
       acceptedAt: DateTime.now().toUtc(),
     );
     final reports = [...(_reportsByTask[command.taskId] ?? const []), report];
     _reportsByTask[command.taskId] = List.unmodifiable(reports);
 
-    final nextStatus = nextReported == task.requiredQuantity
+    final nextStatus = nextReported >= task.requiredQuantity
         ? TaskStatus.completed
-        : TaskStatus.inProgress;
+        : (nextReported > 0 ||
+              command.outcome == ExecutionReportOutcome.notCompleted)
+        ? TaskStatus.inProgress
+        : TaskStatus.pending;
     final updatedTask = ProductionTask(
       id: task.id,
       planItemId: task.planItemId,
@@ -647,11 +651,18 @@ class DemoContractStore {
       );
     }
 
+    final wipEffect = _applyExecutionReportWipEffect(
+      task: updatedTask,
+      report: report,
+      reportedQuantityTotal: nextReported,
+    );
+
     final result = CreateExecutionReportResult(
       report: report,
       taskStatus: updatedTask.status,
       reportedQuantityTotal: nextReported,
-      remainingQuantity: task.requiredQuantity - nextReported,
+      remainingQuantity: max(0.0, task.requiredQuantity - nextReported),
+      wipEffect: wipEffect,
     );
     _reportByRequestId[command.requestId] = _StoredExecutionReportCommand(
       signature: requestSignature,
@@ -983,10 +994,10 @@ class DemoContractStore {
         'requestId, taskId, and reportedBy are required.',
       );
     }
-    if (command.reportedQuantity <= 0) {
+    if (command.reportedQuantity < 0) {
       throw const DemoStoreValidation(
         'invalid_reported_quantity',
-        'reportedQuantity must be greater than zero.',
+        'reportedQuantity must be zero or greater.',
       );
     }
   }
@@ -1039,7 +1050,188 @@ class DemoContractStore {
   String _buildCreateExecutionReportSignature(
     CreateExecutionReportCommand command,
   ) {
-    return '${command.taskId}::${command.reportedBy}::${command.reportedQuantity}::${command.reason ?? ''}';
+    return '${command.taskId}::${command.reportedBy}::${command.reportedQuantity}::${command.outcome.name}::${command.reason ?? ''}';
+  }
+
+  void _validateExecutionReportOutcome({
+    required CreateExecutionReportCommand command,
+    required ProductionTask task,
+    required double remainingBefore,
+  }) {
+    switch (command.outcome) {
+      case ExecutionReportOutcome.completed:
+        if (remainingBefore <= 0 ||
+            command.reportedQuantity != remainingBefore) {
+          throw DemoStoreValidation(
+            'invalid_report_outcome',
+            'Completed outcome must exactly match the remaining task quantity.',
+            details: {
+              'taskId': task.id,
+              'remainingQuantity': remainingBefore,
+              'reportedQuantity': command.reportedQuantity,
+              'outcome': command.outcome.name,
+            },
+          );
+        }
+        break;
+      case ExecutionReportOutcome.partial:
+        if (command.reportedQuantity <= 0 ||
+            command.reportedQuantity >= remainingBefore) {
+          throw DemoStoreValidation(
+            'invalid_report_outcome',
+            'Partial outcome must report a positive quantity below the remaining task quantity.',
+            details: {
+              'taskId': task.id,
+              'remainingQuantity': remainingBefore,
+              'reportedQuantity': command.reportedQuantity,
+              'outcome': command.outcome.name,
+            },
+          );
+        }
+        if (command.reason == null || command.reason!.trim().isEmpty) {
+          throw const DemoStoreValidation(
+            'invalid_report_reason',
+            'Partial outcome requires a reason.',
+          );
+        }
+        break;
+      case ExecutionReportOutcome.notCompleted:
+        if (command.reportedQuantity != 0) {
+          throw DemoStoreValidation(
+            'invalid_report_outcome',
+            'Not completed outcome must keep reportedQuantity at zero.',
+            details: {
+              'taskId': task.id,
+              'remainingQuantity': remainingBefore,
+              'reportedQuantity': command.reportedQuantity,
+              'outcome': command.outcome.name,
+            },
+          );
+        }
+        if (command.reason == null || command.reason!.trim().isEmpty) {
+          throw const DemoStoreValidation(
+            'invalid_report_reason',
+            'Not completed outcome requires a reason.',
+          );
+        }
+        break;
+      case ExecutionReportOutcome.overrun:
+        if (command.reportedQuantity <= remainingBefore) {
+          throw DemoStoreValidation(
+            'invalid_report_outcome',
+            'Overrun outcome must exceed the remaining task quantity.',
+            details: {
+              'taskId': task.id,
+              'remainingQuantity': remainingBefore,
+              'reportedQuantity': command.reportedQuantity,
+              'outcome': command.outcome.name,
+            },
+          );
+        }
+        break;
+    }
+  }
+
+  ExecutionReportWipEffect _applyExecutionReportWipEffect({
+    required ProductionTask task,
+    required ExecutionReport report,
+    required double reportedQuantityTotal,
+  }) {
+    final operation = getOperationOccurrence(task.operationOccurrenceId);
+    final plan = getPlanByItemId(task.planItemId);
+    final balanceQuantity = switch (report.outcome) {
+      ExecutionReportOutcome.completed => 0.0,
+      ExecutionReportOutcome.partial || ExecutionReportOutcome.notCompleted =>
+        max(0.0, task.requiredQuantity - reportedQuantityTotal),
+      ExecutionReportOutcome.overrun => max(
+        0.0,
+        reportedQuantityTotal - task.requiredQuantity,
+      ),
+    };
+    final existingIndex = _wipEntries.indexWhere(
+      (entry) => entry.taskId == task.id && entry.status == WipEntryStatus.open,
+    );
+
+    if (balanceQuantity <= 0) {
+      if (existingIndex == -1) {
+        return const ExecutionReportWipEffect(type: 'none');
+      }
+      final existing = _wipEntries[existingIndex];
+      final consumed = WipEntry(
+        id: existing.id,
+        machineId: existing.machineId,
+        versionId: existing.versionId,
+        structureOccurrenceId: existing.structureOccurrenceId,
+        operationOccurrenceId: existing.operationOccurrenceId,
+        balanceQuantity: 0,
+        taskId: existing.taskId,
+        sourceReportId: report.id,
+        sourceOutcome: report.outcome,
+        status: WipEntryStatus.consumed,
+      );
+      _wipEntries[existingIndex] = consumed;
+      _appendAudit(
+        entityType: 'wip_entry',
+        entityId: consumed.id,
+        action: AuditAction.updated,
+        changedBy: report.reportedBy,
+        field: 'status',
+        beforeValue: existing.status.name,
+        afterValue: consumed.status.name,
+      );
+      return ExecutionReportWipEffect(type: 'consumed', entry: consumed);
+    }
+
+    if (existingIndex == -1) {
+      final created = WipEntry(
+        id: 'wip-${_wipEntries.length + 1}',
+        machineId: plan.machineId,
+        versionId: plan.versionId,
+        structureOccurrenceId: operation.structureOccurrenceId,
+        operationOccurrenceId: operation.id,
+        balanceQuantity: balanceQuantity,
+        taskId: task.id,
+        sourceReportId: report.id,
+        sourceOutcome: report.outcome,
+        status: WipEntryStatus.open,
+      );
+      _wipEntries.add(created);
+      _appendAudit(
+        entityType: 'wip_entry',
+        entityId: created.id,
+        action: AuditAction.created,
+        changedBy: report.reportedBy,
+        field: 'balanceQuantity',
+        beforeValue: '',
+        afterValue: created.balanceQuantity.toString(),
+      );
+      return ExecutionReportWipEffect(type: 'created', entry: created);
+    }
+
+    final existing = _wipEntries[existingIndex];
+    final updated = WipEntry(
+      id: existing.id,
+      machineId: existing.machineId,
+      versionId: existing.versionId,
+      structureOccurrenceId: existing.structureOccurrenceId,
+      operationOccurrenceId: existing.operationOccurrenceId,
+      balanceQuantity: balanceQuantity,
+      taskId: existing.taskId,
+      sourceReportId: report.id,
+      sourceOutcome: report.outcome,
+      status: WipEntryStatus.open,
+    );
+    _wipEntries[existingIndex] = updated;
+    _appendAudit(
+      entityType: 'wip_entry',
+      entityId: updated.id,
+      action: AuditAction.updated,
+      changedBy: report.reportedBy,
+      field: 'balanceQuantity',
+      beforeValue: existing.balanceQuantity.toString(),
+      afterValue: updated.balanceQuantity.toString(),
+    );
+    return ExecutionReportWipEffect(type: 'updated', entry: updated);
   }
 
   String _buildCreateProblemSignature(CreateProblemCommand command) {
@@ -1172,6 +1364,7 @@ class CreateExecutionReportCommand {
     required this.taskId,
     required this.reportedBy,
     required this.reportedQuantity,
+    required this.outcome,
     this.reason,
   });
 
@@ -1179,6 +1372,7 @@ class CreateExecutionReportCommand {
   final String taskId;
   final String reportedBy;
   final double reportedQuantity;
+  final ExecutionReportOutcome outcome;
   final String? reason;
 }
 
@@ -1188,12 +1382,21 @@ class CreateExecutionReportResult {
     required this.taskStatus,
     required this.reportedQuantityTotal,
     required this.remainingQuantity,
+    required this.wipEffect,
   });
 
   final ExecutionReport report;
   final TaskStatus taskStatus;
   final double reportedQuantityTotal;
   final double remainingQuantity;
+  final ExecutionReportWipEffect wipEffect;
+}
+
+class ExecutionReportWipEffect {
+  const ExecutionReportWipEffect({required this.type, this.entry});
+
+  final String type;
+  final WipEntry? entry;
 }
 
 class CreateProblemCommand {

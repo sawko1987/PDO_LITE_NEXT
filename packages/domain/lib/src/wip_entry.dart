@@ -1,3 +1,4 @@
+import 'execution_report_outcome.dart';
 import 'wip_entry_status.dart';
 
 class WipEntry {
@@ -8,6 +9,9 @@ class WipEntry {
     required this.structureOccurrenceId,
     required this.operationOccurrenceId,
     required this.balanceQuantity,
+    this.taskId,
+    this.sourceReportId,
+    this.sourceOutcome,
     this.status = WipEntryStatus.open,
   });
 
@@ -17,6 +21,9 @@ class WipEntry {
   final String structureOccurrenceId;
   final String operationOccurrenceId;
   final double balanceQuantity;
+  final String? taskId;
+  final String? sourceReportId;
+  final ExecutionReportOutcome? sourceOutcome;
   final WipEntryStatus status;
 
   bool get blocksCompletion =>

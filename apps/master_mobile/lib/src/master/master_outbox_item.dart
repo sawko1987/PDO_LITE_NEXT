@@ -18,6 +18,7 @@ class MasterOutboxItem {
     this.taskId,
     this.problemId,
     this.reportedQuantity,
+    this.reportOutcome,
     this.reason,
     this.title,
     this.problemType,
@@ -44,6 +45,7 @@ class MasterOutboxItem {
       taskId: json['taskId'] as String?,
       problemId: json['problemId'] as String?,
       reportedQuantity: (json['reportedQuantity'] as num?)?.toDouble(),
+      reportOutcome: json['reportOutcome'] as String?,
       reason: json['reason'] as String?,
       title: json['title'] as String?,
       problemType: json['problemType'] as String?,
@@ -62,6 +64,7 @@ class MasterOutboxItem {
   final String? problemId;
   final String? problemType;
   final double? reportedQuantity;
+  final String? reportOutcome;
   final String? reason;
   final String requestId;
   final MasterOutboxStatus status;
@@ -80,6 +83,7 @@ class MasterOutboxItem {
     String? problemId,
     String? problemType,
     double? reportedQuantity,
+    String? reportOutcome,
     String? reason,
     String? requestId,
     MasterOutboxStatus? status,
@@ -97,6 +101,7 @@ class MasterOutboxItem {
       taskId: taskId ?? this.taskId,
       problemId: problemId ?? this.problemId,
       reportedQuantity: reportedQuantity ?? this.reportedQuantity,
+      reportOutcome: reportOutcome ?? this.reportOutcome,
       reason: reason ?? this.reason,
       title: title ?? this.title,
       problemType: problemType ?? this.problemType,
@@ -109,7 +114,7 @@ class MasterOutboxItem {
   String get displayLabel {
     return switch (operationType) {
       MasterOutboxOperationType.executionReport =>
-        '${taskId ?? 'task'} | ${reportedQuantity ?? 0} pcs',
+        '${taskId ?? 'task'} | ${reportOutcome ?? 'completed'} | ${reportedQuantity ?? 0} pcs',
       MasterOutboxOperationType.problemCreate =>
         '${taskId ?? 'task'} | create problem "${title ?? ''}"',
       MasterOutboxOperationType.problemMessage =>
@@ -129,6 +134,7 @@ class MasterOutboxItem {
     'taskId': taskId,
     'problemId': problemId,
     'reportedQuantity': reportedQuantity,
+    'reportOutcome': reportOutcome,
     'reason': reason,
     'title': title,
     'problemType': problemType,

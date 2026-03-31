@@ -82,6 +82,12 @@ class HttpAdminBackendClient implements AdminBackendClient {
   }
 
   @override
+  Future<ApiListResponseDto<WipEntryDto>> listWipEntries() async {
+    final json = await _getJsonObject('/v1/wip');
+    return ApiListResponseDto<WipEntryDto>.fromJson(json, WipEntryDto.fromJson);
+  }
+
+  @override
   Future<ImportSessionSummaryDto> createImportPreview(
     CreateImportPreviewRequestDto request,
   ) async {

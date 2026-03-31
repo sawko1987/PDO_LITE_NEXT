@@ -129,6 +129,7 @@
 - [ ] Реализовать модуль факта выполнения.
   - [x] Vertical slice: приём execution report с идемпотентностью и обновлением статуса задания.
 - [ ] Реализовать модуль НЗП.
+  - [x] Vertical slice: outcome-based execution report формирует и обновляет WIP для `partial/not_completed/overrun`.
 - [ ] Реализовать модуль проблем и чата.
   - [x] Vertical slice: task-scoped create problem API.
   - [x] Vertical slice: get/list problem API с thread messages.
@@ -185,8 +186,8 @@
 - [x] Vertical slice: просмотр номенклатуры и операции в карточке.
 - [ ] Реализовать ввод факта.
 - [x] Vertical slice: ввод и отправка execution report.
-- [ ] Реализовать частичное выполнение.
-- [ ] Реализовать отправку причины невыполнения.
+- [x] Реализовать частичное выполнение.
+- [x] Реализовать отправку причины невыполнения.
 - [x] Реализовать создание проблемы.
 - [x] Vertical slice: создание проблемы из карточки задания.
 - [x] Vertical slice: detail sheet с thread messages.
@@ -198,6 +199,7 @@
 - [x] Vertical slice: локальное хранение outbox execution report.
 - [ ] Реализовать очередь синхронизации.
 - [x] Vertical slice: локальная outbox-очередь без полного sync-движка.
+- [x] Vertical slice: outcome-based report form (`completed/partial/not_completed/overrun`) с WIP feedback.
 - [ ] Реализовать восстановление после потери связи.
 
 ### Результат этапа

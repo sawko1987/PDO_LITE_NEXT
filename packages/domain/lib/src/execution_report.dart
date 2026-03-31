@@ -1,3 +1,5 @@
+import 'execution_report_outcome.dart';
+
 class ExecutionReport {
   const ExecutionReport({
     required this.id,
@@ -5,6 +7,7 @@ class ExecutionReport {
     required this.reportedBy,
     required this.reportedAt,
     required this.reportedQuantity,
+    required this.outcome,
     this.reason,
     this.acceptedAt,
   });
@@ -14,6 +17,7 @@ class ExecutionReport {
   final String reportedBy;
   final DateTime reportedAt;
   final double reportedQuantity;
+  final ExecutionReportOutcome outcome;
   final String? reason;
   final DateTime? acceptedAt;
 

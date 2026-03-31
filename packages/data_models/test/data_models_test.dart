@@ -95,6 +95,7 @@ void main() {
       requestId: 'report-req-1',
       reportedBy: 'master-1',
       reportedQuantity: 2,
+      outcome: 'partial',
       reason: 'Half shift completed',
     );
 
@@ -103,6 +104,7 @@ void main() {
     expect(json['requestId'], 'report-req-1');
     expect(json['reportedBy'], 'master-1');
     expect(json['reportedQuantity'], 2);
+    expect(json['outcome'], 'partial');
   });
 
   test('create execution report result parses nested report', () {
@@ -113,6 +115,7 @@ void main() {
         'reportedBy': 'master-1',
         'reportedAt': '2026-03-31T10:00:00.000Z',
         'reportedQuantity': 3,
+        'outcome': 'partial',
         'reason': null,
         'acceptedAt': '2026-03-31T10:01:00.000Z',
         'isAccepted': true,
@@ -121,11 +124,20 @@ void main() {
       'reportedQuantityTotal': 3,
       'remainingQuantity': 9,
       'outboxStatus': 'sent',
+      'wipEffect': {
+        'type': 'created',
+        'wipEntryId': 'wip-2',
+        'balanceQuantity': 9,
+        'status': 'open',
+      },
     });
 
     expect(dto.report.id, 'report-1');
+    expect(dto.report.outcome, 'partial');
     expect(dto.taskStatus, 'inProgress');
     expect(dto.remainingQuantity, 9);
+    expect(dto.wipEffect?.type, 'created');
+    expect(dto.wipEffect?.wipEntryId, 'wip-2');
   });
 
   test('problem summary dto parses type and message count', () {

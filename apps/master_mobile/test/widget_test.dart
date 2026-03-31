@@ -61,6 +61,7 @@ class _WidgetFakeBackendClient implements MasterBackendClient {
         reportedBy: request.reportedBy,
         reportedAt: DateTime.utc(2026, 3, 31, 10),
         reportedQuantity: request.reportedQuantity,
+        outcome: request.outcome,
         acceptedAt: DateTime.utc(2026, 3, 31, 10, 1),
         isAccepted: true,
       ),
@@ -68,6 +69,7 @@ class _WidgetFakeBackendClient implements MasterBackendClient {
       reportedQuantityTotal: 12,
       remainingQuantity: 0,
       outboxStatus: 'sent',
+      wipEffect: const ExecutionReportWipEffectDto(type: 'consumed'),
     );
   }
 
@@ -141,6 +143,7 @@ class _WidgetFakeBackendClient implements MasterBackendClient {
           reportedBy: 'master-1',
           reportedAt: DateTime.utc(2026, 3, 31, 9),
           reportedQuantity: 6,
+          outcome: 'partial',
           acceptedAt: DateTime.utc(2026, 3, 31, 9, 5),
           isAccepted: true,
         ),

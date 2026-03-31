@@ -277,6 +277,7 @@
 - `requestId`
 - `reportedBy`
 - `reportedQuantity`
+- `outcome` (`completed`, `partial`, `not_completed`, `overrun`)
 - `reason`
 
 Ответ `201`:
@@ -285,9 +286,13 @@
 - `reportedQuantityTotal`
 - `remainingQuantity`
 - `outboxStatus`
+- `wipEffect`
 
 Правила:
-- пока запрещено перевыполнение сверх `remainingQuantity`;
+- `completed` требует точного совпадения `reportedQuantity` с текущим `remainingQuantity`;
+- `partial` требует количество больше `0`, меньше `remainingQuantity` и обязательный `reason`;
+- `not_completed` требует `reportedQuantity = 0` и обязательный `reason`;
+- `overrun` разрешает количество больше `remainingQuantity` и создаёт НЗП на превышение;
 - статус задания меняется `pending -> inProgress -> completed`;
 - закрытое задание не принимает новый report.
 
@@ -296,7 +301,8 @@
 - `409 execution_report_replayed_with_different_payload`
 - `409 task_report_not_allowed`
 - `422 invalid_reported_quantity`
-- `422 report_exceeds_required_quantity`
+- `422 invalid_report_outcome`
+- `422 invalid_report_reason`
 
 ## Проблемы и чат
 
@@ -434,6 +440,9 @@
 - `balanceQuantity`
 - `status`
 - `blocksCompletion`
+- `taskId`
+- `sourceReportId`
+- `sourceOutcome`
 
 ### `GET /v1/audit`
 Назначение: аудит критичных изменений.

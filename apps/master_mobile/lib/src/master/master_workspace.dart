@@ -15,6 +15,13 @@ const _problemTypeOptions = <({String label, String value})>[
   (label: 'Other', value: 'other'),
 ];
 
+const _reportOutcomeOptions = <({String label, String value})>[
+  (label: 'Completed', value: 'completed'),
+  (label: 'Partial', value: 'partial'),
+  (label: 'Not Completed', value: 'not_completed'),
+  (label: 'Overrun', value: 'overrun'),
+];
+
 class MasterWorkspace extends StatefulWidget {
   const MasterWorkspace({super.key, required this.controller});
 
@@ -27,6 +34,7 @@ class MasterWorkspace extends StatefulWidget {
 class _MasterWorkspaceState extends State<MasterWorkspace> {
   final _quantityController = TextEditingController();
   final _reasonController = TextEditingController();
+  String _selectedReportOutcome = 'completed';
 
   MasterWorkspaceController get _controller => widget.controller;
 
@@ -87,14 +95,74 @@ class _MasterWorkspaceState extends State<MasterWorkspace> {
                   onOpenProblem: (problem) =>
                       _showProblemSheet(context, problem),
                   onSubmitReport: () async {
-                    final quantity = double.tryParse(
+                    var quantity = double.tryParse(
                       _quantityController.text.replaceAll(',', '.'),
                     );
                     if (quantity == null || quantity <= 0) {
+                      if (_selectedReportOutcome != 'not_completed') {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Enter a valid reported quantity greater than zero.',
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+                      quantity = 0;
+                    }
+
+                    if (_selectedReportOutcome == 'completed' &&
+                        quantity != task.remainingQuantity) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Completed must equal remaining quantity: ${task.remainingQuantity}.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+                    if (_selectedReportOutcome == 'partial' &&
+                        (quantity <= 0 || quantity >= task.remainingQuantity)) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Partial must be above 0 and below ${task.remainingQuantity}.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+                    if (_selectedReportOutcome == 'not_completed' &&
+                        quantity != 0) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text(
-                            'Enter a valid reported quantity greater than zero.',
+                            'Not completed keeps reported quantity at 0.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+                    if (_selectedReportOutcome == 'overrun' &&
+                        quantity <= task.remainingQuantity) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Overrun must exceed remaining quantity: ${task.remainingQuantity}.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+                    if ((_selectedReportOutcome == 'partial' ||
+                            _selectedReportOutcome == 'not_completed') &&
+                        _reasonController.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Reason is required for partial and not completed reports.',
                           ),
                         ),
                       );
@@ -104,14 +172,21 @@ class _MasterWorkspaceState extends State<MasterWorkspace> {
                     await _controller.submitExecutionReport(
                       taskId: task.id,
                       reportedQuantity: quantity,
+                      outcome: _selectedReportOutcome,
                       reason: _reasonController.text,
                     );
                     _quantityController.clear();
                     _reasonController.clear();
+                    setState(() => _selectedReportOutcome = 'completed');
+                  },
+                  onReportOutcomeChanged: (value) {
+                    setState(() => _selectedReportOutcome = value);
                   },
                   problems: _controller.problems,
                   quantityController: _quantityController,
                   reasonController: _reasonController,
+                  reportFeedbackMessage: _controller.reportFeedbackMessage,
+                  reportOutcome: _selectedReportOutcome,
                   reports: _controller.reports,
                   task: task,
                 ),
@@ -400,9 +475,12 @@ class _TaskDetailCard extends StatelessWidget {
     required this.onCreateProblem,
     required this.onOpenProblem,
     required this.onSubmitReport,
+    required this.onReportOutcomeChanged,
     required this.problems,
     required this.quantityController,
     required this.reasonController,
+    required this.reportFeedbackMessage,
+    required this.reportOutcome,
     required this.reports,
     required this.task,
   });
@@ -411,9 +489,12 @@ class _TaskDetailCard extends StatelessWidget {
   final VoidCallback onCreateProblem;
   final ValueChanged<ProblemSummaryDto> onOpenProblem;
   final VoidCallback onSubmitReport;
+  final ValueChanged<String> onReportOutcomeChanged;
   final List<ProblemSummaryDto> problems;
   final TextEditingController quantityController;
   final TextEditingController reasonController;
+  final String? reportFeedbackMessage;
+  final String reportOutcome;
   final List<ExecutionReportDto> reports;
   final TaskDetailDto task;
 
@@ -445,6 +526,20 @@ class _TaskDetailCard extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               'Required: ${task.requiredQuantity} - Reported: ${task.reportedQuantity} - Remaining: ${task.remainingQuantity}',
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _reportOutcomeOptions
+                  .map(
+                    (option) => ChoiceChip(
+                      label: Text(option.label),
+                      selected: reportOutcome == option.value,
+                      onSelected: (_) => onReportOutcomeChanged(option.value),
+                    ),
+                  )
+                  .toList(growable: false),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -478,6 +573,17 @@ class _TaskDetailCard extends StatelessWidget {
                 isSubmitting ? 'Sending...' : 'Send execution report',
               ),
             ),
+            if (reportFeedbackMessage case final message?) ...[
+              const SizedBox(height: 12),
+              Text(
+                message,
+                key: const Key('reportFeedbackMessage'),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
             const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -529,7 +635,10 @@ class _TaskDetailCard extends StatelessWidget {
                   title: Text(
                     '${report.reportedQuantity} pcs by ${report.reportedBy}',
                   ),
-                  subtitle: Text(report.reportedAt.toIso8601String()),
+                  subtitle: Text(
+                    '${report.outcome} - ${report.reportedAt.toIso8601String()}'
+                    '${report.reason == null ? '' : '\n${report.reason}'}',
+                  ),
                 ),
                 const Divider(height: 1),
               ],

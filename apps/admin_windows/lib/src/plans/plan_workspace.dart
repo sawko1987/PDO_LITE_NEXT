@@ -84,6 +84,10 @@ class _PlanWorkspaceState extends State<PlanWorkspace> {
                     label:
                         '${widget.controller.planningSource.length} source occurrences',
                   ),
+                  _InfoChip(
+                    label:
+                        '${widget.controller.visibleWipEntries.length} WIP entries in scope',
+                  ),
                 ],
               ),
             ),
@@ -135,7 +139,9 @@ class _PlanWorkspaceState extends State<PlanWorkspace> {
                           .map(
                             (version) => DropdownMenuItem<String>(
                               value: version.id,
-                              child: Text('${version.label} (${version.status})'),
+                              child: Text(
+                                '${version.label} (${version.status})',
+                              ),
                             ),
                           )
                           .toList(growable: false),
@@ -168,6 +174,35 @@ class _PlanWorkspaceState extends State<PlanWorkspace> {
             Padding(
               padding: const EdgeInsets.only(top: 16),
               child: _PlanSectionCard(
+                title: 'WIP Monitor',
+                subtitle:
+                    'Current WIP entries for the selected machine/version or active plan context.',
+                child: widget.controller.visibleWipEntries.isEmpty
+                    ? const Text('No WIP entries in the current scope.')
+                    : Column(
+                        children: widget.controller.visibleWipEntries
+                            .map(
+                              (entry) => Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: _DetailTile(
+                                  title: entry.id,
+                                  lines: [
+                                    'Operation: ${entry.operationOccurrenceId}',
+                                    'Balance: ${entry.balanceQuantity}',
+                                    'Status: ${entry.status}',
+                                    'Task: ${entry.taskId ?? '-'}',
+                                    'Outcome: ${entry.sourceOutcome ?? '-'}',
+                                  ],
+                                ),
+                              ),
+                            )
+                            .toList(growable: false),
+                      ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: _PlanSectionCard(
                 title: 'Planning Source',
                 subtitle:
                     'Every row is a concrete structure occurrence of the selected machine version.',
@@ -182,11 +217,10 @@ class _PlanWorkspaceState extends State<PlanWorkspace> {
                                   title: item.displayName,
                                   subtitle:
                                       '${item.pathKey}\nQty/machine: ${item.quantityPerMachine} | Operations: ${item.operationCount}',
-                                  selected: widget.controller.isSelectedOccurrence(
-                                    item.id,
-                                  ),
-                                  onAdd: () =>
-                                      widget.controller.addOccurrenceToDraft(item),
+                                  selected: widget.controller
+                                      .isSelectedOccurrence(item.id),
+                                  onAdd: () => widget.controller
+                                      .addOccurrenceToDraft(item),
                                 ),
                               ),
                             )
@@ -213,8 +247,8 @@ class _PlanWorkspaceState extends State<PlanWorkspace> {
                                       .removeOccurrenceFromDraft(
                                         selection.occurrence.id,
                                       ),
-                                  onQuantityChanged: (value) => widget.controller
-                                      .updateRequestedQuantity(
+                                  onQuantityChanged: (value) =>
+                                      widget.controller.updateRequestedQuantity(
                                         selection.occurrence.id,
                                         value,
                                       ),
@@ -304,7 +338,8 @@ class _PlanWorkspaceState extends State<PlanWorkspace> {
                                       'Status: ${plan.status}\nItems: ${plan.itemCount} | Revisions: ${plan.revisionCount}',
                                   selected: activePlan?.id == plan.id,
                                   actionLabel: 'Open',
-                                  onAdd: () => widget.controller.openPlan(plan.id),
+                                  onAdd: () =>
+                                      widget.controller.openPlan(plan.id),
                                 ),
                               ),
                             )
@@ -507,7 +542,9 @@ class _DraftItemTile extends StatelessWidget {
                 '${selection.occurrence.id}-${selection.requestedQuantity}',
               ),
               initialValue: selection.requestedQuantity.toString(),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(
                 labelText: 'Qty',
                 border: OutlineInputBorder(),

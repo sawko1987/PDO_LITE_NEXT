@@ -3,6 +3,7 @@ class CreateExecutionReportRequestDto {
     required this.requestId,
     required this.reportedBy,
     required this.reportedQuantity,
+    required this.outcome,
     this.reason,
   });
 
@@ -11,6 +12,7 @@ class CreateExecutionReportRequestDto {
       requestId: json['requestId'] as String? ?? '',
       reportedBy: json['reportedBy'] as String? ?? '',
       reportedQuantity: (json['reportedQuantity'] as num?)?.toDouble() ?? 0,
+      outcome: json['outcome'] as String? ?? '',
       reason: json['reason'] as String?,
     );
   }
@@ -18,12 +20,14 @@ class CreateExecutionReportRequestDto {
   final String requestId;
   final String reportedBy;
   final double reportedQuantity;
+  final String outcome;
   final String? reason;
 
   Map<String, Object?> toJson() => {
     'requestId': requestId,
     'reportedBy': reportedBy,
     'reportedQuantity': reportedQuantity,
+    'outcome': outcome,
     'reason': reason,
   };
 }

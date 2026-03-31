@@ -3,6 +3,7 @@ export 'src/catalog_item.dart';
 export 'src/catalog_item_kind.dart';
 export 'src/completion_policy.dart';
 export 'src/execution_report.dart';
+export 'src/execution_report_outcome.dart';
 export 'src/machine.dart';
 export 'src/machine_version.dart';
 export 'src/machine_version_status.dart';

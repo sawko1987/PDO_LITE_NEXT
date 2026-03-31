@@ -10,7 +10,26 @@ class WipEntryDto {
     required this.balanceQuantity,
     required this.status,
     required this.blocksCompletion,
+    this.taskId,
+    this.sourceReportId,
+    this.sourceOutcome,
   });
+
+  factory WipEntryDto.fromJson(Map<String, Object?> json) {
+    return WipEntryDto(
+      id: json['id'] as String? ?? '',
+      machineId: json['machineId'] as String? ?? '',
+      versionId: json['versionId'] as String? ?? '',
+      structureOccurrenceId: json['structureOccurrenceId'] as String? ?? '',
+      operationOccurrenceId: json['operationOccurrenceId'] as String? ?? '',
+      balanceQuantity: (json['balanceQuantity'] as num?)?.toDouble() ?? 0,
+      status: json['status'] as String? ?? '',
+      blocksCompletion: json['blocksCompletion'] as bool? ?? false,
+      taskId: json['taskId'] as String?,
+      sourceReportId: json['sourceReportId'] as String?,
+      sourceOutcome: json['sourceOutcome'] as String?,
+    );
+  }
 
   factory WipEntryDto.fromDomain(WipEntry entry) {
     return WipEntryDto(
@@ -22,6 +41,9 @@ class WipEntryDto {
       balanceQuantity: entry.balanceQuantity,
       status: entry.status.name,
       blocksCompletion: entry.blocksCompletion,
+      taskId: entry.taskId,
+      sourceReportId: entry.sourceReportId,
+      sourceOutcome: _sourceOutcomeToApi(entry.sourceOutcome),
     );
   }
 
@@ -33,6 +55,9 @@ class WipEntryDto {
   final double balanceQuantity;
   final String status;
   final bool blocksCompletion;
+  final String? taskId;
+  final String? sourceReportId;
+  final String? sourceOutcome;
 
   Map<String, Object?> toJson() => {
     'id': id,
@@ -43,5 +68,18 @@ class WipEntryDto {
     'balanceQuantity': balanceQuantity,
     'status': status,
     'blocksCompletion': blocksCompletion,
+    'taskId': taskId,
+    'sourceReportId': sourceReportId,
+    'sourceOutcome': sourceOutcome,
+  };
+}
+
+String? _sourceOutcomeToApi(ExecutionReportOutcome? outcome) {
+  return switch (outcome) {
+    ExecutionReportOutcome.completed => 'completed',
+    ExecutionReportOutcome.partial => 'partial',
+    ExecutionReportOutcome.notCompleted => 'not_completed',
+    ExecutionReportOutcome.overrun => 'overrun',
+    null => null,
   };
 }

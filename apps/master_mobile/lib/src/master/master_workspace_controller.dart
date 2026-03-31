@@ -26,6 +26,7 @@ class MasterWorkspaceController extends ChangeNotifier {
   String? _errorMessage;
   bool _isLoading = false;
   bool _isSubmitting = false;
+  String? _reportFeedbackMessage;
   List<MasterOutboxItem> _outboxItems = const [];
   List<ProblemSummaryDto> _problems = const [];
   List<ExecutionReportDto> _reports = const [];
@@ -39,6 +40,7 @@ class MasterWorkspaceController extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isLoading => _isLoading;
   bool get isSubmitting => _isSubmitting;
+  String? get reportFeedbackMessage => _reportFeedbackMessage;
   List<MasterOutboxItem> get outboxItems => _outboxItems;
   List<ProblemSummaryDto> get problems => _problems;
   List<ExecutionReportDto> get reports => _reports;
@@ -179,6 +181,7 @@ class MasterWorkspaceController extends ChangeNotifier {
   Future<void> submitExecutionReport({
     required String taskId,
     required double reportedQuantity,
+    required String outcome,
     String? reason,
   }) async {
     final item = MasterOutboxItem(
@@ -190,6 +193,7 @@ class MasterWorkspaceController extends ChangeNotifier {
       status: MasterOutboxStatus.pending,
       taskId: taskId,
       reportedQuantity: reportedQuantity,
+      reportOutcome: outcome,
       reason: _normalize(reason),
     );
     await _queueAndSendOutboxItem(item);
@@ -291,45 +295,53 @@ class MasterWorkspaceController extends ChangeNotifier {
 
     final item = _outboxItems[index];
     try {
-      await switch (item.operationType) {
-        MasterOutboxOperationType.executionReport =>
-          _client.createExecutionReport(
+      switch (item.operationType) {
+        case MasterOutboxOperationType.executionReport:
+          final result = await _client.createExecutionReport(
             item.taskId ?? '',
             CreateExecutionReportRequestDto(
               requestId: item.requestId,
               reportedBy: item.authorId,
               reportedQuantity: item.reportedQuantity ?? 0,
+              outcome: item.reportOutcome ?? 'completed',
               reason: item.reason,
             ),
-          ),
-        MasterOutboxOperationType.problemCreate => _client.createProblem(
-          item.taskId ?? '',
-          CreateProblemRequestDto(
-            requestId: item.requestId,
-            createdBy: item.authorId,
-            type: item.problemType ?? 'other',
-            title: item.title ?? '',
-            description: item.message ?? '',
-          ),
-        ),
-        MasterOutboxOperationType.problemMessage => _client.addProblemMessage(
-          item.problemId ?? '',
-          AddProblemMessageRequestDto(
-            requestId: item.requestId,
-            authorId: item.authorId,
-            message: item.message ?? '',
-          ),
-        ),
-        MasterOutboxOperationType.problemTransition =>
-          _client.transitionProblem(
+          );
+          _handleExecutionReportResult(result);
+          break;
+        case MasterOutboxOperationType.problemCreate:
+          await _client.createProblem(
+            item.taskId ?? '',
+            CreateProblemRequestDto(
+              requestId: item.requestId,
+              createdBy: item.authorId,
+              type: item.problemType ?? 'other',
+              title: item.title ?? '',
+              description: item.message ?? '',
+            ),
+          );
+          break;
+        case MasterOutboxOperationType.problemMessage:
+          await _client.addProblemMessage(
+            item.problemId ?? '',
+            AddProblemMessageRequestDto(
+              requestId: item.requestId,
+              authorId: item.authorId,
+              message: item.message ?? '',
+            ),
+          );
+          break;
+        case MasterOutboxOperationType.problemTransition:
+          await _client.transitionProblem(
             item.problemId ?? '',
             TransitionProblemRequestDto(
               requestId: item.requestId,
               changedBy: item.authorId,
               toStatus: item.toStatus ?? '',
             ),
-          ),
-      };
+          );
+          break;
+      }
       _outboxItems = [
         for (var i = 0; i < _outboxItems.length; i++)
           if (i == index)
@@ -356,5 +368,24 @@ class MasterWorkspaceController extends ChangeNotifier {
       _errorMessage = error.message;
       await _persistOutbox();
     }
+  }
+
+  void _handleExecutionReportResult(CreateExecutionReportResultDto result) {
+    _reportFeedbackMessage = _describeWipEffect(result);
+  }
+
+  String? _describeWipEffect(CreateExecutionReportResultDto result) {
+    final effect = result.wipEffect;
+    if (effect == null || effect.type == 'none') {
+      return null;
+    }
+    final balance = effect.balanceQuantity;
+    final formattedBalance = balance == null ? '' : ' (${balance} pcs)';
+    return switch (effect.type) {
+      'created' => 'WIP created$formattedBalance.',
+      'updated' => 'WIP updated$formattedBalance.',
+      'consumed' => 'Existing WIP was consumed.',
+      _ => null,
+    };
   }
 }
