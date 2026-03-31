@@ -25,6 +25,21 @@ class ExecutionReportDto {
     );
   }
 
+  factory ExecutionReportDto.fromJson(Map<String, Object?> json) {
+    return ExecutionReportDto(
+      id: json['id'] as String? ?? '',
+      taskId: json['taskId'] as String? ?? '',
+      reportedBy: json['reportedBy'] as String? ?? '',
+      reportedAt:
+          DateTime.tryParse(json['reportedAt'] as String? ?? '') ??
+          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      reportedQuantity: (json['reportedQuantity'] as num?)?.toDouble() ?? 0,
+      reason: json['reason'] as String?,
+      acceptedAt: DateTime.tryParse(json['acceptedAt'] as String? ?? ''),
+      isAccepted: json['isAccepted'] as bool? ?? false,
+    );
+  }
+
   final String id;
   final String taskId;
   final String reportedBy;

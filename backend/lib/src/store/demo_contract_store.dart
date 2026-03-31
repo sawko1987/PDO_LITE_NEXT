@@ -171,15 +171,28 @@ class DemoContractStore {
         ],
         'task-2': const [],
       },
-      _problems = const [
+      _problems = [
         Problem(
           id: 'problem-1',
           machineId: 'machine-1',
           taskId: 'task-1',
           title: 'Waiting for fixture',
+          type: ProblemType.equipment,
+          createdAt: DateTime.utc(2026, 3, 28, 9, 45),
           status: ProblemStatus.inProgress,
         ),
       ],
+      _problemMessagesByProblem = {
+        'problem-1': [
+          ProblemMessage(
+            id: 'problem-message-1',
+            problemId: 'problem-1',
+            authorId: 'master-1',
+            message: 'Fixture is blocked, cannot continue welding.',
+            createdAt: DateTime.utc(2026, 3, 28, 9, 50),
+          ),
+        ],
+      },
       _wipEntries = const [
         WipEntry(
           id: 'wip-1',
@@ -209,6 +222,9 @@ class DemoContractStore {
       _planSequence = 1,
       _planItemSequence = 2,
       _taskSequence = 2,
+      _reportSequence = 1,
+      _problemSequence = 1,
+      _problemMessageSequence = 1,
       _auditSequence = 1;
 
   final List<Machine> _machines;
@@ -219,15 +235,25 @@ class DemoContractStore {
   final List<ProductionTask> _tasks;
   final Map<String, List<ExecutionReport>> _reportsByTask;
   final List<Problem> _problems;
+  final Map<String, List<ProblemMessage>> _problemMessagesByProblem;
   final List<WipEntry> _wipEntries;
   final List<AuditEntry> _auditEntries;
   final Map<String, _StoredPlanCommand> _planByCreateRequestId = {};
   final Map<String, _StoredReleaseCommand> _releaseByRequestId = {};
+  final Map<String, _StoredExecutionReportCommand> _reportByRequestId = {};
+  final Map<String, _StoredProblemCommand> _problemByCreateRequestId = {};
+  final Map<String, _StoredProblemMessageCommand> _problemMessageByRequestId =
+      {};
+  final Map<String, _StoredProblemTransitionCommand>
+  _problemTransitionByRequestId = {};
   int _machineSequence;
   int _versionSequence;
   int _planSequence;
   int _planItemSequence;
   int _taskSequence;
+  int _reportSequence;
+  int _problemSequence;
+  int _problemMessageSequence;
   int _auditSequence;
 
   List<Machine> listMachines() => List.unmodifiable(_machines);
@@ -287,6 +313,26 @@ class DemoContractStore {
       orElse: () => throw const DemoStoreNotFound(
         'structure_occurrence_not_found',
         'Structure occurrence was not found.',
+      ),
+    );
+  }
+
+  OperationOccurrence getOperationOccurrence(String operationOccurrenceId) {
+    return _operationOccurrences.firstWhere(
+      (operation) => operation.id == operationOccurrenceId,
+      orElse: () => throw const DemoStoreNotFound(
+        'operation_occurrence_not_found',
+        'Operation occurrence was not found.',
+      ),
+    );
+  }
+
+  Plan getPlanByItemId(String planItemId) {
+    return _plans.firstWhere(
+      (plan) => plan.items.any((item) => item.id == planItemId),
+      orElse: () => throw const DemoStoreNotFound(
+        'plan_item_not_found',
+        'Plan item was not found.',
       ),
     );
   }
@@ -434,7 +480,8 @@ class DemoContractStore {
             id: 'task-${++_taskSequence}',
             planItemId: item.id,
             operationOccurrenceId: operation.id,
-            requiredQuantity: item.requestedQuantity * operation.quantityPerMachine,
+            requiredQuantity:
+                item.requestedQuantity * operation.quantityPerMachine,
           ),
         );
       }
@@ -472,18 +519,358 @@ class DemoContractStore {
     return result;
   }
 
-  List<ProductionTask> listTasks() => List.unmodifiable(_tasks);
+  List<ProductionTask> listTasks({String? assigneeId, String? status}) {
+    var tasks = _tasks.where((task) {
+      if (assigneeId != null &&
+          assigneeId.isNotEmpty &&
+          task.assigneeId != assigneeId) {
+        return false;
+      }
+      if (status != null && status.isNotEmpty && task.status.name != status) {
+        return false;
+      }
+      return true;
+    });
+    return List.unmodifiable(tasks);
+  }
+
+  ProductionTask getTask(String taskId) {
+    return _tasks.firstWhere(
+      (task) => task.id == taskId,
+      orElse: () => throw const DemoStoreNotFound(
+        'task_not_found',
+        'Task was not found.',
+      ),
+    );
+  }
 
   List<ExecutionReport> listReports(String taskId) {
-    final taskExists = _tasks.any((task) => task.id == taskId);
-    if (!taskExists) {
-      throw const DemoStoreNotFound('task_not_found', 'Task was not found.');
-    }
+    getTask(taskId);
 
     return List.unmodifiable(_reportsByTask[taskId] ?? const []);
   }
 
-  List<Problem> listProblems() => List.unmodifiable(_problems);
+  double reportedQuantityForTask(String taskId) {
+    return listReports(taskId)
+        .where((report) => report.isAccepted)
+        .fold(0.0, (sum, report) => sum + report.reportedQuantity);
+  }
+
+  CreateExecutionReportResult createExecutionReport(
+    CreateExecutionReportCommand command,
+  ) {
+    _validateCreateExecutionReportCommand(command);
+    final requestSignature = _buildCreateExecutionReportSignature(command);
+    final existing = _reportByRequestId[command.requestId];
+    if (existing != null) {
+      if (existing.signature != requestSignature) {
+        throw const DemoStoreConflict(
+          'execution_report_replayed_with_different_payload',
+          'Execution report requestId was already used with different payload.',
+        );
+      }
+      return existing.result;
+    }
+
+    final taskIndex = _tasks.indexWhere((task) => task.id == command.taskId);
+    if (taskIndex == -1) {
+      throw const DemoStoreNotFound('task_not_found', 'Task was not found.');
+    }
+
+    final task = _tasks[taskIndex];
+    if (task.isClosed) {
+      throw DemoStoreConflict(
+        'task_report_not_allowed',
+        'Closed task cannot accept new execution reports.',
+        details: {'taskId': command.taskId, 'status': task.status.name},
+      );
+    }
+
+    final currentReported = reportedQuantityForTask(command.taskId);
+    final nextReported = currentReported + command.reportedQuantity;
+    if (nextReported > task.requiredQuantity) {
+      throw DemoStoreValidation(
+        'report_exceeds_required_quantity',
+        'Execution report exceeds remaining task quantity.',
+        details: {
+          'taskId': command.taskId,
+          'requiredQuantity': task.requiredQuantity,
+          'reportedQuantityTotal': currentReported,
+          'incomingReportedQuantity': command.reportedQuantity,
+        },
+      );
+    }
+
+    final report = ExecutionReport(
+      id: 'report-${++_reportSequence}',
+      taskId: command.taskId,
+      reportedBy: command.reportedBy,
+      reportedAt: DateTime.now().toUtc(),
+      reportedQuantity: command.reportedQuantity,
+      reason: command.reason,
+      acceptedAt: DateTime.now().toUtc(),
+    );
+    final reports = [...(_reportsByTask[command.taskId] ?? const []), report];
+    _reportsByTask[command.taskId] = List.unmodifiable(reports);
+
+    final nextStatus = nextReported == task.requiredQuantity
+        ? TaskStatus.completed
+        : TaskStatus.inProgress;
+    final updatedTask = ProductionTask(
+      id: task.id,
+      planItemId: task.planItemId,
+      operationOccurrenceId: task.operationOccurrenceId,
+      requiredQuantity: task.requiredQuantity,
+      assigneeId: task.assigneeId,
+      status: nextStatus,
+    );
+    _tasks[taskIndex] = updatedTask;
+
+    _appendAudit(
+      entityType: 'execution_report',
+      entityId: report.id,
+      action: AuditAction.created,
+      changedBy: command.reportedBy,
+      field: 'reportedQuantity',
+      beforeValue: '',
+      afterValue: command.reportedQuantity.toString(),
+    );
+    if (task.status != updatedTask.status) {
+      _appendAudit(
+        entityType: 'task',
+        entityId: task.id,
+        action: AuditAction.updated,
+        changedBy: command.reportedBy,
+        field: 'status',
+        beforeValue: task.status.name,
+        afterValue: updatedTask.status.name,
+      );
+    }
+
+    final result = CreateExecutionReportResult(
+      report: report,
+      taskStatus: updatedTask.status,
+      reportedQuantityTotal: nextReported,
+      remainingQuantity: task.requiredQuantity - nextReported,
+    );
+    _reportByRequestId[command.requestId] = _StoredExecutionReportCommand(
+      signature: requestSignature,
+      result: result,
+    );
+    return result;
+  }
+
+  List<Problem> listProblems({String? taskId, String? status}) {
+    final problems = _problems.where((problem) {
+      if (taskId != null && taskId.isNotEmpty && problem.taskId != taskId) {
+        return false;
+      }
+      if (status != null &&
+          status.isNotEmpty &&
+          problem.status.name != status) {
+        return false;
+      }
+      return true;
+    });
+    return List.unmodifiable(problems);
+  }
+
+  Problem getProblem(String problemId) {
+    return _problems.firstWhere(
+      (problem) => problem.id == problemId,
+      orElse: () => throw const DemoStoreNotFound(
+        'problem_not_found',
+        'Problem was not found.',
+      ),
+    );
+  }
+
+  List<ProblemMessage> listProblemMessages(String problemId) {
+    getProblem(problemId);
+    return List.unmodifiable(_problemMessagesByProblem[problemId] ?? const []);
+  }
+
+  int problemMessageCount(String problemId) =>
+      listProblemMessages(problemId).length;
+
+  Problem createProblem(CreateProblemCommand command) {
+    _validateCreateProblemCommand(command);
+    final requestSignature = _buildCreateProblemSignature(command);
+    final existing = _problemByCreateRequestId[command.requestId];
+    if (existing != null) {
+      if (existing.signature != requestSignature) {
+        throw const DemoStoreConflict(
+          'problem_request_replayed_with_different_payload',
+          'Problem create requestId was already used with different payload.',
+        );
+      }
+      return getProblem(existing.problemId);
+    }
+
+    final task = getTask(command.taskId);
+    final plan = getPlanByItemId(task.planItemId);
+    final problem = Problem(
+      id: 'problem-${++_problemSequence}',
+      machineId: plan.machineId,
+      taskId: task.id,
+      title: command.title.trim(),
+      type: command.type,
+      createdAt: DateTime.now().toUtc(),
+      status: ProblemStatus.open,
+    );
+    final firstMessage = ProblemMessage(
+      id: 'problem-message-${++_problemMessageSequence}',
+      problemId: problem.id,
+      authorId: command.createdBy,
+      message: command.description.trim(),
+      createdAt: DateTime.now().toUtc(),
+    );
+
+    _problems.add(problem);
+    _problemMessagesByProblem[problem.id] = [firstMessage];
+    _problemByCreateRequestId[command.requestId] = _StoredProblemCommand(
+      signature: requestSignature,
+      problemId: problem.id,
+    );
+    _appendAudit(
+      entityType: 'problem',
+      entityId: problem.id,
+      action: AuditAction.created,
+      changedBy: command.createdBy,
+      field: 'status',
+      beforeValue: '',
+      afterValue: problem.status.name,
+    );
+    _appendAudit(
+      entityType: 'problem_message',
+      entityId: firstMessage.id,
+      action: AuditAction.created,
+      changedBy: command.createdBy,
+      field: 'message',
+      beforeValue: '',
+      afterValue: firstMessage.message,
+    );
+    return problem;
+  }
+
+  ProblemMessage addProblemMessage(AddProblemMessageCommand command) {
+    _validateAddProblemMessageCommand(command);
+    final requestSignature = _buildAddProblemMessageSignature(command);
+    final existing = _problemMessageByRequestId[command.requestId];
+    if (existing != null) {
+      if (existing.signature != requestSignature) {
+        throw const DemoStoreConflict(
+          'problem_request_replayed_with_different_payload',
+          'Problem message requestId was already used with different payload.',
+        );
+      }
+      return _getProblemMessage(existing.problemId, existing.messageId);
+    }
+
+    final problem = getProblem(command.problemId);
+    if (!problem.isOpen) {
+      throw DemoStoreValidation(
+        'problem_message_not_allowed',
+        'Closed problem does not accept new messages.',
+        details: {
+          'problemId': command.problemId,
+          'status': problem.status.name,
+        },
+      );
+    }
+
+    final message = ProblemMessage(
+      id: 'problem-message-${++_problemMessageSequence}',
+      problemId: command.problemId,
+      authorId: command.authorId,
+      message: command.message.trim(),
+      createdAt: DateTime.now().toUtc(),
+    );
+    final messages = [
+      ...(_problemMessagesByProblem[command.problemId] ?? const []),
+      message,
+    ];
+    _problemMessagesByProblem[command.problemId] = List.unmodifiable(messages);
+    _problemMessageByRequestId[command.requestId] =
+        _StoredProblemMessageCommand(
+          signature: requestSignature,
+          problemId: command.problemId,
+          messageId: message.id,
+        );
+    _appendAudit(
+      entityType: 'problem_message',
+      entityId: message.id,
+      action: AuditAction.created,
+      changedBy: command.authorId,
+      field: 'message',
+      beforeValue: '',
+      afterValue: message.message,
+    );
+    return message;
+  }
+
+  Problem transitionProblem(TransitionProblemCommand command) {
+    _validateTransitionProblemCommand(command);
+    final requestSignature = _buildTransitionProblemSignature(command);
+    final existing = _problemTransitionByRequestId[command.requestId];
+    if (existing != null) {
+      if (existing.signature != requestSignature) {
+        throw const DemoStoreConflict(
+          'problem_request_replayed_with_different_payload',
+          'Problem transition requestId was already used with different payload.',
+        );
+      }
+      return getProblem(existing.problemId);
+    }
+
+    final problemIndex = _problems.indexWhere(
+      (problem) => problem.id == command.problemId,
+    );
+    if (problemIndex == -1) {
+      throw const DemoStoreNotFound(
+        'problem_not_found',
+        'Problem was not found.',
+      );
+    }
+    final problem = _problems[problemIndex];
+    if (!_canTransitionProblem(problem.status, command.toStatus)) {
+      throw DemoStoreConflict(
+        'problem_transition_not_allowed',
+        'Problem transition is not allowed for the current lifecycle state.',
+        details: {
+          'problemId': command.problemId,
+          'status': problem.status.name,
+          'toStatus': command.toStatus.name,
+        },
+      );
+    }
+
+    final updatedProblem = Problem(
+      id: problem.id,
+      machineId: problem.machineId,
+      taskId: problem.taskId,
+      title: problem.title,
+      type: problem.type,
+      createdAt: problem.createdAt,
+      status: command.toStatus,
+    );
+    _problems[problemIndex] = updatedProblem;
+    _problemTransitionByRequestId[command.requestId] =
+        _StoredProblemTransitionCommand(
+          signature: requestSignature,
+          problemId: updatedProblem.id,
+        );
+    _appendAudit(
+      entityType: 'problem',
+      entityId: updatedProblem.id,
+      action: AuditAction.updated,
+      changedBy: command.changedBy,
+      field: 'status',
+      beforeValue: problem.status.name,
+      afterValue: updatedProblem.status.name,
+    );
+    return updatedProblem;
+  }
 
   List<WipEntry> listWipEntries() => List.unmodifiable(_wipEntries);
 
@@ -526,7 +913,10 @@ class DemoContractStore {
       (machine) => machine.id == targetMachineId,
     );
     if (machineIndex == -1) {
-      throw const DemoStoreNotFound('machine_not_found', 'Machine was not found.');
+      throw const DemoStoreNotFound(
+        'machine_not_found',
+        'Machine was not found.',
+      );
     }
 
     final machine = _machines[machineIndex];
@@ -582,6 +972,61 @@ class DemoContractStore {
     }
   }
 
+  void _validateCreateExecutionReportCommand(
+    CreateExecutionReportCommand command,
+  ) {
+    if (command.requestId.trim().isEmpty ||
+        command.taskId.trim().isEmpty ||
+        command.reportedBy.trim().isEmpty) {
+      throw const DemoStoreValidation(
+        'invalid_request',
+        'requestId, taskId, and reportedBy are required.',
+      );
+    }
+    if (command.reportedQuantity <= 0) {
+      throw const DemoStoreValidation(
+        'invalid_reported_quantity',
+        'reportedQuantity must be greater than zero.',
+      );
+    }
+  }
+
+  void _validateCreateProblemCommand(CreateProblemCommand command) {
+    if (command.requestId.trim().isEmpty ||
+        command.taskId.trim().isEmpty ||
+        command.createdBy.trim().isEmpty ||
+        command.title.trim().isEmpty ||
+        command.description.trim().isEmpty) {
+      throw const DemoStoreValidation(
+        'invalid_request',
+        'requestId, taskId, createdBy, title, and description are required.',
+      );
+    }
+  }
+
+  void _validateAddProblemMessageCommand(AddProblemMessageCommand command) {
+    if (command.requestId.trim().isEmpty ||
+        command.problemId.trim().isEmpty ||
+        command.authorId.trim().isEmpty ||
+        command.message.trim().isEmpty) {
+      throw const DemoStoreValidation(
+        'invalid_problem_message',
+        'requestId, problemId, authorId, and message are required.',
+      );
+    }
+  }
+
+  void _validateTransitionProblemCommand(TransitionProblemCommand command) {
+    if (command.requestId.trim().isEmpty ||
+        command.problemId.trim().isEmpty ||
+        command.changedBy.trim().isEmpty) {
+      throw const DemoStoreValidation(
+        'invalid_request',
+        'requestId, problemId, and changedBy are required.',
+      );
+    }
+  }
+
   String _buildCreatePlanSignature(CreatePlanCommand command) {
     final itemsSignature = command.items
         .map(
@@ -591,8 +1036,65 @@ class DemoContractStore {
     return '${command.machineId}::${command.versionId}::${command.title}::$itemsSignature';
   }
 
+  String _buildCreateExecutionReportSignature(
+    CreateExecutionReportCommand command,
+  ) {
+    return '${command.taskId}::${command.reportedBy}::${command.reportedQuantity}::${command.reason ?? ''}';
+  }
+
+  String _buildCreateProblemSignature(CreateProblemCommand command) {
+    return '${command.taskId}::${command.createdBy}::${command.type.name}::${command.title}::${command.description}';
+  }
+
+  String _buildAddProblemMessageSignature(AddProblemMessageCommand command) {
+    return '${command.problemId}::${command.authorId}::${command.message}';
+  }
+
+  String _buildTransitionProblemSignature(TransitionProblemCommand command) {
+    return '${command.problemId}::${command.changedBy}::${command.toStatus.name}';
+  }
+
+  bool _canTransitionProblem(ProblemStatus current, ProblemStatus next) {
+    return switch (current) {
+      ProblemStatus.open =>
+        next == ProblemStatus.inProgress || next == ProblemStatus.closed,
+      ProblemStatus.inProgress => next == ProblemStatus.closed,
+      ProblemStatus.closed => false,
+    };
+  }
+
+  ProblemMessage _getProblemMessage(String problemId, String messageId) {
+    return listProblemMessages(problemId).firstWhere(
+      (message) => message.id == messageId,
+      orElse: () => throw const DemoStoreNotFound(
+        'problem_message_not_found',
+        'Problem message was not found.',
+      ),
+    );
+  }
+
   void _appendPlanAudit({
     required String entityId,
+    required String changedBy,
+    required String field,
+    required String beforeValue,
+    required String afterValue,
+  }) {
+    _appendAudit(
+      entityType: 'plan',
+      entityId: entityId,
+      action: AuditAction.updated,
+      changedBy: changedBy,
+      field: field,
+      beforeValue: beforeValue,
+      afterValue: afterValue,
+    );
+  }
+
+  void _appendAudit({
+    required String entityType,
+    required String entityId,
+    required AuditAction action,
     required String changedBy,
     required String field,
     required String beforeValue,
@@ -601,9 +1103,9 @@ class DemoContractStore {
     _auditEntries.add(
       AuditEntry(
         id: 'audit-${++_auditSequence}',
-        entityType: 'plan',
+        entityType: entityType,
         entityId: entityId,
-        action: AuditAction.updated,
+        action: action,
         changedBy: changedBy,
         changedAt: DateTime.now().toUtc(),
         field: field,
@@ -664,6 +1166,82 @@ class ReleasePlanResult {
   final int generatedTaskCount;
 }
 
+class CreateExecutionReportCommand {
+  const CreateExecutionReportCommand({
+    required this.requestId,
+    required this.taskId,
+    required this.reportedBy,
+    required this.reportedQuantity,
+    this.reason,
+  });
+
+  final String requestId;
+  final String taskId;
+  final String reportedBy;
+  final double reportedQuantity;
+  final String? reason;
+}
+
+class CreateExecutionReportResult {
+  const CreateExecutionReportResult({
+    required this.report,
+    required this.taskStatus,
+    required this.reportedQuantityTotal,
+    required this.remainingQuantity,
+  });
+
+  final ExecutionReport report;
+  final TaskStatus taskStatus;
+  final double reportedQuantityTotal;
+  final double remainingQuantity;
+}
+
+class CreateProblemCommand {
+  const CreateProblemCommand({
+    required this.requestId,
+    required this.taskId,
+    required this.createdBy,
+    required this.type,
+    required this.title,
+    required this.description,
+  });
+
+  final String requestId;
+  final String taskId;
+  final String createdBy;
+  final ProblemType type;
+  final String title;
+  final String description;
+}
+
+class AddProblemMessageCommand {
+  const AddProblemMessageCommand({
+    required this.requestId,
+    required this.problemId,
+    required this.authorId,
+    required this.message,
+  });
+
+  final String requestId;
+  final String problemId;
+  final String authorId;
+  final String message;
+}
+
+class TransitionProblemCommand {
+  const TransitionProblemCommand({
+    required this.requestId,
+    required this.problemId,
+    required this.changedBy,
+    required this.toStatus,
+  });
+
+  final String requestId;
+  final String problemId;
+  final String changedBy;
+  final ProblemStatus toStatus;
+}
+
 class DemoStoreNotFound implements Exception {
   const DemoStoreNotFound(this.code, this.message, {this.details = const {}});
 
@@ -700,4 +1278,46 @@ class _StoredReleaseCommand {
 
   final String signature;
   final ReleasePlanResult result;
+}
+
+class _StoredExecutionReportCommand {
+  const _StoredExecutionReportCommand({
+    required this.signature,
+    required this.result,
+  });
+
+  final String signature;
+  final CreateExecutionReportResult result;
+}
+
+class _StoredProblemCommand {
+  const _StoredProblemCommand({
+    required this.signature,
+    required this.problemId,
+  });
+
+  final String signature;
+  final String problemId;
+}
+
+class _StoredProblemMessageCommand {
+  const _StoredProblemMessageCommand({
+    required this.signature,
+    required this.problemId,
+    required this.messageId,
+  });
+
+  final String signature;
+  final String problemId;
+  final String messageId;
+}
+
+class _StoredProblemTransitionCommand {
+  const _StoredProblemTransitionCommand({
+    required this.signature,
+    required this.problemId,
+  });
+
+  final String signature;
+  final String problemId;
 }

@@ -85,19 +85,23 @@ class ImportSessionService {
       );
     }
     _validateConfirmRequest(request);
-    final requestSignature = '${request.mode}::${request.targetMachineId ?? ''}';
+    final requestSignature =
+        '${request.mode}::${request.targetMachineId ?? ''}';
     final existingConfirmSessionId =
         _sessionIdByConfirmRequestId[request.requestId];
-    if (existingConfirmSessionId != null && existingConfirmSessionId != sessionId) {
+    if (existingConfirmSessionId != null &&
+        existingConfirmSessionId != sessionId) {
       throw const ImportSessionException(
         statusCode: 409,
         code: 'import_request_replayed_with_different_payload',
-        message: 'Confirm requestId was already used for another import session.',
+        message:
+            'Confirm requestId was already used for another import session.',
       );
     }
 
     if (session.confirmResult != null) {
-      final isSameRequest = session.confirmRequestId == request.requestId &&
+      final isSameRequest =
+          session.confirmRequestId == request.requestId &&
           session.confirmRequestSignature == requestSignature;
       if (isSameRequest) {
         return session.confirmResult!;
@@ -131,13 +135,16 @@ class ImportSessionService {
 
     final result = switch (request.mode) {
       'create_machine' => _confirmCreateMachine(session),
-      'create_version' => _confirmCreateVersion(session, request.targetMachineId),
+      'create_version' => _confirmCreateVersion(
+        session,
+        request.targetMachineId,
+      ),
       _ => throw ImportSessionException(
-          statusCode: 400,
-          code: 'invalid_request',
-          message: 'Unsupported confirm mode.',
-          details: {'mode': request.mode},
-        ),
+        statusCode: 400,
+        code: 'invalid_request',
+        message: 'Unsupported confirm mode.',
+        details: {'mode': request.mode},
+      ),
     };
 
     session.confirmedAt = DateTime.now().toUtc();

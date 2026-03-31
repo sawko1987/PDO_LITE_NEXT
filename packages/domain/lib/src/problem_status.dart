@@ -1,1 +1,1 @@
-enum ProblemStatus { open, inProgress, resolved, closed }
+enum ProblemStatus { open, inProgress, closed }

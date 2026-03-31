@@ -22,10 +22,7 @@ Router buildV1Router(
           .toList(growable: false);
       final dto = ApiListResponseDto(
         items: items,
-        meta: const {
-          'source': 'local_contract_seed',
-          'resource': 'machines',
-        },
+        meta: const {'source': 'local_contract_seed', 'resource': 'machines'},
       );
       return jsonResponse(dto.toJson((item) => item.toJson()));
     })
@@ -69,7 +66,9 @@ Router buildV1Router(
             .map(
               (occurrence) => PlanningSourceOccurrenceDto.fromDomain(
                 occurrence,
-                operationCount: store.operationCountForOccurrence(occurrence.id),
+                operationCount: store.operationCountForOccurrence(
+                  occurrence.id,
+                ),
               ),
             )
             .toList(growable: false);
@@ -84,7 +83,12 @@ Router buildV1Router(
         );
         return jsonResponse(dto.toJson((item) => item.toJson()));
       } on DemoStoreNotFound catch (error) {
-        return _storeErrorResponse(error.code, error.message, error.details, 404);
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          404,
+        );
       }
     })
     ..post('/import-sessions/preview', (Request request) async {
@@ -132,10 +136,7 @@ Router buildV1Router(
           .toList(growable: false);
       final dto = ApiListResponseDto(
         items: items,
-        meta: const {
-          'source': 'local_contract_seed',
-          'resource': 'plans',
-        },
+        meta: const {'source': 'local_contract_seed', 'resource': 'plans'},
       );
       return jsonResponse(dto.toJson((item) => item.toJson()));
     })
@@ -149,8 +150,7 @@ Router buildV1Router(
             machineId: dto.machineId,
             versionId: dto.versionId,
             title: dto.title,
-            items: dto
-                .items
+            items: dto.items
                 .map(
                   (item) => CreatePlanItemCommand(
                     structureOccurrenceId: item.structureOccurrenceId,
@@ -160,13 +160,31 @@ Router buildV1Router(
                 .toList(growable: false),
           ),
         );
-        return jsonResponse(_toPlanDetailDto(plan, store).toJson(), statusCode: 201);
+        return jsonResponse(
+          _toPlanDetailDto(plan, store).toJson(),
+          statusCode: 201,
+        );
       } on DemoStoreNotFound catch (error) {
-        return _storeErrorResponse(error.code, error.message, error.details, 404);
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          404,
+        );
       } on DemoStoreValidation catch (error) {
-        return _storeErrorResponse(error.code, error.message, error.details, 422);
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          422,
+        );
       } on DemoStoreConflict catch (error) {
-        return _storeErrorResponse(error.code, error.message, error.details, 409);
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          409,
+        );
       } on FormatException {
         return _invalidJsonResponse();
       }
@@ -176,7 +194,12 @@ Router buildV1Router(
         final plan = store.getPlan(planId);
         return jsonResponse(_toPlanDetailDto(plan, store).toJson());
       } on DemoStoreNotFound catch (error) {
-        return _storeErrorResponse(error.code, error.message, error.details, 404);
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          404,
+        );
       }
     })
     ..post('/plans/<planId>/release', (Request request, String planId) async {
@@ -198,28 +221,60 @@ Router buildV1Router(
           ).toJson(),
         );
       } on DemoStoreNotFound catch (error) {
-        return _storeErrorResponse(error.code, error.message, error.details, 404);
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          404,
+        );
       } on DemoStoreValidation catch (error) {
-        return _storeErrorResponse(error.code, error.message, error.details, 422);
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          422,
+        );
       } on DemoStoreConflict catch (error) {
-        return _storeErrorResponse(error.code, error.message, error.details, 409);
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          409,
+        );
       } on FormatException {
         return _invalidJsonResponse();
       }
     })
     ..get('/tasks', (Request request) {
+      final assigneeId = request.url.queryParameters['assigneeId'];
+      final status = request.url.queryParameters['status'];
       final items = store
-          .listTasks()
+          .listTasks(assigneeId: assigneeId, status: status)
           .map(TaskSummaryDto.fromDomain)
           .toList(growable: false);
       final dto = ApiListResponseDto(
         items: items,
-        meta: const {
+        meta: {
           'source': 'local_contract_seed',
           'resource': 'tasks',
+          if (assigneeId != null) 'assigneeId': assigneeId,
+          if (status != null) 'status': status,
         },
       );
       return jsonResponse(dto.toJson((item) => item.toJson()));
+    })
+    ..get('/tasks/<taskId>', (Request request, String taskId) {
+      try {
+        final task = store.getTask(taskId);
+        return jsonResponse(_toTaskDetailDto(task, store).toJson());
+      } on DemoStoreNotFound catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          404,
+        );
+      }
     })
     ..get('/tasks/<taskId>/reports', (Request request, String taskId) {
       try {
@@ -247,19 +302,211 @@ Router buildV1Router(
         );
       }
     })
+    ..post('/tasks/<taskId>/reports', (Request request, String taskId) async {
+      try {
+        final body = await _readJsonBody(request);
+        final dto = CreateExecutionReportRequestDto.fromJson(body);
+        final result = store.createExecutionReport(
+          CreateExecutionReportCommand(
+            requestId: dto.requestId,
+            taskId: taskId,
+            reportedBy: dto.reportedBy,
+            reportedQuantity: dto.reportedQuantity,
+            reason: dto.reason,
+          ),
+        );
+        return jsonResponse(
+          CreateExecutionReportResultDto(
+            report: ExecutionReportDto.fromDomain(result.report),
+            taskStatus: result.taskStatus.name,
+            reportedQuantityTotal: result.reportedQuantityTotal,
+            remainingQuantity: result.remainingQuantity,
+            outboxStatus: 'sent',
+          ).toJson(),
+          statusCode: 201,
+        );
+      } on DemoStoreNotFound catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          404,
+        );
+      } on DemoStoreValidation catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          422,
+        );
+      } on DemoStoreConflict catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          409,
+        );
+      } on FormatException {
+        return _invalidJsonResponse();
+      }
+    })
     ..get('/problems', (Request request) {
+      final taskId = request.url.queryParameters['taskId'];
+      final status = request.url.queryParameters['status'];
       final items = store
-          .listProblems()
-          .map(ProblemSummaryDto.fromDomain)
+          .listProblems(taskId: taskId, status: status)
+          .map((problem) => _toProblemSummaryDto(problem, store))
           .toList(growable: false);
       final dto = ApiListResponseDto(
         items: items,
-        meta: const {
+        meta: {
           'source': 'local_contract_seed',
           'resource': 'problems',
+          if (taskId != null) 'taskId': taskId,
+          if (status != null) 'status': status,
         },
       );
       return jsonResponse(dto.toJson((item) => item.toJson()));
+    })
+    ..get('/problems/<problemId>', (Request request, String problemId) {
+      try {
+        final problem = store.getProblem(problemId);
+        return jsonResponse(_toProblemDetailDto(problem, store).toJson());
+      } on DemoStoreNotFound catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          404,
+        );
+      }
+    })
+    ..post('/tasks/<taskId>/problems', (Request request, String taskId) async {
+      try {
+        final body = await _readJsonBody(request);
+        final dto = CreateProblemRequestDto.fromJson(body);
+        final problem = store.createProblem(
+          CreateProblemCommand(
+            requestId: dto.requestId,
+            taskId: taskId,
+            createdBy: dto.createdBy,
+            type: _parseProblemType(dto.type),
+            title: dto.title,
+            description: dto.description,
+          ),
+        );
+        return jsonResponse(
+          _toProblemDetailDto(problem, store).toJson(),
+          statusCode: 201,
+        );
+      } on DemoStoreNotFound catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          404,
+        );
+      } on DemoStoreValidation catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          422,
+        );
+      } on DemoStoreConflict catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          409,
+        );
+      } on FormatException {
+        return _invalidJsonResponse();
+      }
+    })
+    ..post('/problems/<problemId>/messages', (
+      Request request,
+      String problemId,
+    ) async {
+      try {
+        final body = await _readJsonBody(request);
+        final dto = AddProblemMessageRequestDto.fromJson(body);
+        store.addProblemMessage(
+          AddProblemMessageCommand(
+            requestId: dto.requestId,
+            problemId: problemId,
+            authorId: dto.authorId,
+            message: dto.message,
+          ),
+        );
+        return jsonResponse(
+          _toProblemDetailDto(store.getProblem(problemId), store).toJson(),
+        );
+      } on DemoStoreNotFound catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          404,
+        );
+      } on DemoStoreValidation catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          422,
+        );
+      } on DemoStoreConflict catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          409,
+        );
+      } on FormatException {
+        return _invalidJsonResponse();
+      }
+    })
+    ..post('/problems/<problemId>/transition', (
+      Request request,
+      String problemId,
+    ) async {
+      try {
+        final body = await _readJsonBody(request);
+        final dto = TransitionProblemRequestDto.fromJson(body);
+        final problem = store.transitionProblem(
+          TransitionProblemCommand(
+            requestId: dto.requestId,
+            problemId: problemId,
+            changedBy: dto.changedBy,
+            toStatus: _parseProblemStatus(dto.toStatus),
+          ),
+        );
+        return jsonResponse(_toProblemDetailDto(problem, store).toJson());
+      } on DemoStoreNotFound catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          404,
+        );
+      } on DemoStoreValidation catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          422,
+        );
+      } on DemoStoreConflict catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          409,
+        );
+      } on FormatException {
+        return _invalidJsonResponse();
+      }
     })
     ..get('/wip', (Request request) {
       final items = store
@@ -339,7 +586,9 @@ Response _storeErrorResponse(
 PlanDetailDto _toPlanDetailDto(Plan plan, DemoContractStore store) {
   final items = plan.items
       .map((item) {
-        final occurrence = store.getStructureOccurrence(item.structureOccurrenceId);
+        final occurrence = store.getStructureOccurrence(
+          item.structureOccurrenceId,
+        );
         return PlanDetailItemDto.fromDomain(
           item,
           occurrence: occurrence,
@@ -348,4 +597,104 @@ PlanDetailDto _toPlanDetailDto(Plan plan, DemoContractStore store) {
       })
       .toList(growable: false);
   return PlanDetailDto.fromDomain(plan, items: items);
+}
+
+TaskDetailDto _toTaskDetailDto(ProductionTask task, DemoContractStore store) {
+  final operation = store.getOperationOccurrence(task.operationOccurrenceId);
+  final occurrence = store.getStructureOccurrence(
+    operation.structureOccurrenceId,
+  );
+  final plan = store.getPlanByItemId(task.planItemId);
+  final reportedQuantity = store.reportedQuantityForTask(task.id);
+  return TaskDetailDto(
+    id: task.id,
+    planItemId: task.planItemId,
+    operationOccurrenceId: task.operationOccurrenceId,
+    machineId: plan.machineId,
+    versionId: plan.versionId,
+    structureOccurrenceId: occurrence.id,
+    structureDisplayName: occurrence.displayName,
+    operationName: operation.name,
+    workshop: operation.workshop ?? occurrence.workshop ?? '',
+    requiredQuantity: task.requiredQuantity,
+    reportedQuantity: reportedQuantity,
+    remainingQuantity: task.requiredQuantity - reportedQuantity,
+    assigneeId: task.assigneeId,
+    status: task.status.name,
+    isClosed: task.isClosed,
+  );
+}
+
+ProblemSummaryDto _toProblemSummaryDto(
+  Problem problem,
+  DemoContractStore store,
+) {
+  return ProblemSummaryDto(
+    id: problem.id,
+    machineId: problem.machineId,
+    type: _problemTypeToApi(problem.type),
+    taskId: problem.taskId,
+    title: problem.title,
+    status: problem.status.name,
+    isOpen: problem.isOpen,
+    createdAt: problem.createdAt,
+    messageCount: store.problemMessageCount(problem.id),
+  );
+}
+
+ProblemDetailDto _toProblemDetailDto(Problem problem, DemoContractStore store) {
+  final messages = store
+      .listProblemMessages(problem.id)
+      .map(ProblemMessageDto.fromDomain)
+      .toList(growable: false);
+  return ProblemDetailDto(
+    id: problem.id,
+    machineId: problem.machineId,
+    type: _problemTypeToApi(problem.type),
+    taskId: problem.taskId,
+    title: problem.title,
+    status: problem.status.name,
+    isOpen: problem.isOpen,
+    createdAt: problem.createdAt,
+    messages: messages,
+  );
+}
+
+ProblemType _parseProblemType(String value) {
+  return switch (value) {
+    'equipment' => ProblemType.equipment,
+    'materials' => ProblemType.materials,
+    'documentation' => ProblemType.documentation,
+    'planning_error' => ProblemType.planningError,
+    'technology_error' => ProblemType.technologyError,
+    'blocked_by_other_workshop' => ProblemType.blockedByOtherWorkshop,
+    'other' => ProblemType.other,
+    _ => throw const DemoStoreValidation(
+      'invalid_problem_type',
+      'Problem type is not supported.',
+    ),
+  };
+}
+
+ProblemStatus _parseProblemStatus(String value) {
+  return switch (value) {
+    'inProgress' => ProblemStatus.inProgress,
+    'closed' => ProblemStatus.closed,
+    _ => throw const DemoStoreValidation(
+      'problem_transition_not_allowed',
+      'Problem transition target status is not supported.',
+    ),
+  };
+}
+
+String _problemTypeToApi(ProblemType type) {
+  return switch (type) {
+    ProblemType.equipment => 'equipment',
+    ProblemType.materials => 'materials',
+    ProblemType.documentation => 'documentation',
+    ProblemType.planningError => 'planning_error',
+    ProblemType.technologyError => 'technology_error',
+    ProblemType.blockedByOtherWorkshop => 'blocked_by_other_workshop',
+    ProblemType.other => 'other',
+  };
 }

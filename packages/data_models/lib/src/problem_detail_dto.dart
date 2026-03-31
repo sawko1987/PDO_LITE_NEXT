@@ -1,37 +1,24 @@
-import 'package:domain/domain.dart';
+import 'problem_message_dto.dart';
 
-class ProblemSummaryDto {
-  const ProblemSummaryDto({
+class ProblemDetailDto {
+  const ProblemDetailDto({
     required this.id,
     required this.machineId,
     required this.type,
     required this.status,
     required this.isOpen,
     required this.createdAt,
-    required this.messageCount,
+    required this.messages,
     this.taskId,
     this.title,
   });
 
-  factory ProblemSummaryDto.fromDomain(
-    Problem problem, {
-    int messageCount = 0,
-  }) {
-    return ProblemSummaryDto(
-      id: problem.id,
-      machineId: problem.machineId,
-      type: problem.type.name,
-      taskId: problem.taskId,
-      title: problem.title,
-      status: problem.status.name,
-      isOpen: problem.isOpen,
-      createdAt: problem.createdAt,
-      messageCount: messageCount,
-    );
-  }
-
-  factory ProblemSummaryDto.fromJson(Map<String, Object?> json) {
-    return ProblemSummaryDto(
+  factory ProblemDetailDto.fromJson(Map<String, Object?> json) {
+    final messages = (json['messages'] as List<Object?>? ?? const [])
+        .whereType<Map<Object?, Object?>>()
+        .map((item) => ProblemMessageDto.fromJson(item.cast<String, Object?>()))
+        .toList(growable: false);
+    return ProblemDetailDto(
       id: json['id'] as String? ?? '',
       machineId: json['machineId'] as String? ?? '',
       type: json['type'] as String? ?? '',
@@ -42,7 +29,7 @@ class ProblemSummaryDto {
       createdAt:
           DateTime.tryParse(json['createdAt'] as String? ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
-      messageCount: (json['messageCount'] as num?)?.toInt() ?? 0,
+      messages: messages,
     );
   }
 
@@ -54,7 +41,7 @@ class ProblemSummaryDto {
   final String status;
   final bool isOpen;
   final DateTime createdAt;
-  final int messageCount;
+  final List<ProblemMessageDto> messages;
 
   Map<String, Object?> toJson() => {
     'id': id,
@@ -65,6 +52,6 @@ class ProblemSummaryDto {
     'status': status,
     'isOpen': isOpen,
     'createdAt': createdAt.toIso8601String(),
-    'messageCount': messageCount,
+    'messages': messages.map((message) => message.toJson()).toList(),
   };
 }

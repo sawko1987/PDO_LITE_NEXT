@@ -177,10 +177,12 @@ void main() {
           requiredQuantity: 4,
         ),
       ],
-      problems: const [
+      problems: [
         Problem(
           id: 'problem-1',
           machineId: 'machine-1',
+          type: ProblemType.equipment,
+          createdAt: DateTime.utc(2026, 3, 28, 12),
           status: ProblemStatus.inProgress,
         ),
       ],
@@ -222,10 +224,12 @@ void main() {
             status: TaskStatus.completed,
           ),
         ],
-        problems: const [
+        problems: [
           Problem(
             id: 'problem-1',
             machineId: 'machine-1',
+            type: ProblemType.equipment,
+            createdAt: DateTime.utc(2026, 3, 28, 12),
             status: ProblemStatus.closed,
           ),
         ],
@@ -246,4 +250,46 @@ void main() {
       expect(decision.blockers, isEmpty);
     },
   );
+
+  test('problem stays open until status becomes closed', () {
+    final openProblem = Problem(
+      id: 'problem-open',
+      machineId: 'machine-1',
+      type: ProblemType.documentation,
+      createdAt: DateTime.utc(2026, 4, 1, 8),
+      status: ProblemStatus.open,
+    );
+    final inProgressProblem = Problem(
+      id: 'problem-active',
+      machineId: 'machine-1',
+      type: ProblemType.other,
+      createdAt: DateTime.utc(2026, 4, 1, 9),
+      status: ProblemStatus.inProgress,
+    );
+    final closedProblem = Problem(
+      id: 'problem-closed',
+      machineId: 'machine-1',
+      type: ProblemType.other,
+      createdAt: DateTime.utc(2026, 4, 1, 10),
+      status: ProblemStatus.closed,
+    );
+
+    expect(openProblem.isOpen, isTrue);
+    expect(inProgressProblem.isOpen, isTrue);
+    expect(closedProblem.isOpen, isFalse);
+  });
+
+  test('problem message keeps author and timestamp context', () {
+    final message = ProblemMessage(
+      id: 'message-1',
+      problemId: 'problem-1',
+      authorId: 'master-1',
+      message: 'Need fixture replacement.',
+      createdAt: DateTime.utc(2026, 4, 1, 11),
+    );
+
+    expect(message.problemId, 'problem-1');
+    expect(message.authorId, 'master-1');
+    expect(message.message, contains('fixture'));
+  });
 }

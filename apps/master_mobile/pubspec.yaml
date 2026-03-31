@@ -7,8 +7,12 @@ environment:
   sdk: ^3.10.8
 
 dependencies:
+  data_models:
+    path: ../../packages/data_models
   flutter:
     sdk: flutter
+  http: ^1.2.2
+  shared_preferences: ^2.3.2
   shared_ui:
     path: ../../packages/shared_ui
 

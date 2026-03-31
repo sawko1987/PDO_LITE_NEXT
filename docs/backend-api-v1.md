@@ -1,12 +1,13 @@
 # Backend API v1
 
 ## Назначение
-Документ фиксирует контракт локального backend API для этапа 3. Это не финальная полная реализация, а стабильный v1-каркас, на который должны опираться backend, Windows-клиент и mobile-клиент.
+Документ фиксирует текущий контракт локального backend API для `PDO_LITE_NEXT`.
+Это не полный финальный контракт системы, а стабильный v1-каркас, на который уже опираются backend, Windows-клиент и mobile-клиент мастера.
 
 ## Общие правила
 - Базовый префикс API: `/v1`.
 - Формат ответов: JSON.
-- Для списков используется общий envelope:
+- Для списков используется envelope:
 
 ```json
 {
@@ -16,19 +17,21 @@
 }
 ```
 
-- Для ошибок используется общий envelope:
+- Для ошибок используется envelope:
 
 ```json
 {
   "error": {
-    "code": "machine_not_found",
-    "message": "Machine was not found.",
+    "code": "task_not_found",
+    "message": "Task was not found.",
     "details": {}
   }
 }
 ```
 
-- Идемпотентные операции создания/подтверждения в последующей реализации должны принимать `requestId` или другой явный ключ идемпотентности.
+- Все write-операции v1 используют `requestId` как ключ идемпотентности.
+- Повторный запрос с тем же `requestId` и тем же payload должен вернуть тот же результат.
+- Повторный запрос с тем же `requestId`, но другим payload должен возвращать `409`.
 
 ## Системные endpoint'ы
 
@@ -39,15 +42,6 @@
 - `status`
 - `service`
 - `timestamp`
-
-### `GET /bootstrap`
-Назначение: отдать клиентам базовые архитектурные флаги инстанса.
-
-Ответ `200`:
-- `sourceOfTruth`
-- `importMode`
-- `planSource`
-- `taskGenerationMode`
 
 ## Машины и версии
 
@@ -90,7 +84,44 @@
 - `404 machine_not_found`
 - `404 machine_version_not_found`
 
-## Планы и задания
+## Импорт
+
+### `POST /v1/import-sessions/preview`
+Назначение: создать preview import-session для Excel/MXL.
+
+Тело запроса:
+- `requestId`
+- `fileName`
+- `fileContentBase64`
+
+Ответ `201`:
+- `sessionId`
+- `status`
+- `preview`
+
+### `GET /v1/import-sessions/{sessionId}`
+Назначение: получить ранее созданный preview import-session.
+
+Ответ `200`:
+- `sessionId`
+- `status`
+- `preview`
+
+### `POST /v1/import-sessions/{sessionId}/confirm`
+Назначение: подтвердить импорт.
+
+Тело запроса:
+- `requestId`
+- `mode`
+- `targetMachineId` для `create_version`
+
+Ответ `200`:
+- `sessionId`
+- `mode`
+- `machineId`
+- `versionId`
+
+## Планы
 
 ### `GET /v1/plans`
 Назначение: сводный список планов.
@@ -182,8 +213,14 @@
 - `409 plan_request_replayed_with_different_payload`
 - `422 invalid_request`
 
+## Задания и факты выполнения
+
 ### `GET /v1/tasks`
 Назначение: сводный список выданных заданий.
+
+Параметры query:
+- `assigneeId` optional
+- `status` optional
 
 Элемент списка:
 - `id`
@@ -193,6 +230,29 @@
 - `assigneeId`
 - `status`
 - `isClosed`
+
+### `GET /v1/tasks/{taskId}`
+Назначение: детальная карточка задания мастера с контекстом операции и прогрессом.
+
+Поля ответа:
+- `id`
+- `planItemId`
+- `operationOccurrenceId`
+- `machineId`
+- `versionId`
+- `structureOccurrenceId`
+- `structureDisplayName`
+- `operationName`
+- `workshop`
+- `requiredQuantity`
+- `reportedQuantity`
+- `remainingQuantity`
+- `assigneeId`
+- `status`
+- `isClosed`
+
+Ошибки:
+- `404 task_not_found`
 
 ### `GET /v1/tasks/{taskId}/reports`
 Назначение: факты выполнения по конкретному заданию.
@@ -210,18 +270,157 @@
 Ошибки:
 - `404 task_not_found`
 
-## Проблемы, НЗП и аудит
+### `POST /v1/tasks/{taskId}/reports`
+Назначение: принять execution report от мастера по заданию.
+
+Тело запроса:
+- `requestId`
+- `reportedBy`
+- `reportedQuantity`
+- `reason`
+
+Ответ `201`:
+- `report`
+- `taskStatus`
+- `reportedQuantityTotal`
+- `remainingQuantity`
+- `outboxStatus`
+
+Правила:
+- пока запрещено перевыполнение сверх `remainingQuantity`;
+- статус задания меняется `pending -> inProgress -> completed`;
+- закрытое задание не принимает новый report.
+
+Ошибки:
+- `404 task_not_found`
+- `409 execution_report_replayed_with_different_payload`
+- `409 task_report_not_allowed`
+- `422 invalid_reported_quantity`
+- `422 report_exceeds_required_quantity`
+
+## Проблемы и чат
+
+### Общие правила проблем v1
+- Проблема в текущем v1 создаётся только из конкретного `taskId`.
+- `machineId` и `taskId` сервер выводит из контекста задания.
+- Жизненный цикл проблемы в v1: `open -> inProgress -> closed`.
+- Статус `resolved` в v1 не используется.
+- В v1 мастер может сам перевести проблему в `inProgress` и `closed`.
+- Закрытая проблема не принимает новые сообщения и не переоткрывается в этом этапе.
+
+### Классификатор `Problem.type`
+- `equipment`
+- `materials`
+- `documentation`
+- `planning_error`
+- `technology_error`
+- `blocked_by_other_workshop`
+- `other`
 
 ### `GET /v1/problems`
-Назначение: список открытых и архивных проблем.
+Назначение: список проблем.
+
+Параметры query:
+- `taskId` optional
+- `status` optional
 
 Элемент списка:
 - `id`
 - `machineId`
+- `type`
 - `taskId`
 - `title`
 - `status`
 - `isOpen`
+- `createdAt`
+- `messageCount`
+
+### `GET /v1/problems/{problemId}`
+Назначение: получить карточку проблемы вместе с лентой сообщений.
+
+Поля ответа:
+- `id`
+- `machineId`
+- `type`
+- `taskId`
+- `title`
+- `status`
+- `isOpen`
+- `createdAt`
+- `messages[]`
+
+Элемент `messages[]`:
+- `id`
+- `problemId`
+- `authorId`
+- `message`
+- `createdAt`
+
+Ошибки:
+- `404 problem_not_found`
+
+### `POST /v1/tasks/{taskId}/problems`
+Назначение: создать проблему из карточки задания.
+
+Тело запроса:
+- `requestId`
+- `createdBy`
+- `type`
+- `title`
+- `description`
+
+Ответ `201`:
+- `ProblemDetailDto`
+
+Правила:
+- `description` становится первым сообщением треда;
+- новая проблема создаётся в статусе `open`.
+
+Ошибки:
+- `404 task_not_found`
+- `409 problem_request_replayed_with_different_payload`
+- `422 invalid_problem_type`
+- `422 invalid_problem_message`
+
+### `POST /v1/problems/{problemId}/messages`
+Назначение: добавить сообщение в чат проблемы.
+
+Тело запроса:
+- `requestId`
+- `authorId`
+- `message`
+
+Ответ `200`:
+- актуальный `ProblemDetailDto`
+
+Ошибки:
+- `404 problem_not_found`
+- `409 problem_request_replayed_with_different_payload`
+- `422 invalid_problem_message`
+- `422 problem_message_not_allowed`
+
+### `POST /v1/problems/{problemId}/transition`
+Назначение: изменить статус проблемы.
+
+Тело запроса:
+- `requestId`
+- `changedBy`
+- `toStatus`
+
+Допустимые `toStatus`:
+- `inProgress`
+- `closed`
+
+Ответ `200`:
+- актуальный `ProblemDetailDto`
+
+Ошибки:
+- `404 problem_not_found`
+- `409 problem_request_replayed_with_different_payload`
+- `409 problem_transition_not_allowed`
+- `422 invalid_request`
+
+## НЗП и аудит
 
 ### `GET /v1/wip`
 Назначение: текущее состояние НЗП.
@@ -251,17 +450,8 @@
 - `afterValue`
 
 ## Следующие write-контракты
-Следующими после этапа 3 должны быть зафиксированы команды:
-- создание/публикация версии машины;
-- создание import session и подтверждение импорта;
-- создание/выпуск плана;
-- приём execution report от мастера;
-- создание проблемы и сообщений чата;
-- подтверждение завершения изделия начальником.
-
-Для этих операций обязателен единый подход:
-- command DTO;
-- idempotency key;
-- `409` для конфликтов жизненного цикла;
-- `422` для нарушения бизнес-инвариантов;
-- аудит критичных действий.
+Следующими после текущего этапа должны быть зафиксированы команды:
+- создание и публикация версий машины;
+- полноценный модуль НЗП;
+- подтверждение завершения изделия начальником;
+- полный sync-контур с конфликтами и повторными попытками.

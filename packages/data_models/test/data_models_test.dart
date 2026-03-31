@@ -66,6 +66,134 @@ void main() {
     expect(dto.toJson()['status'], 'completed');
   });
 
+  test('task detail dto parses progress context', () {
+    final dto = TaskDetailDto.fromJson({
+      'id': 'task-1',
+      'planItemId': 'plan-item-1',
+      'operationOccurrenceId': 'op-1',
+      'machineId': 'machine-1',
+      'versionId': 'ver-2026-03',
+      'structureOccurrenceId': 'occ-1',
+      'structureDisplayName': 'Frame',
+      'operationName': 'Cut',
+      'workshop': 'WS-1',
+      'requiredQuantity': 12,
+      'reportedQuantity': 6,
+      'remainingQuantity': 6,
+      'assigneeId': 'master-1',
+      'status': 'inProgress',
+      'isClosed': false,
+    });
+
+    expect(dto.operationName, 'Cut');
+    expect(dto.remainingQuantity, 6);
+    expect(dto.isClosed, isFalse);
+  });
+
+  test('create execution report request serializes stable contract', () {
+    const dto = CreateExecutionReportRequestDto(
+      requestId: 'report-req-1',
+      reportedBy: 'master-1',
+      reportedQuantity: 2,
+      reason: 'Half shift completed',
+    );
+
+    final json = dto.toJson();
+
+    expect(json['requestId'], 'report-req-1');
+    expect(json['reportedBy'], 'master-1');
+    expect(json['reportedQuantity'], 2);
+  });
+
+  test('create execution report result parses nested report', () {
+    final dto = CreateExecutionReportResultDto.fromJson({
+      'report': {
+        'id': 'report-1',
+        'taskId': 'task-1',
+        'reportedBy': 'master-1',
+        'reportedAt': '2026-03-31T10:00:00.000Z',
+        'reportedQuantity': 3,
+        'reason': null,
+        'acceptedAt': '2026-03-31T10:01:00.000Z',
+        'isAccepted': true,
+      },
+      'taskStatus': 'inProgress',
+      'reportedQuantityTotal': 3,
+      'remainingQuantity': 9,
+      'outboxStatus': 'sent',
+    });
+
+    expect(dto.report.id, 'report-1');
+    expect(dto.taskStatus, 'inProgress');
+    expect(dto.remainingQuantity, 9);
+  });
+
+  test('problem summary dto parses type and message count', () {
+    final dto = ProblemSummaryDto.fromJson({
+      'id': 'problem-1',
+      'machineId': 'machine-1',
+      'taskId': 'task-1',
+      'title': 'Missing fixture',
+      'type': 'equipment',
+      'status': 'open',
+      'isOpen': true,
+      'createdAt': '2026-04-01T08:00:00.000Z',
+      'messageCount': 2,
+    });
+
+    expect(dto.type, 'equipment');
+    expect(dto.messageCount, 2);
+  });
+
+  test('problem detail dto parses nested messages', () {
+    final dto = ProblemDetailDto.fromJson({
+      'id': 'problem-1',
+      'machineId': 'machine-1',
+      'taskId': 'task-1',
+      'title': 'Fixture issue',
+      'type': 'equipment',
+      'status': 'inProgress',
+      'isOpen': true,
+      'createdAt': '2026-04-01T08:00:00.000Z',
+      'messages': [
+        {
+          'id': 'message-1',
+          'problemId': 'problem-1',
+          'authorId': 'master-1',
+          'message': 'Need replacement fixture',
+          'createdAt': '2026-04-01T08:05:00.000Z',
+        },
+      ],
+    });
+
+    expect(dto.messages.single.authorId, 'master-1');
+    expect(dto.messages.single.message, contains('fixture'));
+  });
+
+  test('problem request dto serializes stable contracts', () {
+    const createDto = CreateProblemRequestDto(
+      requestId: 'problem-create-1',
+      createdBy: 'master-1',
+      type: 'equipment',
+      title: 'Fixture issue',
+      description: 'Machine cannot proceed.',
+    );
+    const messageDto = AddProblemMessageRequestDto(
+      requestId: 'problem-message-1',
+      authorId: 'master-1',
+      message: 'Still waiting for support.',
+    );
+    const transitionDto = TransitionProblemRequestDto(
+      requestId: 'problem-transition-1',
+      changedBy: 'master-1',
+      toStatus: 'closed',
+    );
+
+    expect(createDto.toJson()['type'], 'equipment');
+    expect(messageDto.toJson()['message'], contains('waiting'));
+    expect(transitionDto.toJson()['toStatus'], 'closed');
+  });
+
   test('api error dto nests error payload', () {
     const dto = ApiErrorDto(
       code: 'machine_not_found',

@@ -1,0 +1,731 @@
+import 'package:data_models/data_models.dart';
+import 'package:flutter/material.dart';
+import 'package:shared_ui/shared_ui.dart';
+
+import 'master_outbox_item.dart';
+import 'master_workspace_controller.dart';
+
+const _problemTypeOptions = <({String label, String value})>[
+  (label: 'Equipment', value: 'equipment'),
+  (label: 'Materials', value: 'materials'),
+  (label: 'Documentation', value: 'documentation'),
+  (label: 'Planning Error', value: 'planning_error'),
+  (label: 'Technology Error', value: 'technology_error'),
+  (label: 'Blocked by Other Workshop', value: 'blocked_by_other_workshop'),
+  (label: 'Other', value: 'other'),
+];
+
+class MasterWorkspace extends StatefulWidget {
+  const MasterWorkspace({super.key, required this.controller});
+
+  final MasterWorkspaceController controller;
+
+  @override
+  State<MasterWorkspace> createState() => _MasterWorkspaceState();
+}
+
+class _MasterWorkspaceState extends State<MasterWorkspace> {
+  final _quantityController = TextEditingController();
+  final _reasonController = TextEditingController();
+
+  MasterWorkspaceController get _controller => widget.controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.bootstrap();
+  }
+
+  @override
+  void dispose() {
+    _quantityController.dispose();
+    _reasonController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: _controller,
+      builder: (context, _) {
+        if (_controller.isLoading &&
+            _controller.tasks.isEmpty &&
+            _controller.selectedTask == null) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        return RefreshIndicator(
+          onRefresh: _controller.refresh,
+          child: ListView(
+            children: [
+              const FeatureCard(
+                title: 'Assigned Tasks',
+                description:
+                    'Master sends execution facts and raises task-scoped problems from the same workspace.',
+                icon: Icons.assignment_turned_in_outlined,
+              ),
+              const SizedBox(height: 16),
+              _FilterCard(
+                assigneeId: _controller.assigneeId,
+                filter: _controller.taskFilter,
+                onChanged: _controller.setFilter,
+              ),
+              const SizedBox(height: 16),
+              if (_controller.errorMessage case final error?)
+                _ErrorCard(message: error),
+              if (_controller.errorMessage != null) const SizedBox(height: 16),
+              _TaskListCard(
+                tasks: _controller.visibleTasks,
+                selectedTaskId: _controller.selectedTask?.id,
+                onSelected: _controller.selectTask,
+              ),
+              const SizedBox(height: 16),
+              if (_controller.selectedTask case final task?)
+                _TaskDetailCard(
+                  isSubmitting: _controller.isSubmitting,
+                  onCreateProblem: () => _showCreateProblemSheet(context, task),
+                  onOpenProblem: (problem) =>
+                      _showProblemSheet(context, problem),
+                  onSubmitReport: () async {
+                    final quantity = double.tryParse(
+                      _quantityController.text.replaceAll(',', '.'),
+                    );
+                    if (quantity == null || quantity <= 0) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Enter a valid reported quantity greater than zero.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
+                    await _controller.submitExecutionReport(
+                      taskId: task.id,
+                      reportedQuantity: quantity,
+                      reason: _reasonController.text,
+                    );
+                    _quantityController.clear();
+                    _reasonController.clear();
+                  },
+                  problems: _controller.problems,
+                  quantityController: _quantityController,
+                  reasonController: _reasonController,
+                  reports: _controller.reports,
+                  task: task,
+                ),
+              const SizedBox(height: 16),
+              _OutboxCard(
+                items: _controller.outboxItems,
+                onRetry: _controller.retryOutboxItem,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showCreateProblemSheet(
+    BuildContext context,
+    TaskDetailDto task,
+  ) async {
+    final titleController = TextEditingController();
+    final descriptionController = TextEditingController();
+    var selectedType = _problemTypeOptions.first.value;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 16,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Raise Problem for ${task.operationName}',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    key: const Key('problemTypeDropdown'),
+                    initialValue: selectedType,
+                    decoration: const InputDecoration(
+                      labelText: 'Problem type',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: _problemTypeOptions
+                        .map(
+                          (option) => DropdownMenuItem<String>(
+                            value: option.value,
+                            child: Text(option.label),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: (value) {
+                      if (value == null) {
+                        return;
+                      }
+                      setModalState(() => selectedType = value);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    key: const Key('problemTitleField'),
+                    controller: titleController,
+                    decoration: const InputDecoration(
+                      labelText: 'Title',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    key: const Key('problemDescriptionField'),
+                    controller: descriptionController,
+                    minLines: 2,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      labelText: 'First message',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: FilledButton.icon(
+                      key: const Key('createProblemButton'),
+                      onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        final navigator = Navigator.of(context);
+                        final title = titleController.text.trim();
+                        final description = descriptionController.text.trim();
+                        if (title.isEmpty || description.isEmpty) {
+                          messenger.showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Problem title and first message are required.',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+
+                        await _controller.createProblem(
+                          taskId: task.id,
+                          type: selectedType,
+                          title: title,
+                          description: description,
+                        );
+                        if (mounted) {
+                          navigator.pop();
+                        }
+                      },
+                      icon: const Icon(Icons.report_problem_outlined),
+                      label: const Text('Create problem'),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+    titleController.dispose();
+    descriptionController.dispose();
+  }
+
+  Future<void> _showProblemSheet(
+    BuildContext context,
+    ProblemSummaryDto problem,
+  ) async {
+    await _controller.selectProblem(problem.id);
+    if (!mounted || !context.mounted) {
+      return;
+    }
+
+    final messageController = TextEditingController();
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+          ),
+          child: _ProblemDetailSheet(
+            controller: _controller,
+            messageController: messageController,
+          ),
+        );
+      },
+    );
+    messageController.dispose();
+  }
+}
+
+class _ErrorCard extends StatelessWidget {
+  const _ErrorCard({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: Theme.of(context).colorScheme.errorContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text(
+          message,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: Theme.of(context).colorScheme.onErrorContainer,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FilterCard extends StatelessWidget {
+  const _FilterCard({
+    required this.assigneeId,
+    required this.filter,
+    required this.onChanged,
+  });
+
+  final String assigneeId;
+  final MasterTaskFilter filter;
+  final ValueChanged<MasterTaskFilter> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            Chip(
+              avatar: const Icon(Icons.person_outline, size: 18),
+              label: Text('Assignee: $assigneeId'),
+            ),
+            ChoiceChip(
+              label: const Text('Active'),
+              selected: filter == MasterTaskFilter.active,
+              onSelected: (_) => onChanged(MasterTaskFilter.active),
+            ),
+            ChoiceChip(
+              label: const Text('Completed'),
+              selected: filter == MasterTaskFilter.completed,
+              onSelected: (_) => onChanged(MasterTaskFilter.completed),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TaskListCard extends StatelessWidget {
+  const _TaskListCard({
+    required this.tasks,
+    required this.selectedTaskId,
+    required this.onSelected,
+  });
+
+  final ValueChanged<String> onSelected;
+  final String? selectedTaskId;
+  final List<TaskSummaryDto> tasks;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Assigned Task List',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 12),
+            if (tasks.isEmpty)
+              const Text('No tasks match the current filter.')
+            else
+              for (final task in tasks) ...[
+                ListTile(
+                  key: Key('taskTile-${task.id}'),
+                  selected: task.id == selectedTaskId,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text('Task ${task.id}'),
+                  subtitle: Text(
+                    'Required ${task.requiredQuantity} - ${task.status}',
+                  ),
+                  trailing: task.isClosed
+                      ? const Icon(Icons.check_circle_outline)
+                      : const Icon(Icons.chevron_right),
+                  onTap: () => onSelected(task.id),
+                ),
+                const Divider(height: 1),
+              ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TaskDetailCard extends StatelessWidget {
+  const _TaskDetailCard({
+    required this.isSubmitting,
+    required this.onCreateProblem,
+    required this.onOpenProblem,
+    required this.onSubmitReport,
+    required this.problems,
+    required this.quantityController,
+    required this.reasonController,
+    required this.reports,
+    required this.task,
+  });
+
+  final bool isSubmitting;
+  final VoidCallback onCreateProblem;
+  final ValueChanged<ProblemSummaryDto> onOpenProblem;
+  final VoidCallback onSubmitReport;
+  final List<ProblemSummaryDto> problems;
+  final TextEditingController quantityController;
+  final TextEditingController reasonController;
+  final List<ExecutionReportDto> reports;
+  final TaskDetailDto task;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Task Detail',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                Chip(label: Text(task.structureDisplayName)),
+                Chip(label: Text(task.operationName)),
+                Chip(label: Text('Workshop ${task.workshop}')),
+                Chip(label: Text(task.status)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Required: ${task.requiredQuantity} - Reported: ${task.reportedQuantity} - Remaining: ${task.remainingQuantity}',
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              key: const Key('reportQuantityField'),
+              controller: quantityController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(
+                labelText: 'Reported quantity',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              key: const Key('reportReasonField'),
+              controller: reasonController,
+              minLines: 1,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'Reason / comment',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              key: const Key('submitReportButton'),
+              onPressed: isSubmitting || task.isClosed ? null : onSubmitReport,
+              icon: const Icon(Icons.send_outlined),
+              label: Text(
+                isSubmitting ? 'Sending...' : 'Send execution report',
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Problems',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                TextButton.icon(
+                  key: const Key('openCreateProblemSheetButton'),
+                  onPressed: onCreateProblem,
+                  icon: const Icon(Icons.add_comment_outlined),
+                  label: const Text('Raise problem'),
+                ),
+              ],
+            ),
+            if (problems.isEmpty)
+              const Text('No problems for this task.')
+            else
+              for (final problem in problems) ...[
+                ListTile(
+                  key: Key('problemTile-${problem.id}'),
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(problem.title ?? problem.id),
+                  subtitle: Text(
+                    '${problem.type} - ${problem.status} - ${problem.messageCount} msgs',
+                  ),
+                  trailing: const Icon(Icons.chat_bubble_outline),
+                  onTap: () => onOpenProblem(problem),
+                ),
+                const Divider(height: 1),
+              ],
+            const SizedBox(height: 20),
+            Text(
+              'Accepted Reports',
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            if (reports.isEmpty)
+              const Text('No accepted reports yet.')
+            else
+              for (final report in reports) ...[
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    '${report.reportedQuantity} pcs by ${report.reportedBy}',
+                  ),
+                  subtitle: Text(report.reportedAt.toIso8601String()),
+                ),
+                const Divider(height: 1),
+              ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProblemDetailSheet extends StatelessWidget {
+  const _ProblemDetailSheet({
+    required this.controller,
+    required this.messageController,
+  });
+
+  final MasterWorkspaceController controller;
+  final TextEditingController messageController;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        final problem = controller.selectedProblem;
+        if (problem == null) {
+          return const SizedBox(
+            height: 200,
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        final isClosed = !problem.isOpen;
+        return ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 560),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                problem.title ?? problem.id,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  Chip(label: Text(problem.type)),
+                  Chip(label: Text(problem.status)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (final message in problem.messages) ...[
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(message.authorId),
+                        subtitle: Text(message.message),
+                        trailing: Text(
+                          TimeOfDay.fromDateTime(
+                            message.createdAt,
+                          ).format(context),
+                        ),
+                      ),
+                      const Divider(height: 1),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const Key('problemMessageField'),
+                controller: messageController,
+                minLines: 1,
+                maxLines: 3,
+                enabled: !isClosed,
+                decoration: const InputDecoration(
+                  labelText: 'Add message',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  FilledButton.icon(
+                    key: const Key('sendProblemMessageButton'),
+                    onPressed: isClosed
+                        ? null
+                        : () async {
+                            final message = messageController.text.trim();
+                            if (message.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Problem message is required.'),
+                                ),
+                              );
+                              return;
+                            }
+                            await controller.addProblemMessage(
+                              problemId: problem.id,
+                              message: message,
+                            );
+                            messageController.clear();
+                          },
+                    icon: const Icon(Icons.send_outlined),
+                    label: const Text('Send message'),
+                  ),
+                  OutlinedButton.icon(
+                    key: const Key('startProblemButton'),
+                    onPressed: isClosed || problem.status == 'inProgress'
+                        ? null
+                        : () => controller.transitionProblem(
+                            problemId: problem.id,
+                            toStatus: 'inProgress',
+                          ),
+                    icon: const Icon(Icons.play_arrow_outlined),
+                    label: const Text('Start work'),
+                  ),
+                  OutlinedButton.icon(
+                    key: const Key('closeProblemButton'),
+                    onPressed: isClosed
+                        ? null
+                        : () => controller.transitionProblem(
+                            problemId: problem.id,
+                            toStatus: 'closed',
+                          ),
+                    icon: const Icon(Icons.check_circle_outline),
+                    label: const Text('Close problem'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _OutboxCard extends StatelessWidget {
+  const _OutboxCard({required this.items, required this.onRetry});
+
+  final List<MasterOutboxItem> items;
+  final ValueChanged<String> onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Offline Outbox',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Execution reports and problem operations are staged locally as pending, failed, or sent.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            if (items.isEmpty)
+              const Text('No outbox items yet.')
+            else
+              for (final item in items.take(8)) ...[
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(item.displayLabel),
+                  subtitle: Text(
+                    '${item.operationType.name} - ${item.status.name.toUpperCase()}'
+                    '${item.lastError == null ? '' : ' - ${item.lastError}'}',
+                  ),
+                  trailing: item.status == MasterOutboxStatus.failed
+                      ? TextButton(
+                          onPressed: () => onRetry(item.localId),
+                          child: const Text('Retry'),
+                        )
+                      : null,
+                ),
+                const Divider(height: 1),
+              ],
+          ],
+        ),
+      ),
+    );
+  }
+}

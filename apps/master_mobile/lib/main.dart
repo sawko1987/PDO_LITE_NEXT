@@ -1,61 +1,68 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shared_ui/shared_ui.dart';
 
-void main() {
-  runApp(const MasterMobileApp());
+import 'src/master/http_master_backend_client.dart';
+import 'src/master/master_workspace.dart';
+import 'src/master/master_workspace_controller.dart';
+import 'src/master/shared_preferences_master_outbox_repository.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final preferences = await SharedPreferences.getInstance();
+  final controller = MasterWorkspaceController(
+    client: HttpMasterBackendClient(),
+    outboxRepository: SharedPreferencesMasterOutboxRepository(preferences),
+  );
+  runApp(MasterMobileApp(controller: controller));
 }
 
-class MasterMobileApp extends StatelessWidget {
-  const MasterMobileApp({super.key});
+class MasterMobileApp extends StatefulWidget {
+  const MasterMobileApp({super.key, required this.controller});
+
+  final MasterWorkspaceController controller;
+
+  @override
+  State<MasterMobileApp> createState() => _MasterMobileAppState();
+}
+
+class _MasterMobileAppState extends State<MasterMobileApp> {
+  late final MasterWorkspaceController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = widget.controller;
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'PDO Lite Next Master',
       theme: buildPdoTheme(),
-      home: const MasterHomePage(),
+      home: MasterHomePage(controller: _controller),
     );
   }
 }
 
 class MasterHomePage extends StatelessWidget {
-  const MasterHomePage({super.key});
+  const MasterHomePage({super.key, required this.controller});
+
+  final MasterWorkspaceController controller;
 
   @override
   Widget build(BuildContext context) {
-    return const AppShell(
+    return AppShell(
       title: 'Master Flow',
-      subtitle: 'Mobile workspace for assigned operations, problem reporting, and offline sync queue.',
-      child: _MasterDashboard(),
-    );
-  }
-}
-
-class _MasterDashboard extends StatelessWidget {
-  const _MasterDashboard();
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      children: const [
-        FeatureCard(
-          title: 'Assigned Operations',
-          description: 'Tasks are linked to operation occurrences generated from released plans.',
-          icon: Icons.factory_outlined,
-        ),
-        SizedBox(height: 16),
-        FeatureCard(
-          title: 'Offline Queue',
-          description: 'Execution reports and issues are stored locally until the transport layer confirms sync.',
-          icon: Icons.cloud_off_outlined,
-        ),
-        SizedBox(height: 16),
-        FeatureCard(
-          title: 'Problem Chat',
-          description: 'Masters raise incidents against the exact task context instead of loose free-text reports.',
-          icon: Icons.chat_bubble_outline,
-        ),
-      ],
+      subtitle:
+          'Mobile workspace for assigned operations, execution reports, and a local outbox queue.',
+      child: MasterWorkspace(controller: controller),
     );
   }
 }
