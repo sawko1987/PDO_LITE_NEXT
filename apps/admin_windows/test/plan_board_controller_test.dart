@@ -499,6 +499,9 @@ class _FakePlanBackendClient implements AdminBackendClient {
     );
     return const PlanCompletionResultDto(planId: 'plan-2', status: 'completed');
   }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
 }
 
 final Map<String, List<MachineVersionSummaryDto>> _versionsByMachine = {

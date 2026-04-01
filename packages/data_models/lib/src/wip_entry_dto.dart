@@ -11,6 +11,10 @@ class WipEntryDto {
     required this.status,
     required this.blocksCompletion,
     this.taskId,
+    this.planId,
+    this.structureDisplayName,
+    this.operationName,
+    this.workshop,
     this.sourceReportId,
     this.sourceOutcome,
   });
@@ -26,6 +30,10 @@ class WipEntryDto {
       status: json['status'] as String? ?? '',
       blocksCompletion: json['blocksCompletion'] as bool? ?? false,
       taskId: json['taskId'] as String?,
+      planId: json['planId'] as String?,
+      structureDisplayName: json['structureDisplayName'] as String?,
+      operationName: json['operationName'] as String?,
+      workshop: json['workshop'] as String?,
       sourceReportId: json['sourceReportId'] as String?,
       sourceOutcome: json['sourceOutcome'] as String?,
     );
@@ -56,6 +64,10 @@ class WipEntryDto {
   final String status;
   final bool blocksCompletion;
   final String? taskId;
+  final String? planId;
+  final String? structureDisplayName;
+  final String? operationName;
+  final String? workshop;
   final String? sourceReportId;
   final String? sourceOutcome;
 
@@ -69,6 +81,10 @@ class WipEntryDto {
     'status': status,
     'blocksCompletion': blocksCompletion,
     'taskId': taskId,
+    'planId': planId,
+    'structureDisplayName': structureDisplayName,
+    'operationName': operationName,
+    'workshop': workshop,
     'sourceReportId': sourceReportId,
     'sourceOutcome': sourceOutcome,
   };

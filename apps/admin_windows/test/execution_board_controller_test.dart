@@ -570,4 +570,7 @@ class _FakeExecutionBackendClient implements AdminBackendClient {
   ) async {
     throw UnimplementedError();
   }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
 }

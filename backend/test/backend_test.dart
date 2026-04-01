@@ -70,6 +70,189 @@ void main() {
     },
   );
 
+  test(
+    'machine version detail endpoint returns nested editable payload',
+    () async {
+      final handler = buildHandler();
+      final response = await handler(
+        Request(
+          'GET',
+          Uri.parse(
+            'http://localhost/v1/machines/machine-1/versions/ver-2026-04-draft/detail',
+          ),
+        ),
+      );
+      final body =
+          jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+
+      expect(response.statusCode, 200);
+      expect(body['status'], 'draft');
+      expect(body['isImmutable'], isFalse);
+      expect(
+        (body['structureOccurrences'] as List).single['displayName'],
+        'Draft Kit',
+      );
+      expect((body['operationOccurrences'] as List).single['name'], 'Draft Op');
+    },
+  );
+
+  test('draft structure endpoints create update delete and publish version', () async {
+    final handler = buildHandler();
+
+    final draftResponse = await handler(
+      _jsonRequest(
+        'POST',
+        'http://localhost/v1/machines/machine-1/versions/ver-2026-03/draft',
+        {'requestId': 'structure-draft-1', 'createdBy': 'planner-1'},
+      ),
+    );
+    final draftBody =
+        jsonDecode(await draftResponse.readAsString()) as Map<String, dynamic>;
+    final draftVersionId = draftBody['id'] as String;
+    final draftOccurrences = draftBody['structureOccurrences'] as List<dynamic>;
+    final rootOccurrenceId =
+        (draftOccurrences.first as Map<String, dynamic>)['id'] as String;
+
+    expect(draftResponse.statusCode, 201);
+    expect(draftBody['status'], 'draft');
+    expect(draftBody['isImmutable'], isFalse);
+
+    final createStructureResponse = await handler(
+      _jsonRequest(
+        'POST',
+        'http://localhost/v1/machines/machine-1/versions/$draftVersionId/structure-occurrences',
+        {
+          'requestId': 'structure-create-1',
+          'parentOccurrenceId': rootOccurrenceId,
+          'displayName': 'Clamp',
+          'quantityPerMachine': 2,
+          'workshop': 'WS-4',
+        },
+      ),
+    );
+    final createdStructureBody =
+        jsonDecode(await createStructureResponse.readAsString())
+            as Map<String, dynamic>;
+    final createdOccurrence =
+        (createdStructureBody['structureOccurrences'] as List)
+            .map((item) => item as Map<String, dynamic>)
+            .firstWhere((item) => item['displayName'] == 'Clamp');
+    final createdOccurrenceId = createdOccurrence['id'] as String;
+
+    expect(createStructureResponse.statusCode, 201);
+    expect(createdOccurrence['workshop'], 'WS-4');
+
+    final updateStructureResponse = await handler(
+      _jsonRequest(
+        'POST',
+        'http://localhost/v1/machines/machine-1/versions/$draftVersionId/structure-occurrences/$createdOccurrenceId/update',
+        {
+          'requestId': 'structure-update-1',
+          'displayName': 'Clamp Updated',
+          'quantityPerMachine': 3,
+          'workshop': 'WS-5',
+        },
+      ),
+    );
+    final updatedStructureBody =
+        jsonDecode(await updateStructureResponse.readAsString())
+            as Map<String, dynamic>;
+    final updatedOccurrence =
+        (updatedStructureBody['structureOccurrences'] as List)
+            .map((item) => item as Map<String, dynamic>)
+            .firstWhere((item) => item['id'] == createdOccurrenceId);
+
+    expect(updateStructureResponse.statusCode, 200);
+    expect(updatedOccurrence['displayName'], 'Clamp Updated');
+    expect(updatedOccurrence['quantityPerMachine'], 3);
+
+    final createOperationResponse = await handler(
+      _jsonRequest(
+        'POST',
+        'http://localhost/v1/machines/machine-1/versions/$draftVersionId/operation-occurrences',
+        {
+          'requestId': 'operation-create-1',
+          'structureOccurrenceId': createdOccurrenceId,
+          'name': 'Assemble',
+          'quantityPerMachine': 1,
+          'workshop': 'WS-5',
+        },
+      ),
+    );
+    final createdOperationBody =
+        jsonDecode(await createOperationResponse.readAsString())
+            as Map<String, dynamic>;
+    final createdOperation =
+        (createdOperationBody['operationOccurrences'] as List)
+            .map((item) => item as Map<String, dynamic>)
+            .firstWhere((item) => item['name'] == 'Assemble');
+    final createdOperationId = createdOperation['id'] as String;
+
+    expect(createOperationResponse.statusCode, 201);
+    expect(createdOperation['structureOccurrenceId'], createdOccurrenceId);
+
+    final deleteOperationResponse = await handler(
+      _jsonRequest(
+        'POST',
+        'http://localhost/v1/machines/machine-1/versions/$draftVersionId/operation-occurrences/$createdOperationId/delete',
+        {'requestId': 'operation-delete-1'},
+      ),
+    );
+    final deleteOperationBody =
+        jsonDecode(await deleteOperationResponse.readAsString())
+            as Map<String, dynamic>;
+    expect(deleteOperationResponse.statusCode, 200);
+    expect(
+      (deleteOperationBody['operationOccurrences'] as List).where(
+        (item) => (item as Map<String, dynamic>)['id'] == createdOperationId,
+      ),
+      isEmpty,
+    );
+
+    final deleteStructureResponse = await handler(
+      _jsonRequest(
+        'POST',
+        'http://localhost/v1/machines/machine-1/versions/$draftVersionId/structure-occurrences/$createdOccurrenceId/delete',
+        {'requestId': 'structure-delete-1'},
+      ),
+    );
+    final deleteStructureBody =
+        jsonDecode(await deleteStructureResponse.readAsString())
+            as Map<String, dynamic>;
+    expect(deleteStructureResponse.statusCode, 200);
+    expect(
+      (deleteStructureBody['structureOccurrences'] as List).where(
+        (item) => (item as Map<String, dynamic>)['id'] == createdOccurrenceId,
+      ),
+      isEmpty,
+    );
+
+    final publishResponse = await handler(
+      _jsonRequest(
+        'POST',
+        'http://localhost/v1/machines/machine-1/versions/$draftVersionId/publish',
+        {'requestId': 'publish-1', 'publishedBy': 'planner-1'},
+      ),
+    );
+    final publishBody =
+        jsonDecode(await publishResponse.readAsString())
+            as Map<String, dynamic>;
+
+    expect(publishResponse.statusCode, 200);
+    expect(publishBody['status'], 'published');
+    expect(publishBody['isImmutable'], isTrue);
+
+    final machinesResponse = await handler(
+      Request('GET', Uri.parse('http://localhost/v1/machines')),
+    );
+    final machinesBody =
+        jsonDecode(await machinesResponse.readAsString())
+            as Map<String, dynamic>;
+    final machine =
+        (machinesBody['items'] as List).single as Map<String, dynamic>;
+    expect(machine['activeVersionId'], draftVersionId);
+  });
+
   test('unknown machine returns error envelope', () async {
     final handler = buildHandler();
     final response = await handler(
@@ -315,6 +498,12 @@ void main() {
             .single['sourceOutcome'],
         'overrun',
       );
+      final linkedEntry = (wipBody['items'] as List)
+          .map((item) => item as Map<String, dynamic>)
+          .firstWhere((item) => item['taskId'] == 'task-1');
+      expect(linkedEntry['planId'], 'plan-1');
+      expect(linkedEntry['structureDisplayName'], 'Frame');
+      expect(linkedEntry['operationName'], 'Cut');
     },
   );
 

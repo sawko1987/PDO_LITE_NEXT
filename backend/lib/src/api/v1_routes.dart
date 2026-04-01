@@ -55,6 +55,428 @@ Router buildV1Router(
         );
       }
     })
+    ..get('/machines/<machineId>/versions/<versionId>/detail', (
+      Request request,
+      String machineId,
+      String versionId,
+    ) {
+      try {
+        final detail = store.getMachineVersionDetail(machineId, versionId);
+        return jsonResponse(_toMachineVersionDetailDto(detail).toJson());
+      } on DemoStoreNotFound catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          404,
+        );
+      }
+    })
+    ..post('/machines/<machineId>/versions/<versionId>/draft', (
+      Request request,
+      String machineId,
+      String versionId,
+    ) async {
+      try {
+        final body = await _readJsonBody(request);
+        final dto = CreateDraftMachineVersionRequestDto.fromJson(body);
+        final version = store.createDraftMachineVersion(
+          CreateDraftMachineVersionCommand(
+            requestId: dto.requestId,
+            machineId: machineId,
+            sourceVersionId: versionId,
+            createdBy: dto.createdBy,
+          ),
+        );
+        return jsonResponse(
+          _toMachineVersionDetailDto(
+            store.getMachineVersionDetail(machineId, version.id),
+          ).toJson(),
+          statusCode: 201,
+        );
+      } on DemoStoreNotFound catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          404,
+        );
+      } on DemoStoreValidation catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          422,
+        );
+      } on DemoStoreConflict catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          409,
+        );
+      } on FormatException {
+        return _invalidJsonResponse();
+      }
+    })
+    ..post('/machines/<machineId>/versions/<versionId>/structure-occurrences', (
+      Request request,
+      String machineId,
+      String versionId,
+    ) async {
+      try {
+        final body = await _readJsonBody(request);
+        final dto = CreateStructureOccurrenceRequestDto.fromJson(body);
+        final version = store.createStructureOccurrence(
+          CreateStructureOccurrenceCommand(
+            requestId: dto.requestId,
+            machineId: machineId,
+            versionId: versionId,
+            createdBy: 'planner-1',
+            displayName: dto.displayName,
+            quantityPerMachine: dto.quantityPerMachine,
+            parentOccurrenceId: dto.parentOccurrenceId,
+            workshop: dto.workshop,
+          ),
+        );
+        return jsonResponse(
+          _toMachineVersionDetailDto(
+            store.getMachineVersionDetail(machineId, version.id),
+          ).toJson(),
+          statusCode: 201,
+        );
+      } on DemoStoreNotFound catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          404,
+        );
+      } on DemoStoreValidation catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          422,
+        );
+      } on DemoStoreConflict catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          409,
+        );
+      } on FormatException {
+        return _invalidJsonResponse();
+      }
+    })
+    ..post(
+      '/machines/<machineId>/versions/<versionId>/structure-occurrences/<occurrenceId>/update',
+      (
+        Request request,
+        String machineId,
+        String versionId,
+        String occurrenceId,
+      ) async {
+        try {
+          final body = await _readJsonBody(request);
+          final dto = UpdateStructureOccurrenceRequestDto.fromJson(body);
+          final version = store.updateStructureOccurrence(
+            UpdateStructureOccurrenceCommand(
+              requestId: dto.requestId,
+              machineId: machineId,
+              versionId: versionId,
+              occurrenceId: occurrenceId,
+              changedBy: 'planner-1',
+              displayName: dto.displayName,
+              quantityPerMachine: dto.quantityPerMachine,
+              workshop: dto.workshop,
+            ),
+          );
+          return jsonResponse(
+            _toMachineVersionDetailDto(
+              store.getMachineVersionDetail(machineId, version.id),
+            ).toJson(),
+          );
+        } on DemoStoreNotFound catch (error) {
+          return _storeErrorResponse(
+            error.code,
+            error.message,
+            error.details,
+            404,
+          );
+        } on DemoStoreValidation catch (error) {
+          return _storeErrorResponse(
+            error.code,
+            error.message,
+            error.details,
+            422,
+          );
+        } on DemoStoreConflict catch (error) {
+          return _storeErrorResponse(
+            error.code,
+            error.message,
+            error.details,
+            409,
+          );
+        } on FormatException {
+          return _invalidJsonResponse();
+        }
+      },
+    )
+    ..post(
+      '/machines/<machineId>/versions/<versionId>/structure-occurrences/<occurrenceId>/delete',
+      (
+        Request request,
+        String machineId,
+        String versionId,
+        String occurrenceId,
+      ) async {
+        try {
+          final body = await _readJsonBody(request);
+          final dto = DeleteStructureOccurrenceRequestDto.fromJson(body);
+          final version = store.deleteStructureOccurrence(
+            DeleteStructureOccurrenceCommand(
+              requestId: dto.requestId,
+              machineId: machineId,
+              versionId: versionId,
+              occurrenceId: occurrenceId,
+              deletedBy: 'planner-1',
+            ),
+          );
+          return jsonResponse(
+            _toMachineVersionDetailDto(
+              store.getMachineVersionDetail(machineId, version.id),
+            ).toJson(),
+          );
+        } on DemoStoreNotFound catch (error) {
+          return _storeErrorResponse(
+            error.code,
+            error.message,
+            error.details,
+            404,
+          );
+        } on DemoStoreValidation catch (error) {
+          return _storeErrorResponse(
+            error.code,
+            error.message,
+            error.details,
+            422,
+          );
+        } on DemoStoreConflict catch (error) {
+          return _storeErrorResponse(
+            error.code,
+            error.message,
+            error.details,
+            409,
+          );
+        } on FormatException {
+          return _invalidJsonResponse();
+        }
+      },
+    )
+    ..post('/machines/<machineId>/versions/<versionId>/operation-occurrences', (
+      Request request,
+      String machineId,
+      String versionId,
+    ) async {
+      try {
+        final body = await _readJsonBody(request);
+        final dto = CreateOperationOccurrenceRequestDto.fromJson(body);
+        final version = store.createOperationOccurrence(
+          CreateOperationOccurrenceCommand(
+            requestId: dto.requestId,
+            machineId: machineId,
+            versionId: versionId,
+            structureOccurrenceId: dto.structureOccurrenceId,
+            createdBy: 'planner-1',
+            name: dto.name,
+            quantityPerMachine: dto.quantityPerMachine,
+            workshop: dto.workshop,
+          ),
+        );
+        return jsonResponse(
+          _toMachineVersionDetailDto(
+            store.getMachineVersionDetail(machineId, version.id),
+          ).toJson(),
+          statusCode: 201,
+        );
+      } on DemoStoreNotFound catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          404,
+        );
+      } on DemoStoreValidation catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          422,
+        );
+      } on DemoStoreConflict catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          409,
+        );
+      } on FormatException {
+        return _invalidJsonResponse();
+      }
+    })
+    ..post(
+      '/machines/<machineId>/versions/<versionId>/operation-occurrences/<operationId>/update',
+      (
+        Request request,
+        String machineId,
+        String versionId,
+        String operationId,
+      ) async {
+        try {
+          final body = await _readJsonBody(request);
+          final dto = UpdateOperationOccurrenceRequestDto.fromJson(body);
+          final version = store.updateOperationOccurrence(
+            UpdateOperationOccurrenceCommand(
+              requestId: dto.requestId,
+              machineId: machineId,
+              versionId: versionId,
+              operationId: operationId,
+              changedBy: 'planner-1',
+              name: dto.name,
+              quantityPerMachine: dto.quantityPerMachine,
+              workshop: dto.workshop,
+            ),
+          );
+          return jsonResponse(
+            _toMachineVersionDetailDto(
+              store.getMachineVersionDetail(machineId, version.id),
+            ).toJson(),
+          );
+        } on DemoStoreNotFound catch (error) {
+          return _storeErrorResponse(
+            error.code,
+            error.message,
+            error.details,
+            404,
+          );
+        } on DemoStoreValidation catch (error) {
+          return _storeErrorResponse(
+            error.code,
+            error.message,
+            error.details,
+            422,
+          );
+        } on DemoStoreConflict catch (error) {
+          return _storeErrorResponse(
+            error.code,
+            error.message,
+            error.details,
+            409,
+          );
+        } on FormatException {
+          return _invalidJsonResponse();
+        }
+      },
+    )
+    ..post(
+      '/machines/<machineId>/versions/<versionId>/operation-occurrences/<operationId>/delete',
+      (
+        Request request,
+        String machineId,
+        String versionId,
+        String operationId,
+      ) async {
+        try {
+          final body = await _readJsonBody(request);
+          final dto = DeleteOperationOccurrenceRequestDto.fromJson(body);
+          final version = store.deleteOperationOccurrence(
+            DeleteOperationOccurrenceCommand(
+              requestId: dto.requestId,
+              machineId: machineId,
+              versionId: versionId,
+              operationId: operationId,
+              deletedBy: 'planner-1',
+            ),
+          );
+          return jsonResponse(
+            _toMachineVersionDetailDto(
+              store.getMachineVersionDetail(machineId, version.id),
+            ).toJson(),
+          );
+        } on DemoStoreNotFound catch (error) {
+          return _storeErrorResponse(
+            error.code,
+            error.message,
+            error.details,
+            404,
+          );
+        } on DemoStoreValidation catch (error) {
+          return _storeErrorResponse(
+            error.code,
+            error.message,
+            error.details,
+            422,
+          );
+        } on DemoStoreConflict catch (error) {
+          return _storeErrorResponse(
+            error.code,
+            error.message,
+            error.details,
+            409,
+          );
+        } on FormatException {
+          return _invalidJsonResponse();
+        }
+      },
+    )
+    ..post('/machines/<machineId>/versions/<versionId>/publish', (
+      Request request,
+      String machineId,
+      String versionId,
+    ) async {
+      try {
+        final body = await _readJsonBody(request);
+        final dto = PublishMachineVersionRequestDto.fromJson(body);
+        final version = store.publishMachineVersion(
+          PublishMachineVersionCommand(
+            requestId: dto.requestId,
+            machineId: machineId,
+            versionId: versionId,
+            publishedBy: dto.publishedBy,
+          ),
+        );
+        return jsonResponse(
+          _toMachineVersionDetailDto(
+            store.getMachineVersionDetail(machineId, version.id),
+          ).toJson(),
+        );
+      } on DemoStoreNotFound catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          404,
+        );
+      } on DemoStoreValidation catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          422,
+        );
+      } on DemoStoreConflict catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          409,
+        );
+      } on FormatException {
+        return _invalidJsonResponse();
+      }
+    })
     ..get('/machines/<machineId>/versions/<versionId>/planning-source', (
       Request request,
       String machineId,
@@ -575,7 +997,7 @@ Router buildV1Router(
     ..get('/wip', (Request request) {
       final items = store
           .listWipEntries()
-          .map(WipEntryDto.fromDomain)
+          .map((entry) => _toWipEntryDto(entry, store))
           .toList(growable: false);
       final dto = ApiListResponseDto(
         items: items,
@@ -730,6 +1152,26 @@ _TaskProjection _buildTaskProjection(
   );
 }
 
+MachineVersionDetailDto _toMachineVersionDetailDto(
+  MachineVersionDetail detail,
+) {
+  return MachineVersionDetailDto(
+    id: detail.version.id,
+    machineId: detail.version.machineId,
+    label: detail.version.label,
+    createdAt: detail.version.createdAt,
+    status: detail.version.status.name,
+    isImmutable: detail.version.isImmutable,
+    isActiveVersion: detail.isActiveVersion,
+    structureOccurrences: detail.structureOccurrences
+        .map(StructureOccurrenceDetailDto.fromDomain)
+        .toList(growable: false),
+    operationOccurrences: detail.operationOccurrences
+        .map(OperationOccurrenceDetailDto.fromDomain)
+        .toList(growable: false),
+  );
+}
+
 ExecutionReportOutcome _parseExecutionReportOutcome(String value) {
   return switch (value) {
     'completed' => ExecutionReportOutcome.completed,
@@ -775,6 +1217,34 @@ ProblemDetailDto _toProblemDetailDto(Problem problem, DemoContractStore store) {
     isOpen: problem.isOpen,
     createdAt: problem.createdAt,
     messages: messages,
+  );
+}
+
+WipEntryDto _toWipEntryDto(WipEntry entry, DemoContractStore store) {
+  final operation = store.getOperationOccurrence(entry.operationOccurrenceId);
+  final occurrence = store.getStructureOccurrence(entry.structureOccurrenceId);
+  return WipEntryDto(
+    id: entry.id,
+    machineId: entry.machineId,
+    versionId: entry.versionId,
+    structureOccurrenceId: entry.structureOccurrenceId,
+    operationOccurrenceId: entry.operationOccurrenceId,
+    balanceQuantity: entry.balanceQuantity,
+    status: entry.status.name,
+    blocksCompletion: entry.blocksCompletion,
+    taskId: entry.taskId,
+    planId: store.planIdForTask(entry.taskId),
+    structureDisplayName: occurrence.displayName,
+    operationName: operation.name,
+    workshop: operation.workshop ?? occurrence.workshop,
+    sourceReportId: entry.sourceReportId,
+    sourceOutcome: switch (entry.sourceOutcome) {
+      ExecutionReportOutcome.completed => 'completed',
+      ExecutionReportOutcome.partial => 'partial',
+      ExecutionReportOutcome.notCompleted => 'not_completed',
+      ExecutionReportOutcome.overrun => 'overrun',
+      null => null,
+    },
   );
 }
 

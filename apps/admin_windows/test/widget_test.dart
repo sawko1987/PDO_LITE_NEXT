@@ -44,9 +44,12 @@ void main() {
 
     expect(find.text('PDO Lite Next'), findsOneWidget);
     expect(find.text('Machines Registry'), findsOneWidget);
-    expect(find.text('Machines'), findsOneWidget);
+    expect(find.text('Machines'), findsWidgets);
+    expect(find.text('Structure'), findsOneWidget);
     expect(find.text('Plans'), findsOneWidget);
     expect(find.text('Execution'), findsOneWidget);
+    expect(find.text('WIP'), findsOneWidget);
+    expect(find.text('Problems'), findsOneWidget);
   });
 
   testWidgets('conflicts and warnings are shown and confirm stays disabled', (
@@ -272,6 +275,8 @@ void main() {
           body: MachinesWorkspace(
             controller: machinesController,
             onOpenInPlans: (_, __) async {},
+            onOpenInStructure: (_, __) async {},
+            onCreateEditableDraftInStructure: (_, __) async {},
             onCreateNewVersionInImport: (_) async {},
           ),
         ),
@@ -327,6 +332,8 @@ void main() {
                 openedPlanMachineId = machineId;
                 openedPlanVersionId = versionId;
               },
+              onOpenInStructure: (_, __) async {},
+              onCreateEditableDraftInStructure: (_, __) async {},
               onCreateNewVersionInImport: (machineId) async {
                 importMachineId = machineId;
               },
@@ -366,7 +373,11 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: ExecutionWorkspace(controller: executionController),
+          body: ExecutionWorkspace(
+            controller: executionController,
+            onOpenProblems: (_) async {},
+            onOpenWip: (_) async {},
+          ),
         ),
       ),
     );
@@ -423,7 +434,11 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: ExecutionWorkspace(controller: executionController),
+            body: ExecutionWorkspace(
+              controller: executionController,
+              onOpenProblems: (_) async {},
+              onOpenWip: (_) async {},
+            ),
           ),
         ),
       );
@@ -482,7 +497,11 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: ExecutionWorkspace(controller: executionController),
+            body: ExecutionWorkspace(
+              controller: executionController,
+              onOpenProblems: (_) async {},
+              onOpenWip: (_) async {},
+            ),
           ),
         ),
       );
@@ -1074,6 +1093,9 @@ class _FakeBackendClient implements AdminBackendClient {
       items: items,
     );
   }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
 }
 
 const List<PlanningSourceOccurrenceDto> _planningSourceItems = [

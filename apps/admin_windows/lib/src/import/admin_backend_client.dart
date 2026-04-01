@@ -7,6 +7,63 @@ abstract interface class AdminBackendClient {
     String machineId,
   );
 
+  Future<MachineVersionDetailDto> getMachineVersionDetail(
+    String machineId,
+    String versionId,
+  );
+
+  Future<MachineVersionDetailDto> createDraftMachineVersion(
+    String machineId,
+    String versionId,
+    CreateDraftMachineVersionRequestDto request,
+  );
+
+  Future<MachineVersionDetailDto> createStructureOccurrence(
+    String machineId,
+    String versionId,
+    CreateStructureOccurrenceRequestDto request,
+  );
+
+  Future<MachineVersionDetailDto> updateStructureOccurrence(
+    String machineId,
+    String versionId,
+    String occurrenceId,
+    UpdateStructureOccurrenceRequestDto request,
+  );
+
+  Future<MachineVersionDetailDto> deleteStructureOccurrence(
+    String machineId,
+    String versionId,
+    String occurrenceId,
+    DeleteStructureOccurrenceRequestDto request,
+  );
+
+  Future<MachineVersionDetailDto> createOperationOccurrence(
+    String machineId,
+    String versionId,
+    CreateOperationOccurrenceRequestDto request,
+  );
+
+  Future<MachineVersionDetailDto> updateOperationOccurrence(
+    String machineId,
+    String versionId,
+    String operationId,
+    UpdateOperationOccurrenceRequestDto request,
+  );
+
+  Future<MachineVersionDetailDto> deleteOperationOccurrence(
+    String machineId,
+    String versionId,
+    String operationId,
+    DeleteOperationOccurrenceRequestDto request,
+  );
+
+  Future<MachineVersionDetailDto> publishMachineVersion(
+    String machineId,
+    String versionId,
+    PublishMachineVersionRequestDto request,
+  );
+
   Future<ApiListResponseDto<PlanningSourceOccurrenceDto>> listPlanningSource(
     String machineId,
     String versionId,
@@ -47,6 +104,21 @@ abstract interface class AdminBackendClient {
   });
 
   Future<ProblemDetailDto> getProblem(String problemId);
+
+  Future<ProblemDetailDto> createProblem(
+    String taskId,
+    CreateProblemRequestDto request,
+  );
+
+  Future<ProblemDetailDto> addProblemMessage(
+    String problemId,
+    AddProblemMessageRequestDto request,
+  );
+
+  Future<ProblemDetailDto> transitionProblem(
+    String problemId,
+    TransitionProblemRequestDto request,
+  );
 
   Future<ApiListResponseDto<WipEntryDto>> listWipEntries();
 

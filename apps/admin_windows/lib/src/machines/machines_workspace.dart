@@ -8,11 +8,17 @@ class MachinesWorkspace extends StatelessWidget {
     super.key,
     required this.controller,
     required this.onOpenInPlans,
+    required this.onOpenInStructure,
+    required this.onCreateEditableDraftInStructure,
     required this.onCreateNewVersionInImport,
   });
 
   final MachinesRegistryController controller;
   final Future<void> Function(String machineId, String versionId) onOpenInPlans;
+  final Future<void> Function(String machineId, String versionId)
+  onOpenInStructure;
+  final Future<void> Function(String machineId, String versionId)
+  onCreateEditableDraftInStructure;
   final Future<void> Function(String machineId) onCreateNewVersionInImport;
 
   @override
@@ -87,6 +93,9 @@ class MachinesWorkspace extends StatelessWidget {
                             selectedMachine: selectedMachine,
                             selectedVersion: selectedVersion,
                             onOpenInPlans: onOpenInPlans,
+                            onOpenInStructure: onOpenInStructure,
+                            onCreateEditableDraftInStructure:
+                                onCreateEditableDraftInStructure,
                             onCreateNewVersionInImport:
                                 onCreateNewVersionInImport,
                           ),
@@ -155,6 +164,8 @@ class _MachineDetailPane extends StatelessWidget {
     required this.selectedMachine,
     required this.selectedVersion,
     required this.onOpenInPlans,
+    required this.onOpenInStructure,
+    required this.onCreateEditableDraftInStructure,
     required this.onCreateNewVersionInImport,
   });
 
@@ -162,6 +173,10 @@ class _MachineDetailPane extends StatelessWidget {
   final MachineSummaryDto selectedMachine;
   final MachineVersionSummaryDto? selectedVersion;
   final Future<void> Function(String machineId, String versionId) onOpenInPlans;
+  final Future<void> Function(String machineId, String versionId)
+  onOpenInStructure;
+  final Future<void> Function(String machineId, String versionId)
+  onCreateEditableDraftInStructure;
   final Future<void> Function(String machineId) onCreateNewVersionInImport;
 
   @override
@@ -196,6 +211,28 @@ class _MachineDetailPane extends StatelessWidget {
                         onOpenInPlans(selectedMachine.id, selectedVersion!.id),
               icon: const Icon(Icons.playlist_add_check_outlined),
               label: const Text('Open In Plans'),
+            ),
+            OutlinedButton.icon(
+              key: const Key('openInStructureButton'),
+              onPressed: selectedVersion == null
+                  ? null
+                  : () => onOpenInStructure(
+                      selectedMachine.id,
+                      selectedVersion!.id,
+                    ),
+              icon: const Icon(Icons.account_tree_outlined),
+              label: const Text('Open In Structure'),
+            ),
+            OutlinedButton.icon(
+              key: const Key('createEditableDraftButton'),
+              onPressed: selectedVersion == null
+                  ? null
+                  : () => onCreateEditableDraftInStructure(
+                      selectedMachine.id,
+                      selectedVersion!.id,
+                    ),
+              icon: const Icon(Icons.copy_outlined),
+              label: const Text('Create Editable Draft'),
             ),
             OutlinedButton.icon(
               key: const Key('createNewVersionInImportButton'),

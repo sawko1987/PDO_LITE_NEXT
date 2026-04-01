@@ -122,7 +122,9 @@
 - [ ] Реализовать модуль машин.
 - [ ] Реализовать модуль версий машин.
 - [ ] Реализовать модуль структуры изделия.
+- [x] Vertical slice: detail/draft/publish API для machine versions с immutable published и draft-only editing.
 - [ ] Реализовать модуль операций.
+- [x] Vertical slice: CRUD API для structure occurrences и operation occurrences внутри draft-версии.
 - [x] Реализовать модуль планов.
 - [ ] Реализовать модуль заданий.
   - [x] Vertical slice: list/detail API для заданий мастера.
@@ -130,6 +132,7 @@
   - [x] Vertical slice: приём execution report с идемпотентностью и обновлением статуса задания.
 - [ ] Реализовать модуль НЗП.
   - [x] Vertical slice: outcome-based execution report формирует и обновляет WIP для `partial/not_completed/overrun`.
+  - [x] Vertical slice: enriched WIP read-model с machine/version/workshop/operation/plan drill-down.
 - [ ] Реализовать модуль проблем и чата.
   - [x] Vertical slice: task-scoped create problem API.
   - [x] Vertical slice: get/list problem API с thread messages.
@@ -154,7 +157,8 @@
 - [x] Реализовать карточку машины.
 - [x] Реализовать список версий машины.
 - [x] Реализовать импорт и предпросмотр.
-- [ ] Реализовать редактор структуры.
+- [x] Реализовать редактор структуры.
+- [x] Vertical slice: draft-only Structure Editor с create draft, CRUD узлов/операций и publish active version.
 - [x] Vertical slice: read-only справочник машин и версий с preview состава версии и переходами в import/plans.
 - [x] Реализовать создание плана.
 - [x] Реализовать добавление в план всей машины, узла, места, детали.
@@ -163,8 +167,10 @@
 - [x] Реализовать экран контроля выполнения.
 - [x] Vertical slice: ручная фиксация execution report с ПК для `completed/partial/not_completed/overrun`.
 - [x] Реализовать подтверждение завершения изделия.
-- [ ] Реализовать экран НЗП.
-- [ ] Реализовать экран проблем.
+- [x] Реализовать экран НЗП.
+- [x] Vertical slice: отдельная WIP-вкладка с фильтрами и переходами в plan/task/problem.
+- [x] Реализовать экран проблем.
+- [x] Vertical slice: отдельная Problems-вкладка с фильтрами, create/message/transition и переходами в task/WIP.
 - [ ] Реализовать отчёты.
 - [ ] Реализовать архив.
 

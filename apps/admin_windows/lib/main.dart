@@ -12,6 +12,12 @@ import 'src/machines/machines_registry_controller.dart';
 import 'src/machines/machines_workspace.dart';
 import 'src/plans/plan_board_controller.dart';
 import 'src/plans/plan_workspace.dart';
+import 'src/problems/problems_board_controller.dart';
+import 'src/problems/problems_workspace.dart';
+import 'src/structure/structure_editor_controller.dart';
+import 'src/structure/structure_workspace.dart';
+import 'src/wip/wip_board_controller.dart';
+import 'src/wip/wip_workspace.dart';
 
 void main() {
   runApp(const AdminWindowsApp());
@@ -22,15 +28,21 @@ class AdminWindowsApp extends StatelessWidget {
     super.key,
     this.controller,
     this.machinesController,
+    this.structureController,
     this.planController,
     this.executionController,
+    this.wipController,
+    this.problemsController,
     this.client,
   });
 
   final ImportFlowController? controller;
   final MachinesRegistryController? machinesController;
+  final StructureEditorController? structureController;
   final PlanBoardController? planController;
   final ExecutionBoardController? executionController;
+  final WipBoardController? wipController;
+  final ProblemsBoardController? problemsController;
   final AdminBackendClient? client;
 
   @override
@@ -40,8 +52,12 @@ class AdminWindowsApp extends StatelessWidget {
       theme: buildPdoTheme(),
       home: AdminHomePage(
         controller: controller,
+        machinesController: machinesController,
+        structureController: structureController,
         planController: planController,
         executionController: executionController,
+        wipController: wipController,
+        problemsController: problemsController,
         client: client,
       ),
     );
@@ -53,15 +69,21 @@ class AdminHomePage extends StatefulWidget {
     super.key,
     this.controller,
     this.machinesController,
+    this.structureController,
     this.planController,
     this.executionController,
+    this.wipController,
+    this.problemsController,
     this.client,
   });
 
   final ImportFlowController? controller;
   final MachinesRegistryController? machinesController;
+  final StructureEditorController? structureController;
   final PlanBoardController? planController;
   final ExecutionBoardController? executionController;
+  final WipBoardController? wipController;
+  final ProblemsBoardController? problemsController;
   final AdminBackendClient? client;
 
   @override
@@ -72,12 +94,18 @@ class _AdminHomePageState extends State<AdminHomePage>
     with SingleTickerProviderStateMixin {
   late final ImportFlowController _importController;
   late final MachinesRegistryController _machinesController;
+  late final StructureEditorController _structureController;
   late final PlanBoardController _planController;
   late final ExecutionBoardController _executionController;
+  late final WipBoardController _wipController;
+  late final ProblemsBoardController _problemsController;
   late final bool _ownsImportController;
   late final bool _ownsMachinesController;
+  late final bool _ownsStructureController;
   late final bool _ownsPlanController;
   late final bool _ownsExecutionController;
+  late final bool _ownsWipController;
+  late final bool _ownsProblemsController;
   late final TabController _tabController;
 
   @override
@@ -85,9 +113,12 @@ class _AdminHomePageState extends State<AdminHomePage>
     super.initState();
     _ownsImportController = widget.controller == null;
     _ownsMachinesController = widget.machinesController == null;
+    _ownsStructureController = widget.structureController == null;
     _ownsPlanController = widget.planController == null;
     _ownsExecutionController = widget.executionController == null;
-    _tabController = TabController(length: 4, vsync: this);
+    _ownsWipController = widget.wipController == null;
+    _ownsProblemsController = widget.problemsController == null;
+    _tabController = TabController(length: 7, vsync: this);
     AdminBackendClient? backendClient;
     AdminBackendClient ensureBackendClient() {
       return backendClient ??= widget.client ?? HttpAdminBackendClient();
@@ -99,17 +130,29 @@ class _AdminHomePageState extends State<AdminHomePage>
     _machinesController =
         widget.machinesController ??
         MachinesRegistryController(client: ensureBackendClient());
+    _structureController =
+        widget.structureController ??
+        StructureEditorController(client: ensureBackendClient());
     _planController =
         widget.planController ??
         PlanBoardController(client: ensureBackendClient());
     _executionController =
         widget.executionController ??
         ExecutionBoardController(client: ensureBackendClient());
+    _wipController =
+        widget.wipController ??
+        WipBoardController(client: ensureBackendClient());
+    _problemsController =
+        widget.problemsController ??
+        ProblemsBoardController(client: ensureBackendClient());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _importController.bootstrap();
       _machinesController.bootstrap();
+      _structureController.bootstrap();
       _planController.bootstrap();
       _executionController.bootstrap();
+      _wipController.bootstrap();
+      _problemsController.bootstrap();
     });
   }
 
@@ -121,11 +164,20 @@ class _AdminHomePageState extends State<AdminHomePage>
     if (_ownsMachinesController) {
       _machinesController.dispose();
     }
+    if (_ownsStructureController) {
+      _structureController.dispose();
+    }
     if (_ownsPlanController) {
       _planController.dispose();
     }
     if (_ownsExecutionController) {
       _executionController.dispose();
+    }
+    if (_ownsWipController) {
+      _wipController.dispose();
+    }
+    if (_ownsProblemsController) {
+      _problemsController.dispose();
     }
     _tabController.dispose();
     super.dispose();
@@ -138,16 +190,19 @@ class _AdminHomePageState extends State<AdminHomePage>
       subtitle:
           'Windows panel for import sessions, machine versions, planning, and release control.',
       child: DefaultTabController(
-        length: 4,
+        length: 7,
         child: Column(
           children: [
             TabBar(
               controller: _tabController,
               tabs: [
                 const Tab(text: 'Machines'),
-                Tab(text: 'Import'),
-                Tab(text: 'Plans'),
-                Tab(text: 'Execution'),
+                const Tab(text: 'Import'),
+                const Tab(text: 'Structure'),
+                const Tab(text: 'Plans'),
+                const Tab(text: 'Execution'),
+                const Tab(text: 'WIP'),
+                const Tab(text: 'Problems'),
               ],
             ),
             const SizedBox(height: 20),
@@ -158,14 +213,36 @@ class _AdminHomePageState extends State<AdminHomePage>
                   MachinesWorkspace(
                     controller: _machinesController,
                     onOpenInPlans: _openInPlans,
+                    onOpenInStructure: _openInStructure,
+                    onCreateEditableDraftInStructure:
+                        _createEditableDraftInStructure,
                     onCreateNewVersionInImport: _openCreateVersionInImport,
                   ),
                   ImportWorkspace(
                     controller: _importController,
                     onPickFile: _pickFile,
                   ),
+                  StructureWorkspace(
+                    controller: _structureController,
+                    onPublished: _handleStructureVersionPublished,
+                  ),
                   PlanWorkspace(controller: _planController),
-                  ExecutionWorkspace(controller: _executionController),
+                  ExecutionWorkspace(
+                    controller: _executionController,
+                    onOpenProblems: _openProblemsForTask,
+                    onOpenWip: _openWipForTask,
+                  ),
+                  WipWorkspace(
+                    controller: _wipController,
+                    onOpenTask: _openTaskInExecution,
+                    onOpenPlan: _openPlanById,
+                    onOpenProblems: _openProblemsForTask,
+                  ),
+                  ProblemsWorkspace(
+                    controller: _problemsController,
+                    onOpenTask: _openTaskInExecution,
+                    onOpenWip: _openWipForTask,
+                  ),
                 ],
               ),
             ),
@@ -188,7 +265,76 @@ class _AdminHomePageState extends State<AdminHomePage>
     if (!mounted) {
       return;
     }
+    _tabController.animateTo(3);
+  }
+
+  Future<void> _openInStructure(String machineId, String versionId) async {
+    await _structureController.openMachineVersion(
+      machineId: machineId,
+      versionId: versionId,
+    );
+    if (!mounted) {
+      return;
+    }
     _tabController.animateTo(2);
+  }
+
+  Future<void> _createEditableDraftInStructure(
+    String machineId,
+    String versionId,
+  ) async {
+    await _structureController.createDraftFromVersion(
+      machineId: machineId,
+      versionId: versionId,
+    );
+    await _machinesController.loadMachines();
+    if (!mounted) {
+      return;
+    }
+    _tabController.animateTo(2);
+  }
+
+  Future<void> _handleStructureVersionPublished(
+    String machineId,
+    String versionId,
+  ) async {
+    await _machinesController.loadMachines();
+    await _planController.openMachineVersion(
+      machineId: machineId,
+      versionId: versionId,
+    );
+  }
+
+  Future<void> _openTaskInExecution(String taskId) async {
+    await _executionController.selectTask(taskId);
+    if (!mounted) {
+      return;
+    }
+    _tabController.animateTo(4);
+  }
+
+  Future<void> _openProblemsForTask(String taskId) async {
+    await _problemsController.openTaskScope(taskId);
+    if (!mounted) {
+      return;
+    }
+    _tabController.animateTo(6);
+  }
+
+  Future<void> _openWipForTask(String taskId) async {
+    _wipController.openTaskScope(taskId);
+    if (!mounted) {
+      return;
+    }
+    _tabController.animateTo(5);
+  }
+
+  Future<void> _openPlanById(String planId) async {
+    await _planController.openPlan(planId);
+    if (!mounted) {
+      return;
+    }
+    _tabController.animateTo(3);
   }
 
   Future<void> _pickFile() async {

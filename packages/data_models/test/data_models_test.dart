@@ -426,4 +426,99 @@ void main() {
     expect(dto.preview.operationOccurrences.single.name, 'Cut');
     expect(dto.preview.canConfirm, isFalse);
   });
+
+  test('machine version detail dto parses nested structure and operations', () {
+    final dto = MachineVersionDetailDto.fromJson({
+      'id': 'ver-draft-1',
+      'machineId': 'machine-1',
+      'label': 'v1-draft',
+      'createdAt': '2026-04-01T08:00:00.000Z',
+      'status': 'draft',
+      'isImmutable': false,
+      'isActiveVersion': false,
+      'structureOccurrences': [
+        {
+          'id': 'occ-1',
+          'versionId': 'ver-draft-1',
+          'catalogItemId': 'catalog-1',
+          'displayName': 'Frame',
+          'pathKey': 'machine/frame',
+          'quantityPerMachine': 1,
+          'parentOccurrenceId': null,
+          'workshop': 'WS-1',
+        },
+      ],
+      'operationOccurrences': [
+        {
+          'id': 'op-1',
+          'versionId': 'ver-draft-1',
+          'structureOccurrenceId': 'occ-1',
+          'name': 'Cut',
+          'quantityPerMachine': 2,
+          'workshop': 'WS-1',
+        },
+      ],
+    });
+
+    expect(dto.status, 'draft');
+    expect(dto.isImmutable, isFalse);
+    expect(dto.structureOccurrences.single.displayName, 'Frame');
+    expect(dto.operationOccurrences.single.name, 'Cut');
+  });
+
+  test('structure editor request dtos serialize stable contract', () {
+    const createDraft = CreateDraftMachineVersionRequestDto(
+      requestId: 'draft-1',
+      createdBy: 'planner-1',
+    );
+    const createStructure = CreateStructureOccurrenceRequestDto(
+      requestId: 'structure-create-1',
+      parentOccurrenceId: 'occ-root',
+      displayName: 'Clamp',
+      quantityPerMachine: 2,
+      workshop: 'WS-2',
+    );
+    const updateOperation = UpdateOperationOccurrenceRequestDto(
+      requestId: 'operation-update-1',
+      name: 'Weld',
+      quantityPerMachine: 3,
+      workshop: 'WS-4',
+    );
+    const publishVersion = PublishMachineVersionRequestDto(
+      requestId: 'publish-1',
+      publishedBy: 'planner-1',
+    );
+
+    expect(createDraft.toJson()['createdBy'], 'planner-1');
+    expect(createStructure.toJson()['parentOccurrenceId'], 'occ-root');
+    expect(updateOperation.toJson()['name'], 'Weld');
+    expect(publishVersion.toJson()['publishedBy'], 'planner-1');
+  });
+
+  test('wip dto keeps optional navigation and drill-down fields', () {
+    final dto = WipEntryDto.fromJson({
+      'id': 'wip-1',
+      'machineId': 'machine-1',
+      'versionId': 'ver-1',
+      'structureOccurrenceId': 'occ-1',
+      'operationOccurrenceId': 'op-1',
+      'balanceQuantity': 4,
+      'status': 'open',
+      'blocksCompletion': true,
+      'taskId': 'task-1',
+      'sourceReportId': 'report-1',
+      'sourceOutcome': 'partial',
+      'planId': 'plan-1',
+      'structureDisplayName': 'Frame',
+      'operationName': 'Cut',
+      'workshop': 'WS-1',
+    });
+
+    final json = dto.toJson();
+
+    expect(dto.planId, 'plan-1');
+    expect(dto.structureDisplayName, 'Frame');
+    expect(dto.operationName, 'Cut');
+    expect(json['workshop'], 'WS-1');
+  });
 }

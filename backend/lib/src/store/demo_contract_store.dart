@@ -28,8 +28,8 @@ class DemoContractStore {
           status: MachineVersionStatus.draft,
         ),
       ],
-      _structureOccurrences = const [
-        StructureOccurrence(
+      _structureOccurrences = [
+        const StructureOccurrence(
           id: 'occ-1',
           versionId: 'ver-2026-03',
           catalogItemId: 'catalog-1',
@@ -38,7 +38,7 @@ class DemoContractStore {
           quantityPerMachine: 1,
           workshop: 'WS-1',
         ),
-        StructureOccurrence(
+        const StructureOccurrence(
           id: 'occ-2',
           versionId: 'ver-2026-03',
           catalogItemId: 'catalog-2',
@@ -48,7 +48,7 @@ class DemoContractStore {
           parentOccurrenceId: 'occ-1',
           workshop: 'WS-2',
         ),
-        StructureOccurrence(
+        const StructureOccurrence(
           id: 'occ-3',
           versionId: 'ver-2026-04-draft',
           catalogItemId: 'catalog-3',
@@ -58,8 +58,8 @@ class DemoContractStore {
           workshop: 'WS-3',
         ),
       ],
-      _operationOccurrences = const [
-        OperationOccurrence(
+      _operationOccurrences = [
+        const OperationOccurrence(
           id: 'op-1',
           versionId: 'ver-2026-03',
           structureOccurrenceId: 'occ-1',
@@ -67,7 +67,7 @@ class DemoContractStore {
           quantityPerMachine: 1,
           workshop: 'WS-1',
         ),
-        OperationOccurrence(
+        const OperationOccurrence(
           id: 'op-2',
           versionId: 'ver-2026-03',
           structureOccurrenceId: 'occ-2',
@@ -75,7 +75,7 @@ class DemoContractStore {
           quantityPerMachine: 1,
           workshop: 'WS-2',
         ),
-        OperationOccurrence(
+        const OperationOccurrence(
           id: 'op-3',
           versionId: 'ver-2026-03',
           structureOccurrenceId: 'occ-2',
@@ -83,7 +83,7 @@ class DemoContractStore {
           quantityPerMachine: 1,
           workshop: 'WS-2',
         ),
-        OperationOccurrence(
+        const OperationOccurrence(
           id: 'op-4',
           versionId: 'ver-2026-04-draft',
           structureOccurrenceId: 'occ-3',
@@ -225,6 +225,8 @@ class DemoContractStore {
       ],
       _machineSequence = 1,
       _versionSequence = 2,
+      _structureSequence = 3,
+      _operationSequence = 4,
       _planSequence = 1,
       _planItemSequence = 2,
       _taskSequence = 2,
@@ -253,8 +255,25 @@ class DemoContractStore {
       {};
   final Map<String, _StoredProblemTransitionCommand>
   _problemTransitionByRequestId = {};
+  final Map<String, _StoredMachineVersionCommand> _draftVersionByRequestId = {};
+  final Map<String, _StoredMachineVersionCommand> _publishVersionByRequestId =
+      {};
+  final Map<String, _StoredMachineVersionCommand> _structureCreateByRequestId =
+      {};
+  final Map<String, _StoredMachineVersionCommand> _structureUpdateByRequestId =
+      {};
+  final Map<String, _StoredMachineVersionCommand> _structureDeleteByRequestId =
+      {};
+  final Map<String, _StoredMachineVersionCommand> _operationCreateByRequestId =
+      {};
+  final Map<String, _StoredMachineVersionCommand> _operationUpdateByRequestId =
+      {};
+  final Map<String, _StoredMachineVersionCommand> _operationDeleteByRequestId =
+      {};
   int _machineSequence;
   int _versionSequence;
+  int _structureSequence;
+  int _operationSequence;
   int _planSequence;
   int _planItemSequence;
   int _taskSequence;
@@ -286,6 +305,32 @@ class DemoContractStore {
     );
   }
 
+  MachineVersionDetail getMachineVersionDetail(
+    String machineId,
+    String versionId,
+  ) {
+    final version = _getVersion(machineId, versionId);
+    final machine = getMachine(machineId);
+    return MachineVersionDetail(
+      version: version,
+      isActiveVersion: machine.activeVersionId == version.id,
+      structureOccurrences: listStructureOccurrences(versionId),
+      operationOccurrences: listOperationOccurrences(versionId),
+    );
+  }
+
+  List<StructureOccurrence> listStructureOccurrences(String versionId) {
+    return List.unmodifiable(
+      _structureOccurrences.where((item) => item.versionId == versionId),
+    );
+  }
+
+  List<OperationOccurrence> listOperationOccurrences(String versionId) {
+    return List.unmodifiable(
+      _operationOccurrences.where((item) => item.versionId == versionId),
+    );
+  }
+
   List<StructureOccurrence> listPlanningSource(
     String machineId,
     String versionId,
@@ -300,6 +345,91 @@ class DemoContractStore {
     return _operationOccurrences
         .where((item) => item.structureOccurrenceId == structureOccurrenceId)
         .length;
+  }
+
+  MachineVersion createDraftMachineVersion(
+    CreateDraftMachineVersionCommand command,
+  ) {
+    _validateCreateDraftMachineVersionCommand(command);
+    final requestSignature =
+        '${command.machineId}::${command.sourceVersionId}::${command.createdBy}';
+    final existing = _draftVersionByRequestId[command.requestId];
+    if (existing != null) {
+      if (existing.signature != requestSignature) {
+        throw const DemoStoreConflict(
+          'version_request_replayed_with_different_payload',
+          'Version draft requestId was already used with different payload.',
+        );
+      }
+      return _getVersion(command.machineId, existing.versionId);
+    }
+
+    final sourceVersion = _getVersion(
+      command.machineId,
+      command.sourceVersionId,
+    );
+    final sourceOccurrences = listStructureOccurrences(sourceVersion.id);
+    final sourceOperations = listOperationOccurrences(sourceVersion.id);
+    final newVersionId =
+        'ver-${DateTime.now().toUtc().year}-${++_versionSequence}-draft';
+    final draftVersion = MachineVersion(
+      id: newVersionId,
+      machineId: command.machineId,
+      label: '${sourceVersion.label}-draft-${_versionSequence}',
+      createdAt: DateTime.now().toUtc(),
+      status: MachineVersionStatus.draft,
+    );
+    _versions.add(draftVersion);
+
+    final occurrenceIdMap = <String, String>{};
+    for (final occurrence in sourceOccurrences) {
+      occurrenceIdMap[occurrence.id] = 'occ-${++_structureSequence}';
+    }
+    for (final occurrence in sourceOccurrences) {
+      _structureOccurrences.add(
+        StructureOccurrence(
+          id: occurrenceIdMap[occurrence.id]!,
+          versionId: draftVersion.id,
+          catalogItemId: occurrence.catalogItemId,
+          pathKey: occurrence.pathKey,
+          displayName: occurrence.displayName,
+          quantityPerMachine: occurrence.quantityPerMachine,
+          parentOccurrenceId: occurrence.parentOccurrenceId == null
+              ? null
+              : occurrenceIdMap[occurrence.parentOccurrenceId!],
+          workshop: occurrence.workshop,
+        ),
+      );
+    }
+    for (final operation in sourceOperations) {
+      _operationOccurrences.add(
+        OperationOccurrence(
+          id: 'op-${++_operationSequence}',
+          versionId: draftVersion.id,
+          structureOccurrenceId:
+              occurrenceIdMap[operation.structureOccurrenceId] ??
+              operation.structureOccurrenceId,
+          name: operation.name,
+          quantityPerMachine: operation.quantityPerMachine,
+          workshop: operation.workshop,
+        ),
+      );
+    }
+    _rebuildVersionPaths(draftVersion.id);
+    _draftVersionByRequestId[command.requestId] = _StoredMachineVersionCommand(
+      signature: requestSignature,
+      versionId: draftVersion.id,
+    );
+    _appendAudit(
+      entityType: 'machine_version',
+      entityId: draftVersion.id,
+      action: AuditAction.created,
+      changedBy: command.createdBy,
+      field: 'status',
+      beforeValue: '',
+      afterValue: draftVersion.status.name,
+    );
+    return draftVersion;
   }
 
   List<Plan> listPlans() => List.unmodifiable(_plans);
@@ -364,6 +494,420 @@ class DemoContractStore {
         'Plan item was not found.',
       ),
     );
+  }
+
+  MachineVersion updateStructureOccurrence(
+    UpdateStructureOccurrenceCommand command,
+  ) {
+    _validateUpdateStructureOccurrenceCommand(command);
+    final requestSignature =
+        '${command.machineId}::${command.versionId}::${command.occurrenceId}::${command.displayName}::${command.quantityPerMachine}::${command.workshop ?? ''}';
+    final existing = _structureUpdateByRequestId[command.requestId];
+    if (existing != null) {
+      if (existing.signature != requestSignature) {
+        throw const DemoStoreConflict(
+          'structure_request_replayed_with_different_payload',
+          'Structure update requestId was already used with different payload.',
+        );
+      }
+      return _getVersion(command.machineId, existing.versionId);
+    }
+
+    final version = _requireDraftVersion(command.machineId, command.versionId);
+    final occurrenceIndex = _structureOccurrences.indexWhere(
+      (occurrence) =>
+          occurrence.id == command.occurrenceId &&
+          occurrence.versionId == command.versionId,
+    );
+    if (occurrenceIndex == -1) {
+      throw const DemoStoreNotFound(
+        'structure_occurrence_not_found',
+        'Structure occurrence was not found.',
+      );
+    }
+
+    final existingOccurrence = _structureOccurrences[occurrenceIndex];
+    _structureOccurrences[occurrenceIndex] = StructureOccurrence(
+      id: existingOccurrence.id,
+      versionId: existingOccurrence.versionId,
+      catalogItemId: existingOccurrence.catalogItemId,
+      pathKey: existingOccurrence.pathKey,
+      displayName: command.displayName.trim(),
+      quantityPerMachine: command.quantityPerMachine,
+      parentOccurrenceId: existingOccurrence.parentOccurrenceId,
+      workshop: command.workshop?.trim().isEmpty ?? true
+          ? null
+          : command.workshop?.trim(),
+    );
+    _rebuildVersionPaths(command.versionId);
+    _structureUpdateByRequestId[command.requestId] =
+        _StoredMachineVersionCommand(
+          signature: requestSignature,
+          versionId: version.id,
+        );
+    _appendAudit(
+      entityType: 'structure_occurrence',
+      entityId: existingOccurrence.id,
+      action: AuditAction.updated,
+      changedBy: command.changedBy,
+      field: 'displayName',
+      beforeValue: existingOccurrence.displayName,
+      afterValue: command.displayName.trim(),
+    );
+    return version;
+  }
+
+  MachineVersion createStructureOccurrence(
+    CreateStructureOccurrenceCommand command,
+  ) {
+    _validateCreateStructureOccurrenceCommand(command);
+    final requestSignature =
+        '${command.machineId}::${command.versionId}::${command.parentOccurrenceId ?? ''}::${command.displayName}::${command.quantityPerMachine}::${command.workshop ?? ''}';
+    final existing = _structureCreateByRequestId[command.requestId];
+    if (existing != null) {
+      if (existing.signature != requestSignature) {
+        throw const DemoStoreConflict(
+          'structure_request_replayed_with_different_payload',
+          'Structure create requestId was already used with different payload.',
+        );
+      }
+      return _getVersion(command.machineId, existing.versionId);
+    }
+
+    final version = _requireDraftVersion(command.machineId, command.versionId);
+    if (command.parentOccurrenceId != null) {
+      final parent = getStructureOccurrence(command.parentOccurrenceId!);
+      if (parent.versionId != version.id) {
+        throw DemoStoreValidation(
+          'structure_occurrence_version_mismatch',
+          'Parent structure occurrence does not belong to the selected draft version.',
+          details: {
+            'parentOccurrenceId': command.parentOccurrenceId,
+            'versionId': version.id,
+          },
+        );
+      }
+    }
+
+    final occurrence = StructureOccurrence(
+      id: 'occ-${++_structureSequence}',
+      versionId: version.id,
+      catalogItemId: 'catalog-draft-${_structureSequence}',
+      pathKey: '',
+      displayName: command.displayName.trim(),
+      quantityPerMachine: command.quantityPerMachine,
+      parentOccurrenceId: command.parentOccurrenceId,
+      workshop: command.workshop?.trim().isEmpty ?? true
+          ? null
+          : command.workshop?.trim(),
+    );
+    _structureOccurrences.add(occurrence);
+    _rebuildVersionPaths(version.id);
+    _structureCreateByRequestId[command.requestId] =
+        _StoredMachineVersionCommand(
+          signature: requestSignature,
+          versionId: version.id,
+        );
+    _appendAudit(
+      entityType: 'structure_occurrence',
+      entityId: occurrence.id,
+      action: AuditAction.created,
+      changedBy: command.createdBy,
+      field: 'displayName',
+      beforeValue: '',
+      afterValue: occurrence.displayName,
+    );
+    return version;
+  }
+
+  MachineVersion deleteStructureOccurrence(
+    DeleteStructureOccurrenceCommand command,
+  ) {
+    _validateDeleteStructureOccurrenceCommand(command);
+    final requestSignature =
+        '${command.machineId}::${command.versionId}::${command.occurrenceId}';
+    final existing = _structureDeleteByRequestId[command.requestId];
+    if (existing != null) {
+      if (existing.signature != requestSignature) {
+        throw const DemoStoreConflict(
+          'structure_request_replayed_with_different_payload',
+          'Structure delete requestId was already used with different payload.',
+        );
+      }
+      return _getVersion(command.machineId, existing.versionId);
+    }
+
+    final version = _requireDraftVersion(command.machineId, command.versionId);
+    final target = _structureOccurrences.firstWhere(
+      (occurrence) =>
+          occurrence.id == command.occurrenceId &&
+          occurrence.versionId == command.versionId,
+      orElse: () => throw const DemoStoreNotFound(
+        'structure_occurrence_not_found',
+        'Structure occurrence was not found.',
+      ),
+    );
+    final toDelete = _collectDescendantOccurrenceIds(version.id, target.id);
+    toDelete.add(target.id);
+    _structureOccurrences.removeWhere(
+      (occurrence) =>
+          occurrence.versionId == version.id &&
+          toDelete.contains(occurrence.id),
+    );
+    _operationOccurrences.removeWhere(
+      (operation) =>
+          operation.versionId == version.id &&
+          toDelete.contains(operation.structureOccurrenceId),
+    );
+    _rebuildVersionPaths(version.id);
+    _structureDeleteByRequestId[command.requestId] =
+        _StoredMachineVersionCommand(
+          signature: requestSignature,
+          versionId: version.id,
+        );
+    _appendAudit(
+      entityType: 'structure_occurrence',
+      entityId: target.id,
+      action: AuditAction.archived,
+      changedBy: command.deletedBy,
+      field: 'displayName',
+      beforeValue: target.displayName,
+      afterValue: '',
+    );
+    return version;
+  }
+
+  MachineVersion createOperationOccurrence(
+    CreateOperationOccurrenceCommand command,
+  ) {
+    _validateCreateOperationOccurrenceCommand(command);
+    final requestSignature =
+        '${command.machineId}::${command.versionId}::${command.structureOccurrenceId}::${command.name}::${command.quantityPerMachine}::${command.workshop ?? ''}';
+    final existing = _operationCreateByRequestId[command.requestId];
+    if (existing != null) {
+      if (existing.signature != requestSignature) {
+        throw const DemoStoreConflict(
+          'operation_request_replayed_with_different_payload',
+          'Operation create requestId was already used with different payload.',
+        );
+      }
+      return _getVersion(command.machineId, existing.versionId);
+    }
+
+    final version = _requireDraftVersion(command.machineId, command.versionId);
+    final occurrence = getStructureOccurrence(command.structureOccurrenceId);
+    if (occurrence.versionId != version.id) {
+      throw DemoStoreValidation(
+        'structure_occurrence_version_mismatch',
+        'Operation target occurrence does not belong to the selected draft version.',
+        details: {
+          'structureOccurrenceId': command.structureOccurrenceId,
+          'versionId': version.id,
+        },
+      );
+    }
+
+    final operation = OperationOccurrence(
+      id: 'op-${++_operationSequence}',
+      versionId: version.id,
+      structureOccurrenceId: occurrence.id,
+      name: command.name.trim(),
+      quantityPerMachine: command.quantityPerMachine,
+      workshop: command.workshop?.trim().isEmpty ?? true
+          ? occurrence.workshop
+          : command.workshop?.trim(),
+    );
+    _operationOccurrences.add(operation);
+    _operationCreateByRequestId[command.requestId] =
+        _StoredMachineVersionCommand(
+          signature: requestSignature,
+          versionId: version.id,
+        );
+    _appendAudit(
+      entityType: 'operation_occurrence',
+      entityId: operation.id,
+      action: AuditAction.created,
+      changedBy: command.createdBy,
+      field: 'name',
+      beforeValue: '',
+      afterValue: operation.name,
+    );
+    return version;
+  }
+
+  MachineVersion updateOperationOccurrence(
+    UpdateOperationOccurrenceCommand command,
+  ) {
+    _validateUpdateOperationOccurrenceCommand(command);
+    final requestSignature =
+        '${command.machineId}::${command.versionId}::${command.operationId}::${command.name}::${command.quantityPerMachine}::${command.workshop ?? ''}';
+    final existing = _operationUpdateByRequestId[command.requestId];
+    if (existing != null) {
+      if (existing.signature != requestSignature) {
+        throw const DemoStoreConflict(
+          'operation_request_replayed_with_different_payload',
+          'Operation update requestId was already used with different payload.',
+        );
+      }
+      return _getVersion(command.machineId, existing.versionId);
+    }
+
+    final version = _requireDraftVersion(command.machineId, command.versionId);
+    final operationIndex = _operationOccurrences.indexWhere(
+      (operation) =>
+          operation.id == command.operationId &&
+          operation.versionId == command.versionId,
+    );
+    if (operationIndex == -1) {
+      throw const DemoStoreNotFound(
+        'operation_occurrence_not_found',
+        'Operation occurrence was not found.',
+      );
+    }
+    final existingOperation = _operationOccurrences[operationIndex];
+    _operationOccurrences[operationIndex] = OperationOccurrence(
+      id: existingOperation.id,
+      versionId: existingOperation.versionId,
+      structureOccurrenceId: existingOperation.structureOccurrenceId,
+      name: command.name.trim(),
+      quantityPerMachine: command.quantityPerMachine,
+      workshop: command.workshop?.trim().isEmpty ?? true
+          ? existingOperation.workshop
+          : command.workshop?.trim(),
+    );
+    _operationUpdateByRequestId[command.requestId] =
+        _StoredMachineVersionCommand(
+          signature: requestSignature,
+          versionId: version.id,
+        );
+    _appendAudit(
+      entityType: 'operation_occurrence',
+      entityId: existingOperation.id,
+      action: AuditAction.updated,
+      changedBy: command.changedBy,
+      field: 'name',
+      beforeValue: existingOperation.name,
+      afterValue: command.name.trim(),
+    );
+    return version;
+  }
+
+  MachineVersion deleteOperationOccurrence(
+    DeleteOperationOccurrenceCommand command,
+  ) {
+    _validateDeleteOperationOccurrenceCommand(command);
+    final requestSignature =
+        '${command.machineId}::${command.versionId}::${command.operationId}';
+    final existing = _operationDeleteByRequestId[command.requestId];
+    if (existing != null) {
+      if (existing.signature != requestSignature) {
+        throw const DemoStoreConflict(
+          'operation_request_replayed_with_different_payload',
+          'Operation delete requestId was already used with different payload.',
+        );
+      }
+      return _getVersion(command.machineId, existing.versionId);
+    }
+
+    final version = _requireDraftVersion(command.machineId, command.versionId);
+    final operation = _operationOccurrences.firstWhere(
+      (item) => item.id == command.operationId && item.versionId == version.id,
+      orElse: () => throw const DemoStoreNotFound(
+        'operation_occurrence_not_found',
+        'Operation occurrence was not found.',
+      ),
+    );
+    _operationOccurrences.removeWhere(
+      (item) => item.id == operation.id && item.versionId == version.id,
+    );
+    _operationDeleteByRequestId[command.requestId] =
+        _StoredMachineVersionCommand(
+          signature: requestSignature,
+          versionId: version.id,
+        );
+    _appendAudit(
+      entityType: 'operation_occurrence',
+      entityId: operation.id,
+      action: AuditAction.archived,
+      changedBy: command.deletedBy,
+      field: 'name',
+      beforeValue: operation.name,
+      afterValue: '',
+    );
+    return version;
+  }
+
+  MachineVersion publishMachineVersion(PublishMachineVersionCommand command) {
+    _validatePublishMachineVersionCommand(command);
+    final requestSignature =
+        '${command.machineId}::${command.versionId}::${command.publishedBy}';
+    final existing = _publishVersionByRequestId[command.requestId];
+    if (existing != null) {
+      if (existing.signature != requestSignature) {
+        throw const DemoStoreConflict(
+          'version_request_replayed_with_different_payload',
+          'Version publish requestId was already used with different payload.',
+        );
+      }
+      return _getVersion(command.machineId, existing.versionId);
+    }
+
+    final versionIndex = _versions.indexWhere(
+      (version) =>
+          version.id == command.versionId &&
+          version.machineId == command.machineId,
+    );
+    if (versionIndex == -1) {
+      throw const DemoStoreNotFound(
+        'machine_version_not_found',
+        'Machine version was not found.',
+      );
+    }
+    final version = _versions[versionIndex];
+    if (version.status != MachineVersionStatus.draft) {
+      throw DemoStoreConflict(
+        'machine_version_publish_not_allowed',
+        'Only draft machine versions can be published.',
+        details: {
+          'versionId': command.versionId,
+          'status': version.status.name,
+        },
+      );
+    }
+
+    final published = MachineVersion(
+      id: version.id,
+      machineId: version.machineId,
+      label: version.label,
+      createdAt: version.createdAt,
+      status: MachineVersionStatus.published,
+    );
+    _versions[versionIndex] = published;
+    final machineIndex = _machines.indexWhere(
+      (machine) => machine.id == command.machineId,
+    );
+    final machine = _machines[machineIndex];
+    _machines[machineIndex] = Machine(
+      id: machine.id,
+      code: machine.code,
+      name: machine.name,
+      activeVersionId: published.id,
+    );
+    _publishVersionByRequestId[command.requestId] =
+        _StoredMachineVersionCommand(
+          signature: requestSignature,
+          versionId: published.id,
+        );
+    _appendAudit(
+      entityType: 'machine_version',
+      entityId: published.id,
+      action: AuditAction.updated,
+      changedBy: command.publishedBy,
+      field: 'status',
+      beforeValue: version.status.name,
+      afterValue: published.status.name,
+    );
+    return published;
   }
 
   Plan createPlan(CreatePlanCommand command) {
@@ -995,6 +1539,14 @@ class DemoContractStore {
 
   List<AuditEntry> listAuditEntries() => List.unmodifiable(_auditEntries);
 
+  String? planIdForTask(String? taskId) {
+    if (taskId == null || taskId.isEmpty) {
+      return null;
+    }
+    final task = getTask(taskId);
+    return getPlanByItemId(task.planItemId).id;
+  }
+
   MachineVersion addImportedMachine({
     required String machineCode,
     required String machineName,
@@ -1068,6 +1620,114 @@ class DemoContractStore {
     );
   }
 
+  MachineVersion _requireDraftVersion(String machineId, String versionId) {
+    final version = _getVersion(machineId, versionId);
+    if (version.status != MachineVersionStatus.draft) {
+      throw DemoStoreConflict(
+        'machine_version_edit_not_allowed',
+        'Only draft machine versions can be edited.',
+        details: {'versionId': versionId, 'status': version.status.name},
+      );
+    }
+    return version;
+  }
+
+  Set<String> _collectDescendantOccurrenceIds(String versionId, String rootId) {
+    final descendants = <String>{};
+    var changed = true;
+    while (changed) {
+      changed = false;
+      for (final occurrence in _structureOccurrences) {
+        if (occurrence.versionId != versionId ||
+            occurrence.parentOccurrenceId == null) {
+          continue;
+        }
+        if (occurrence.parentOccurrenceId == rootId ||
+            descendants.contains(occurrence.parentOccurrenceId)) {
+          if (descendants.add(occurrence.id)) {
+            changed = true;
+          }
+        }
+      }
+    }
+    return descendants;
+  }
+
+  void _rebuildVersionPaths(String versionId) {
+    final versionOccurrences = _structureOccurrences
+        .where((occurrence) => occurrence.versionId == versionId)
+        .toList(growable: false);
+    if (versionOccurrences.isEmpty) {
+      return;
+    }
+
+    final byParent = <String?, List<StructureOccurrence>>{};
+    for (final occurrence in versionOccurrences) {
+      byParent
+          .putIfAbsent(occurrence.parentOccurrenceId, () => [])
+          .add(occurrence);
+    }
+    final rebuilt = <String, StructureOccurrence>{};
+
+    void rebuild(String? parentId, String parentPath) {
+      final children = [
+        ...(byParent[parentId] ?? const <StructureOccurrence>[]),
+      ];
+      children.sort((left, right) {
+        final nameCompare = left.displayName.toLowerCase().compareTo(
+          right.displayName.toLowerCase(),
+        );
+        if (nameCompare != 0) {
+          return nameCompare;
+        }
+        return left.id.compareTo(right.id);
+      });
+      final usedSegments = <String>{};
+      for (final child in children) {
+        final segmentBase = _slugSegment(child.displayName, fallback: child.id);
+        var segment = segmentBase;
+        var suffix = 2;
+        while (!usedSegments.add(segment)) {
+          segment = '$segmentBase-$suffix';
+          suffix += 1;
+        }
+        final pathKey = parentPath.isEmpty
+            ? 'machine/$segment'
+            : '$parentPath/$segment';
+        rebuilt[child.id] = StructureOccurrence(
+          id: child.id,
+          versionId: child.versionId,
+          catalogItemId: child.catalogItemId,
+          pathKey: pathKey,
+          displayName: child.displayName,
+          quantityPerMachine: child.quantityPerMachine,
+          parentOccurrenceId: child.parentOccurrenceId,
+          workshop: child.workshop,
+        );
+        rebuild(child.id, pathKey);
+      }
+    }
+
+    rebuild(null, '');
+    for (var index = 0; index < _structureOccurrences.length; index += 1) {
+      final occurrence = _structureOccurrences[index];
+      if (occurrence.versionId != versionId) {
+        continue;
+      }
+      _structureOccurrences[index] = rebuilt[occurrence.id] ?? occurrence;
+    }
+  }
+
+  String _slugSegment(String value, {required String fallback}) {
+    final normalized = value.trim().toLowerCase().replaceAll(
+      RegExp(r'[^a-z0-9]+'),
+      '-',
+    );
+    final compact = normalized.replaceAll(RegExp(r'-{2,}'), '-');
+    final trimmed = compact.replaceAll(RegExp(r'^-|-$'), '');
+    return trimmed.isEmpty ? fallback.toLowerCase() : trimmed;
+  }
+
   void _validateCreatePlanCommand(CreatePlanCommand command) {
     if (command.requestId.trim().isEmpty ||
         command.machineId.trim().isEmpty ||
@@ -1076,6 +1736,151 @@ class DemoContractStore {
       throw const DemoStoreValidation(
         'invalid_request',
         'requestId, machineId, versionId, and title are required.',
+      );
+    }
+  }
+
+  void _validateCreateDraftMachineVersionCommand(
+    CreateDraftMachineVersionCommand command,
+  ) {
+    if (command.requestId.trim().isEmpty ||
+        command.machineId.trim().isEmpty ||
+        command.sourceVersionId.trim().isEmpty ||
+        command.createdBy.trim().isEmpty) {
+      throw const DemoStoreValidation(
+        'invalid_request',
+        'requestId, machineId, sourceVersionId, and createdBy are required.',
+      );
+    }
+  }
+
+  void _validateCreateStructureOccurrenceCommand(
+    CreateStructureOccurrenceCommand command,
+  ) {
+    if (command.requestId.trim().isEmpty ||
+        command.machineId.trim().isEmpty ||
+        command.versionId.trim().isEmpty ||
+        command.createdBy.trim().isEmpty ||
+        command.displayName.trim().isEmpty) {
+      throw const DemoStoreValidation(
+        'invalid_request',
+        'requestId, machineId, versionId, createdBy, and displayName are required.',
+      );
+    }
+    if (command.quantityPerMachine <= 0) {
+      throw const DemoStoreValidation(
+        'invalid_requested_quantity',
+        'quantityPerMachine must be greater than zero.',
+      );
+    }
+  }
+
+  void _validateUpdateStructureOccurrenceCommand(
+    UpdateStructureOccurrenceCommand command,
+  ) {
+    if (command.requestId.trim().isEmpty ||
+        command.machineId.trim().isEmpty ||
+        command.versionId.trim().isEmpty ||
+        command.occurrenceId.trim().isEmpty ||
+        command.changedBy.trim().isEmpty ||
+        command.displayName.trim().isEmpty) {
+      throw const DemoStoreValidation(
+        'invalid_request',
+        'requestId, machineId, versionId, occurrenceId, changedBy, and displayName are required.',
+      );
+    }
+    if (command.quantityPerMachine <= 0) {
+      throw const DemoStoreValidation(
+        'invalid_requested_quantity',
+        'quantityPerMachine must be greater than zero.',
+      );
+    }
+  }
+
+  void _validateDeleteStructureOccurrenceCommand(
+    DeleteStructureOccurrenceCommand command,
+  ) {
+    if (command.requestId.trim().isEmpty ||
+        command.machineId.trim().isEmpty ||
+        command.versionId.trim().isEmpty ||
+        command.occurrenceId.trim().isEmpty ||
+        command.deletedBy.trim().isEmpty) {
+      throw const DemoStoreValidation(
+        'invalid_request',
+        'requestId, machineId, versionId, occurrenceId, and deletedBy are required.',
+      );
+    }
+  }
+
+  void _validateCreateOperationOccurrenceCommand(
+    CreateOperationOccurrenceCommand command,
+  ) {
+    if (command.requestId.trim().isEmpty ||
+        command.machineId.trim().isEmpty ||
+        command.versionId.trim().isEmpty ||
+        command.structureOccurrenceId.trim().isEmpty ||
+        command.createdBy.trim().isEmpty ||
+        command.name.trim().isEmpty) {
+      throw const DemoStoreValidation(
+        'invalid_request',
+        'requestId, machineId, versionId, structureOccurrenceId, createdBy, and name are required.',
+      );
+    }
+    if (command.quantityPerMachine <= 0) {
+      throw const DemoStoreValidation(
+        'invalid_requested_quantity',
+        'quantityPerMachine must be greater than zero.',
+      );
+    }
+  }
+
+  void _validateUpdateOperationOccurrenceCommand(
+    UpdateOperationOccurrenceCommand command,
+  ) {
+    if (command.requestId.trim().isEmpty ||
+        command.machineId.trim().isEmpty ||
+        command.versionId.trim().isEmpty ||
+        command.operationId.trim().isEmpty ||
+        command.changedBy.trim().isEmpty ||
+        command.name.trim().isEmpty) {
+      throw const DemoStoreValidation(
+        'invalid_request',
+        'requestId, machineId, versionId, operationId, changedBy, and name are required.',
+      );
+    }
+    if (command.quantityPerMachine <= 0) {
+      throw const DemoStoreValidation(
+        'invalid_requested_quantity',
+        'quantityPerMachine must be greater than zero.',
+      );
+    }
+  }
+
+  void _validateDeleteOperationOccurrenceCommand(
+    DeleteOperationOccurrenceCommand command,
+  ) {
+    if (command.requestId.trim().isEmpty ||
+        command.machineId.trim().isEmpty ||
+        command.versionId.trim().isEmpty ||
+        command.operationId.trim().isEmpty ||
+        command.deletedBy.trim().isEmpty) {
+      throw const DemoStoreValidation(
+        'invalid_request',
+        'requestId, machineId, versionId, operationId, and deletedBy are required.',
+      );
+    }
+  }
+
+  void _validatePublishMachineVersionCommand(
+    PublishMachineVersionCommand command,
+  ) {
+    if (command.requestId.trim().isEmpty ||
+        command.machineId.trim().isEmpty ||
+        command.versionId.trim().isEmpty ||
+        command.publishedBy.trim().isEmpty) {
+      throw const DemoStoreValidation(
+        'invalid_request',
+        'requestId, machineId, versionId, and publishedBy are required.',
       );
     }
   }
@@ -1583,6 +2388,168 @@ class TransitionProblemCommand {
   final ProblemStatus toStatus;
 }
 
+class CreateDraftMachineVersionCommand {
+  const CreateDraftMachineVersionCommand({
+    required this.requestId,
+    required this.machineId,
+    required this.sourceVersionId,
+    required this.createdBy,
+  });
+
+  final String requestId;
+  final String machineId;
+  final String sourceVersionId;
+  final String createdBy;
+}
+
+class CreateStructureOccurrenceCommand {
+  const CreateStructureOccurrenceCommand({
+    required this.requestId,
+    required this.machineId,
+    required this.versionId,
+    required this.createdBy,
+    required this.displayName,
+    required this.quantityPerMachine,
+    this.parentOccurrenceId,
+    this.workshop,
+  });
+
+  final String requestId;
+  final String machineId;
+  final String versionId;
+  final String createdBy;
+  final String displayName;
+  final double quantityPerMachine;
+  final String? parentOccurrenceId;
+  final String? workshop;
+}
+
+class UpdateStructureOccurrenceCommand {
+  const UpdateStructureOccurrenceCommand({
+    required this.requestId,
+    required this.machineId,
+    required this.versionId,
+    required this.occurrenceId,
+    required this.changedBy,
+    required this.displayName,
+    required this.quantityPerMachine,
+    this.workshop,
+  });
+
+  final String requestId;
+  final String machineId;
+  final String versionId;
+  final String occurrenceId;
+  final String changedBy;
+  final String displayName;
+  final double quantityPerMachine;
+  final String? workshop;
+}
+
+class DeleteStructureOccurrenceCommand {
+  const DeleteStructureOccurrenceCommand({
+    required this.requestId,
+    required this.machineId,
+    required this.versionId,
+    required this.occurrenceId,
+    required this.deletedBy,
+  });
+
+  final String requestId;
+  final String machineId;
+  final String versionId;
+  final String occurrenceId;
+  final String deletedBy;
+}
+
+class CreateOperationOccurrenceCommand {
+  const CreateOperationOccurrenceCommand({
+    required this.requestId,
+    required this.machineId,
+    required this.versionId,
+    required this.structureOccurrenceId,
+    required this.createdBy,
+    required this.name,
+    required this.quantityPerMachine,
+    this.workshop,
+  });
+
+  final String requestId;
+  final String machineId;
+  final String versionId;
+  final String structureOccurrenceId;
+  final String createdBy;
+  final String name;
+  final double quantityPerMachine;
+  final String? workshop;
+}
+
+class UpdateOperationOccurrenceCommand {
+  const UpdateOperationOccurrenceCommand({
+    required this.requestId,
+    required this.machineId,
+    required this.versionId,
+    required this.operationId,
+    required this.changedBy,
+    required this.name,
+    required this.quantityPerMachine,
+    this.workshop,
+  });
+
+  final String requestId;
+  final String machineId;
+  final String versionId;
+  final String operationId;
+  final String changedBy;
+  final String name;
+  final double quantityPerMachine;
+  final String? workshop;
+}
+
+class DeleteOperationOccurrenceCommand {
+  const DeleteOperationOccurrenceCommand({
+    required this.requestId,
+    required this.machineId,
+    required this.versionId,
+    required this.operationId,
+    required this.deletedBy,
+  });
+
+  final String requestId;
+  final String machineId;
+  final String versionId;
+  final String operationId;
+  final String deletedBy;
+}
+
+class PublishMachineVersionCommand {
+  const PublishMachineVersionCommand({
+    required this.requestId,
+    required this.machineId,
+    required this.versionId,
+    required this.publishedBy,
+  });
+
+  final String requestId;
+  final String machineId;
+  final String versionId;
+  final String publishedBy;
+}
+
+class MachineVersionDetail {
+  const MachineVersionDetail({
+    required this.version,
+    required this.isActiveVersion,
+    required this.structureOccurrences,
+    required this.operationOccurrences,
+  });
+
+  final MachineVersion version;
+  final bool isActiveVersion;
+  final List<StructureOccurrence> structureOccurrences;
+  final List<OperationOccurrence> operationOccurrences;
+}
+
 class DemoStoreNotFound implements Exception {
   const DemoStoreNotFound(this.code, this.message, {this.details = const {}});
 
@@ -1668,4 +2635,14 @@ class _StoredProblemTransitionCommand {
 
   final String signature;
   final String problemId;
+}
+
+class _StoredMachineVersionCommand {
+  const _StoredMachineVersionCommand({
+    required this.signature,
+    required this.versionId,
+  });
+
+  final String signature;
+  final String versionId;
 }

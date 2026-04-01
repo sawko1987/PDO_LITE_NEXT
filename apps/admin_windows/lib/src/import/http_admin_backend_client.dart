@@ -35,6 +35,125 @@ class HttpAdminBackendClient implements AdminBackendClient {
   }
 
   @override
+  Future<MachineVersionDetailDto> getMachineVersionDetail(
+    String machineId,
+    String versionId,
+  ) async {
+    final json = await _getJsonObject(
+      '/v1/machines/$machineId/versions/$versionId/detail',
+    );
+    return MachineVersionDetailDto.fromJson(json);
+  }
+
+  @override
+  Future<MachineVersionDetailDto> createDraftMachineVersion(
+    String machineId,
+    String versionId,
+    CreateDraftMachineVersionRequestDto request,
+  ) async {
+    final json = await _postJsonObject(
+      '/v1/machines/$machineId/versions/$versionId/draft',
+      request.toJson(),
+    );
+    return MachineVersionDetailDto.fromJson(json);
+  }
+
+  @override
+  Future<MachineVersionDetailDto> createStructureOccurrence(
+    String machineId,
+    String versionId,
+    CreateStructureOccurrenceRequestDto request,
+  ) async {
+    final json = await _postJsonObject(
+      '/v1/machines/$machineId/versions/$versionId/structure-occurrences',
+      request.toJson(),
+    );
+    return MachineVersionDetailDto.fromJson(json);
+  }
+
+  @override
+  Future<MachineVersionDetailDto> updateStructureOccurrence(
+    String machineId,
+    String versionId,
+    String occurrenceId,
+    UpdateStructureOccurrenceRequestDto request,
+  ) async {
+    final json = await _postJsonObject(
+      '/v1/machines/$machineId/versions/$versionId/structure-occurrences/$occurrenceId/update',
+      request.toJson(),
+    );
+    return MachineVersionDetailDto.fromJson(json);
+  }
+
+  @override
+  Future<MachineVersionDetailDto> deleteStructureOccurrence(
+    String machineId,
+    String versionId,
+    String occurrenceId,
+    DeleteStructureOccurrenceRequestDto request,
+  ) async {
+    final json = await _postJsonObject(
+      '/v1/machines/$machineId/versions/$versionId/structure-occurrences/$occurrenceId/delete',
+      request.toJson(),
+    );
+    return MachineVersionDetailDto.fromJson(json);
+  }
+
+  @override
+  Future<MachineVersionDetailDto> createOperationOccurrence(
+    String machineId,
+    String versionId,
+    CreateOperationOccurrenceRequestDto request,
+  ) async {
+    final json = await _postJsonObject(
+      '/v1/machines/$machineId/versions/$versionId/operation-occurrences',
+      request.toJson(),
+    );
+    return MachineVersionDetailDto.fromJson(json);
+  }
+
+  @override
+  Future<MachineVersionDetailDto> updateOperationOccurrence(
+    String machineId,
+    String versionId,
+    String operationId,
+    UpdateOperationOccurrenceRequestDto request,
+  ) async {
+    final json = await _postJsonObject(
+      '/v1/machines/$machineId/versions/$versionId/operation-occurrences/$operationId/update',
+      request.toJson(),
+    );
+    return MachineVersionDetailDto.fromJson(json);
+  }
+
+  @override
+  Future<MachineVersionDetailDto> deleteOperationOccurrence(
+    String machineId,
+    String versionId,
+    String operationId,
+    DeleteOperationOccurrenceRequestDto request,
+  ) async {
+    final json = await _postJsonObject(
+      '/v1/machines/$machineId/versions/$versionId/operation-occurrences/$operationId/delete',
+      request.toJson(),
+    );
+    return MachineVersionDetailDto.fromJson(json);
+  }
+
+  @override
+  Future<MachineVersionDetailDto> publishMachineVersion(
+    String machineId,
+    String versionId,
+    PublishMachineVersionRequestDto request,
+  ) async {
+    final json = await _postJsonObject(
+      '/v1/machines/$machineId/versions/$versionId/publish',
+      request.toJson(),
+    );
+    return MachineVersionDetailDto.fromJson(json);
+  }
+
+  @override
   Future<ApiListResponseDto<PlanningSourceOccurrenceDto>> listPlanningSource(
     String machineId,
     String versionId,
@@ -163,6 +282,42 @@ class HttpAdminBackendClient implements AdminBackendClient {
   @override
   Future<ProblemDetailDto> getProblem(String problemId) async {
     final json = await _getJsonObject('/v1/problems/$problemId');
+    return ProblemDetailDto.fromJson(json);
+  }
+
+  @override
+  Future<ProblemDetailDto> createProblem(
+    String taskId,
+    CreateProblemRequestDto request,
+  ) async {
+    final json = await _postJsonObject(
+      '/v1/tasks/$taskId/problems',
+      request.toJson(),
+    );
+    return ProblemDetailDto.fromJson(json);
+  }
+
+  @override
+  Future<ProblemDetailDto> addProblemMessage(
+    String problemId,
+    AddProblemMessageRequestDto request,
+  ) async {
+    final json = await _postJsonObject(
+      '/v1/problems/$problemId/messages',
+      request.toJson(),
+    );
+    return ProblemDetailDto.fromJson(json);
+  }
+
+  @override
+  Future<ProblemDetailDto> transitionProblem(
+    String problemId,
+    TransitionProblemRequestDto request,
+  ) async {
+    final json = await _postJsonObject(
+      '/v1/problems/$problemId/transition',
+      request.toJson(),
+    );
     return ProblemDetailDto.fromJson(json);
   }
 

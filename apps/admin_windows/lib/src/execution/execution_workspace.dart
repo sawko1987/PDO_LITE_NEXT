@@ -11,9 +11,16 @@ const _reportOutcomeOptions = <({String label, String value})>[
 ];
 
 class ExecutionWorkspace extends StatelessWidget {
-  const ExecutionWorkspace({super.key, required this.controller});
+  const ExecutionWorkspace({
+    super.key,
+    required this.controller,
+    required this.onOpenProblems,
+    required this.onOpenWip,
+  });
 
   final ExecutionBoardController controller;
+  final Future<void> Function(String taskId) onOpenProblems;
+  final Future<void> Function(String taskId) onOpenWip;
 
   @override
   Widget build(BuildContext context) {
@@ -147,7 +154,7 @@ class ExecutionWorkspace extends StatelessWidget {
                                 padding: const EdgeInsets.only(bottom: 10),
                                 child: _DetailTile(
                                   title:
-                                      '${report.outcome} • ${report.reportedQuantity}',
+                                      '${report.outcome} | ${report.reportedQuantity}',
                                   lines: [
                                     'Report: ${report.id}',
                                     'Reported by: ${report.reportedBy}',
@@ -205,6 +212,17 @@ class ExecutionWorkspace extends StatelessWidget {
                             _ProblemThreadSection(
                               problem: controller.selectedProblem!,
                             ),
+                            const SizedBox(height: 12),
+                            FilledButton.icon(
+                              key: const Key('openProblemsWorkspaceButton'),
+                              onPressed: controller.selectedTask == null
+                                  ? null
+                                  : () => onOpenProblems(
+                                      controller.selectedTask!.id,
+                                    ),
+                              icon: const Icon(Icons.open_in_new_outlined),
+                              label: const Text('Open Problems Workspace'),
+                            ),
                           ],
                         ],
                       ),
@@ -221,23 +239,33 @@ class ExecutionWorkspace extends StatelessWidget {
                     : controller.scopedWipEntries.isEmpty
                     ? const Text('No scoped WIP for the selected task.')
                     : Column(
-                        children: controller.scopedWipEntries
-                            .map(
-                              (entry) => Padding(
-                                padding: const EdgeInsets.only(bottom: 10),
-                                child: _DetailTile(
-                                  title: '${entry.id} • ${entry.status}',
-                                  lines: [
-                                    'Operation: ${entry.operationOccurrenceId}',
-                                    'Balance: ${entry.balanceQuantity}',
-                                    'Blocks completion: ${entry.blocksCompletion ? 'yes' : 'no'}',
-                                    'Task: ${entry.taskId ?? '-'}',
-                                    'Outcome: ${entry.sourceOutcome ?? '-'}',
-                                  ],
-                                ),
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ...controller.scopedWipEntries.map(
+                            (entry) => Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: _DetailTile(
+                                title: '${entry.id} | ${entry.status}',
+                                lines: [
+                                  'Operation: ${entry.operationOccurrenceId}',
+                                  'Balance: ${entry.balanceQuantity}',
+                                  'Blocks completion: ${entry.blocksCompletion ? 'yes' : 'no'}',
+                                  'Task: ${entry.taskId ?? '-'}',
+                                  'Outcome: ${entry.sourceOutcome ?? '-'}',
+                                ],
                               ),
-                            )
-                            .toList(growable: false),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          FilledButton.icon(
+                            key: const Key('openWipWorkspaceButton'),
+                            onPressed: controller.selectedTask == null
+                                ? null
+                                : () => onOpenWip(controller.selectedTask!.id),
+                            icon: const Icon(Icons.open_in_new_outlined),
+                            label: const Text('Open WIP Workspace'),
+                          ),
+                        ],
                       ),
               ),
             ),
@@ -441,7 +469,7 @@ class _ProblemThreadSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _DetailTile(
-          title: '${problem.title ?? problem.id} • ${problem.status}',
+          title: '${problem.title ?? problem.id} | ${problem.status}',
           lines: [
             'Type: ${problem.type}',
             'Created: ${_formatDateTime(problem.createdAt)}',
@@ -499,7 +527,7 @@ class _TaskTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${task.structureDisplayName} • ${task.operationName}',
+                '${task.structureDisplayName} | ${task.operationName}',
                 style: Theme.of(
                   context,
                 ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
@@ -510,7 +538,7 @@ class _TaskTile extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                'Required ${task.requiredQuantity} • Reported ${task.reportedQuantity} • Remaining ${task.remainingQuantity}',
+                'Required ${task.requiredQuantity} | Reported ${task.reportedQuantity} | Remaining ${task.remainingQuantity}',
               ),
             ],
           ),
