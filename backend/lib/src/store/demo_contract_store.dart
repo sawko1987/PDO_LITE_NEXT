@@ -246,6 +246,7 @@ class DemoContractStore {
   final List<AuditEntry> _auditEntries;
   final Map<String, _StoredPlanCommand> _planByCreateRequestId = {};
   final Map<String, _StoredReleaseCommand> _releaseByRequestId = {};
+  final Map<String, _StoredCompleteCommand> _completionByRequestId = {};
   final Map<String, _StoredExecutionReportCommand> _reportByRequestId = {};
   final Map<String, _StoredProblemCommand> _problemByCreateRequestId = {};
   final Map<String, _StoredProblemMessageCommand> _problemMessageByRequestId =
@@ -310,6 +311,28 @@ class DemoContractStore {
         'plan_not_found',
         'Plan was not found.',
       ),
+    );
+  }
+
+  CompletionDecision getPlanCompletionDecision(String planId) {
+    final plan = getPlan(planId);
+    final planTasks = _listTasksForPlan(planId);
+    final planTaskIds = planTasks.map((task) => task.id).toSet();
+    final planProblems = _problems
+        .where(
+          (problem) =>
+              problem.taskId != null && planTaskIds.contains(problem.taskId),
+        )
+        .toList(growable: false);
+    final planWipEntries = _wipEntries
+        .where(
+          (entry) => entry.taskId != null && planTaskIds.contains(entry.taskId),
+        )
+        .toList(growable: false);
+    return const CompletionPolicy().evaluate(
+      tasks: planTasks,
+      problems: planProblems,
+      wipEntries: planWipEntries,
     );
   }
 
@@ -525,6 +548,83 @@ class DemoContractStore {
     return result;
   }
 
+  CompletePlanResult completePlan(CompletePlanCommand command) {
+    _validateCompletePlanCommand(command);
+    final requestSignature = '${command.planId}::${command.completedBy}';
+    final existing = _completionByRequestId[command.requestId];
+    if (existing != null) {
+      if (existing.signature != requestSignature) {
+        throw const DemoStoreConflict(
+          'plan_request_replayed_with_different_payload',
+          'Plan completion requestId was already used with different payload.',
+        );
+      }
+      return existing.result;
+    }
+
+    final planIndex = _plans.indexWhere((plan) => plan.id == command.planId);
+    if (planIndex == -1) {
+      throw const DemoStoreNotFound('plan_not_found', 'Plan was not found.');
+    }
+
+    final plan = _plans[planIndex];
+    if (plan.status != PlanStatus.released) {
+      throw DemoStoreConflict(
+        'plan_completion_not_allowed',
+        'Only released plans can be completed.',
+        details: {'planId': command.planId, 'status': plan.status.name},
+      );
+    }
+
+    final decision = getPlanCompletionDecision(command.planId);
+    if (!decision.canComplete) {
+      throw DemoStoreConflict(
+        'plan_completion_blocked',
+        'Plan completion is blocked by open tasks, problems, or WIP.',
+        details: {
+          'planId': command.planId,
+          'blockers': decision.blockers
+              .map(
+                (blocker) => {
+                  'type': blocker.type.name,
+                  'entityIds': blocker.entityIds,
+                },
+              )
+              .toList(growable: false),
+        },
+      );
+    }
+
+    final completedPlan = Plan(
+      id: plan.id,
+      machineId: plan.machineId,
+      versionId: plan.versionId,
+      title: plan.title,
+      createdAt: plan.createdAt,
+      items: plan.items,
+      status: PlanStatus.completed,
+      revisions: plan.revisions,
+    );
+    _plans[planIndex] = completedPlan;
+    _appendPlanAudit(
+      entityId: completedPlan.id,
+      changedBy: command.completedBy,
+      field: 'status',
+      beforeValue: plan.status.name,
+      afterValue: completedPlan.status.name,
+    );
+
+    final result = CompletePlanResult(
+      planId: completedPlan.id,
+      status: completedPlan.status,
+    );
+    _completionByRequestId[command.requestId] = _StoredCompleteCommand(
+      signature: requestSignature,
+      result: result,
+    );
+    return result;
+  }
+
   List<ProductionTask> listTasks({String? assigneeId, String? status}) {
     var tasks = _tasks.where((task) {
       if (assigneeId != null &&
@@ -538,6 +638,14 @@ class DemoContractStore {
       return true;
     });
     return List.unmodifiable(tasks);
+  }
+
+  List<ProductionTask> _listTasksForPlan(String planId) {
+    final plan = getPlan(planId);
+    final planItemIds = plan.items.map((item) => item.id).toSet();
+    return _tasks
+        .where((task) => planItemIds.contains(task.planItemId))
+        .toList(growable: false);
   }
 
   ProductionTask getTask(String taskId) {
@@ -983,6 +1091,17 @@ class DemoContractStore {
     }
   }
 
+  void _validateCompletePlanCommand(CompletePlanCommand command) {
+    if (command.requestId.trim().isEmpty ||
+        command.planId.trim().isEmpty ||
+        command.completedBy.trim().isEmpty) {
+      throw const DemoStoreValidation(
+        'invalid_request',
+        'requestId, planId, and completedBy are required.',
+      );
+    }
+  }
+
   void _validateCreateExecutionReportCommand(
     CreateExecutionReportCommand command,
   ) {
@@ -1358,6 +1477,25 @@ class ReleasePlanResult {
   final int generatedTaskCount;
 }
 
+class CompletePlanCommand {
+  const CompletePlanCommand({
+    required this.requestId,
+    required this.planId,
+    required this.completedBy,
+  });
+
+  final String requestId;
+  final String planId;
+  final String completedBy;
+}
+
+class CompletePlanResult {
+  const CompletePlanResult({required this.planId, required this.status});
+
+  final String planId;
+  final PlanStatus status;
+}
+
 class CreateExecutionReportCommand {
   const CreateExecutionReportCommand({
     required this.requestId,
@@ -1481,6 +1619,13 @@ class _StoredReleaseCommand {
 
   final String signature;
   final ReleasePlanResult result;
+}
+
+class _StoredCompleteCommand {
+  const _StoredCompleteCommand({required this.signature, required this.result});
+
+  final String signature;
+  final CompletePlanResult result;
 }
 
 class _StoredExecutionReportCommand {

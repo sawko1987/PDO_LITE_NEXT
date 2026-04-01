@@ -16,6 +16,8 @@ abstract interface class AdminBackendClient {
 
   Future<PlanDetailDto> getPlan(String planId);
 
+  Future<PlanCompletionDecisionDto> getPlanCompletionDecision(String planId);
+
   Future<PlanDetailDto> createPlan(CreatePlanRequestDto request);
 
   Future<PlanReleaseResultDto> releasePlan(
@@ -23,11 +25,21 @@ abstract interface class AdminBackendClient {
     ReleasePlanRequestDto request,
   );
 
+  Future<PlanCompletionResultDto> completePlan(
+    String planId,
+    CompletePlanRequestDto request,
+  );
+
   Future<ApiListResponseDto<TaskSummaryDto>> listTasks({String? status});
 
   Future<TaskDetailDto> getTask(String taskId);
 
   Future<ApiListResponseDto<ExecutionReportDto>> listTaskReports(String taskId);
+
+  Future<CreateExecutionReportResultDto> createExecutionReport(
+    String taskId,
+    CreateExecutionReportRequestDto request,
+  );
 
   Future<ApiListResponseDto<ProblemSummaryDto>> listProblems({
     String? taskId,

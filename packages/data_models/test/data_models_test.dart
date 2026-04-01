@@ -206,6 +206,39 @@ void main() {
     expect(transitionDto.toJson()['toStatus'], 'closed');
   });
 
+  test('completion dto contracts serialize and parse block blockers', () {
+    const requestDto = CompletePlanRequestDto(
+      requestId: 'complete-plan-1',
+      completedBy: 'supervisor-1',
+    );
+    const blockerDto = CompletionBlockerDto(
+      type: 'openTasks',
+      entityIds: ['task-1', 'task-2'],
+    );
+    const resultDto = PlanCompletionResultDto(
+      planId: 'plan-1',
+      status: 'completed',
+    );
+
+    final decisionDto = PlanCompletionDecisionDto.fromJson({
+      'planId': 'plan-1',
+      'canComplete': false,
+      'blockers': [
+        blockerDto.toJson(),
+        {
+          'type': 'openProblems',
+          'entityIds': ['problem-1'],
+        },
+      ],
+    });
+
+    expect(requestDto.toJson()['completedBy'], 'supervisor-1');
+    expect(decisionDto.planId, 'plan-1');
+    expect(decisionDto.canComplete, isFalse);
+    expect(decisionDto.blockers.first.entityIds, ['task-1', 'task-2']);
+    expect(resultDto.toJson()['status'], 'completed');
+  });
+
   test('api error dto nests error payload', () {
     const dto = ApiErrorDto(
       code: 'machine_not_found',

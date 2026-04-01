@@ -202,6 +202,21 @@ Router buildV1Router(
         );
       }
     })
+    ..get('/plans/<planId>/completion-check', (Request request, String planId) {
+      try {
+        final decision = store.getPlanCompletionDecision(planId);
+        return jsonResponse(
+          PlanCompletionDecisionDto.fromDomain(planId, decision).toJson(),
+        );
+      } on DemoStoreNotFound catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          404,
+        );
+      }
+    })
     ..post('/plans/<planId>/release', (Request request, String planId) async {
       try {
         final body = await _readJsonBody(request);
@@ -218,6 +233,48 @@ Router buildV1Router(
             planId: result.planId,
             status: result.status.name,
             generatedTaskCount: result.generatedTaskCount,
+          ).toJson(),
+        );
+      } on DemoStoreNotFound catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          404,
+        );
+      } on DemoStoreValidation catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          422,
+        );
+      } on DemoStoreConflict catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          409,
+        );
+      } on FormatException {
+        return _invalidJsonResponse();
+      }
+    })
+    ..post('/plans/<planId>/complete', (Request request, String planId) async {
+      try {
+        final body = await _readJsonBody(request);
+        final dto = CompletePlanRequestDto.fromJson(body);
+        final result = store.completePlan(
+          CompletePlanCommand(
+            requestId: dto.requestId,
+            planId: planId,
+            completedBy: dto.completedBy,
+          ),
+        );
+        return jsonResponse(
+          PlanCompletionResultDto(
+            planId: result.planId,
+            status: result.status.name,
           ).toJson(),
         );
       } on DemoStoreNotFound catch (error) {

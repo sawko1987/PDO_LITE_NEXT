@@ -88,6 +88,28 @@ void main() {
       expect(controller.canConfirm, isTrue);
     });
 
+    test(
+      'prepareCreateVersion preselects target machine for import handoff',
+      () {
+        final client = FakeAdminBackendClient(
+          machines: [
+            const MachineSummaryDto(
+              id: 'machine-1',
+              code: 'PDO-100',
+              name: 'Machine 100',
+              activeVersionId: 'ver-1',
+            ),
+          ],
+        );
+        final controller = ImportFlowController(client: client);
+
+        controller.prepareCreateVersion('machine-1');
+
+        expect(controller.confirmMode, ImportConfirmMode.createVersion);
+        expect(controller.targetMachineId, 'machine-1');
+      },
+    );
+
     test('successful confirm refreshes machines and result state', () async {
       final client = FakeAdminBackendClient(
         previewSession: buildSession(canConfirm: true),
@@ -257,6 +279,13 @@ class FakeAdminBackendClient implements AdminBackendClient {
   }
 
   @override
+  Future<PlanCompletionDecisionDto> getPlanCompletionDecision(
+    String planId,
+  ) async {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<ProblemDetailDto> getProblem(String problemId) async {
     throw UnimplementedError();
   }
@@ -311,6 +340,14 @@ class FakeAdminBackendClient implements AdminBackendClient {
   }
 
   @override
+  Future<CreateExecutionReportResultDto> createExecutionReport(
+    String taskId,
+    CreateExecutionReportRequestDto request,
+  ) async {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<ApiListResponseDto<TaskSummaryDto>> listTasks({String? status}) async {
     return const ApiListResponseDto(items: [], meta: {'resource': 'tasks'});
   }
@@ -327,6 +364,14 @@ class FakeAdminBackendClient implements AdminBackendClient {
   Future<PlanReleaseResultDto> releasePlan(
     String planId,
     ReleasePlanRequestDto request,
+  ) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<PlanCompletionResultDto> completePlan(
+    String planId,
+    CompletePlanRequestDto request,
   ) async {
     throw UnimplementedError();
   }

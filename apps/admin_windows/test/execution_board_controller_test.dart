@@ -73,13 +73,178 @@ void main() {
         ]);
       },
     );
+
+    test(
+      'submitSelectedTaskReport updates task detail reports and wip feedback',
+      () async {
+        final controller = ExecutionBoardController(
+          client: _FakeExecutionBackendClient(),
+        );
+
+        await controller.bootstrap();
+        controller.setReportAuthor('supervisor-1');
+        controller.setReportOutcome('overrun');
+        controller.setReportQuantity('7');
+        controller.setReportReason('Closed extra unit from the same setup.');
+
+        await controller.submitSelectedTaskReport();
+
+        expect(controller.errorMessage, isNull);
+        expect(controller.selectedTask?.status, 'completed');
+        expect(controller.selectedTask?.reportedQuantity, 13);
+        expect(controller.selectedTask?.remainingQuantity, 0);
+        expect(controller.reports, hasLength(2));
+        expect(controller.reports.last.outcome, 'overrun');
+        expect(controller.scopedWipEntries.first.balanceQuantity, 1);
+        expect(
+          controller.submissionMessage,
+          'Execution report sent. WIP updated (1.0 pcs).',
+        );
+        expect(controller.reportOutcome, 'completed');
+        expect(controller.reportQuantity, isEmpty);
+        expect(controller.reportReason, isEmpty);
+        expect(controller.reportAuthor, 'supervisor-1');
+      },
+    );
+
+    test(
+      'submitSelectedTaskReport keeps form values on backend error',
+      () async {
+        final controller = ExecutionBoardController(
+          client: _FakeExecutionBackendClient(
+            createReportError: const AdminBackendException(
+              code: 'invalid_report_reason',
+              message: 'Reason is required.',
+              statusCode: 422,
+            ),
+          ),
+        );
+
+        await controller.bootstrap();
+        controller.setReportAuthor('supervisor-1');
+        controller.setReportOutcome('partial');
+        controller.setReportQuantity('3');
+        controller.setReportReason('Still blocked.');
+
+        await controller.submitSelectedTaskReport();
+
+        expect(controller.errorMessage, 'Reason is required.');
+        expect(controller.reportAuthor, 'supervisor-1');
+        expect(controller.reportOutcome, 'partial');
+        expect(controller.reportQuantity, '3');
+        expect(controller.reportReason, 'Still blocked.');
+        expect(controller.reports, hasLength(1));
+      },
+    );
   });
 }
 
 class _FakeExecutionBackendClient implements AdminBackendClient {
+  _FakeExecutionBackendClient({this.createReportError});
+
+  final Object? createReportError;
+
+  double _task1ReportedQuantity = 6;
+  String _task1Status = 'inProgress';
+  bool _task1Closed = false;
+  double _task1WipBalance = 6;
+  int _reportSequence = 1;
+  final List<ExecutionReportDto> _task1Reports = [
+    ExecutionReportDto(
+      id: 'report-1',
+      taskId: 'task-1',
+      reportedBy: 'master-1',
+      reportedAt: DateTime.utc(2026, 3, 31, 8),
+      reportedQuantity: 6,
+      outcome: 'partial',
+      acceptedAt: DateTime.utc(2026, 3, 31, 8, 5),
+      isAccepted: true,
+      reason: 'Paused after first batch.',
+    ),
+  ];
+
   @override
   Future<PlanDetailDto> createPlan(CreatePlanRequestDto request) async {
     throw UnimplementedError();
+  }
+
+  @override
+  Future<CreateExecutionReportResultDto> createExecutionReport(
+    String taskId,
+    CreateExecutionReportRequestDto request,
+  ) async {
+    if (createReportError != null) {
+      throw createReportError!;
+    }
+    if (taskId != 'task-1') {
+      throw const AdminBackendException(message: 'Task was not found.');
+    }
+
+    _reportSequence += 1;
+    _task1ReportedQuantity += request.reportedQuantity;
+
+    final remainingQuantity = _task1ReportedQuantity >= 12
+        ? 0.0
+        : 12 - _task1ReportedQuantity;
+    if (remainingQuantity == 0) {
+      _task1Status = 'completed';
+      _task1Closed = true;
+    }
+
+    ExecutionReportWipEffectDto? wipEffect;
+    switch (request.outcome) {
+      case 'completed':
+        _task1WipBalance = 0;
+        wipEffect = const ExecutionReportWipEffectDto(
+          type: 'consumed',
+          wipEntryId: 'wip-1',
+          status: 'consumed',
+        );
+        break;
+      case 'partial':
+      case 'not_completed':
+        _task1WipBalance = remainingQuantity;
+        wipEffect = ExecutionReportWipEffectDto(
+          type: 'updated',
+          wipEntryId: 'wip-1',
+          balanceQuantity: _task1WipBalance,
+          status: 'open',
+        );
+        break;
+      case 'overrun':
+        _task1WipBalance = _task1ReportedQuantity - 12;
+        wipEffect = ExecutionReportWipEffectDto(
+          type: 'updated',
+          wipEntryId: 'wip-1',
+          balanceQuantity: _task1WipBalance,
+          status: 'open',
+        );
+        break;
+      default:
+        wipEffect = null;
+    }
+
+    final report = ExecutionReportDto(
+      id: 'report-$_reportSequence',
+      taskId: taskId,
+      reportedBy: request.reportedBy,
+      reportedAt: DateTime.utc(2026, 3, 31, 11, _reportSequence),
+      reportedQuantity: request.reportedQuantity,
+      outcome: request.outcome,
+      acceptedAt: DateTime.utc(2026, 3, 31, 11, _reportSequence, 5),
+      isAccepted: true,
+      reason: request.reason,
+    );
+    _task1Reports.add(report);
+
+    return CreateExecutionReportResultDto(
+      report: report,
+      taskStatus: _task1Status,
+      reportedQuantityTotal: _task1ReportedQuantity,
+      remainingQuantity: remainingQuantity,
+      outboxStatus: 'sent',
+      wipEffect: wipEffect,
+    );
   }
 
   @override
@@ -156,9 +321,16 @@ class _FakeExecutionBackendClient implements AdminBackendClient {
   }
 
   @override
+  Future<PlanCompletionDecisionDto> getPlanCompletionDecision(
+    String planId,
+  ) async {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<TaskDetailDto> getTask(String taskId) async {
     return switch (taskId) {
-      'task-1' => const TaskDetailDto(
+      'task-1' => TaskDetailDto(
         id: 'task-1',
         planItemId: 'plan-item-1',
         operationOccurrenceId: 'op-1',
@@ -169,11 +341,13 @@ class _FakeExecutionBackendClient implements AdminBackendClient {
         operationName: 'Cut',
         workshop: 'WS-1',
         requiredQuantity: 12,
-        reportedQuantity: 6,
-        remainingQuantity: 6,
+        reportedQuantity: _task1ReportedQuantity,
+        remainingQuantity: _task1ReportedQuantity >= 12
+            ? 0
+            : 12 - _task1ReportedQuantity,
         assigneeId: 'master-1',
-        status: 'inProgress',
-        isClosed: false,
+        status: _task1Status,
+        isClosed: _task1Closed,
       ),
       'task-2' => const TaskDetailDto(
         id: 'task-2',
@@ -276,19 +450,7 @@ class _FakeExecutionBackendClient implements AdminBackendClient {
     String taskId,
   ) async {
     final items = taskId == 'task-1'
-        ? [
-            ExecutionReportDto(
-              id: 'report-1',
-              taskId: taskId,
-              reportedBy: 'master-1',
-              reportedAt: DateTime.utc(2026, 3, 31, 8),
-              reportedQuantity: 6,
-              outcome: 'partial',
-              acceptedAt: DateTime.utc(2026, 3, 31, 8, 5),
-              isAccepted: true,
-              reason: 'Paused after first batch.',
-            ),
-          ]
+        ? List<ExecutionReportDto>.unmodifiable(_task1Reports)
         : const <ExecutionReportDto>[];
     return ApiListResponseDto(
       items: items,
@@ -299,25 +461,27 @@ class _FakeExecutionBackendClient implements AdminBackendClient {
   @override
   Future<ApiListResponseDto<TaskSummaryDto>> listTasks({String? status}) async {
     final items =
-        const [
+        [
               TaskSummaryDto(
                 id: 'task-1',
                 planItemId: 'plan-item-1',
                 operationOccurrenceId: 'op-1',
                 requiredQuantity: 12,
                 assigneeId: 'master-1',
-                status: 'inProgress',
-                isClosed: false,
+                status: _task1Status,
+                isClosed: _task1Closed,
                 machineId: 'machine-1',
                 versionId: 'ver-1',
                 structureOccurrenceId: 'occ-1',
                 structureDisplayName: 'Frame',
                 operationName: 'Cut',
                 workshop: 'WS-1',
-                reportedQuantity: 6,
-                remainingQuantity: 6,
+                reportedQuantity: _task1ReportedQuantity,
+                remainingQuantity: _task1ReportedQuantity >= 12
+                    ? 0
+                    : 12 - _task1ReportedQuantity,
               ),
-              TaskSummaryDto(
+              const TaskSummaryDto(
                 id: 'task-2',
                 planItemId: 'plan-item-2',
                 operationOccurrenceId: 'op-2',
@@ -349,7 +513,7 @@ class _FakeExecutionBackendClient implements AdminBackendClient {
 
   @override
   Future<ApiListResponseDto<WipEntryDto>> listWipEntries() async {
-    return const ApiListResponseDto(
+    return ApiListResponseDto(
       items: [
         WipEntryDto(
           id: 'wip-1',
@@ -357,14 +521,14 @@ class _FakeExecutionBackendClient implements AdminBackendClient {
           versionId: 'ver-1',
           structureOccurrenceId: 'occ-1',
           operationOccurrenceId: 'op-1',
-          balanceQuantity: 6,
+          balanceQuantity: _task1WipBalance,
           status: 'open',
-          blocksCompletion: true,
+          blocksCompletion: _task1WipBalance > 0,
           taskId: 'task-1',
-          sourceReportId: 'report-1',
-          sourceOutcome: 'partial',
+          sourceReportId: _task1Reports.last.id,
+          sourceOutcome: _task1Reports.last.outcome,
         ),
-        WipEntryDto(
+        const WipEntryDto(
           id: 'wip-2',
           machineId: 'machine-1',
           versionId: 'ver-1',
@@ -375,7 +539,7 @@ class _FakeExecutionBackendClient implements AdminBackendClient {
           blocksCompletion: true,
           sourceOutcome: 'overrun',
         ),
-        WipEntryDto(
+        const WipEntryDto(
           id: 'wip-3',
           machineId: 'machine-1',
           versionId: 'ver-1',
@@ -387,7 +551,7 @@ class _FakeExecutionBackendClient implements AdminBackendClient {
           taskId: 'task-2',
         ),
       ],
-      meta: {'resource': 'wip_entries'},
+      meta: const {'resource': 'wip_entries'},
     );
   }
 
@@ -395,6 +559,14 @@ class _FakeExecutionBackendClient implements AdminBackendClient {
   Future<PlanReleaseResultDto> releasePlan(
     String planId,
     ReleasePlanRequestDto request,
+  ) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<PlanCompletionResultDto> completePlan(
+    String planId,
+    CompletePlanRequestDto request,
   ) async {
     throw UnimplementedError();
   }

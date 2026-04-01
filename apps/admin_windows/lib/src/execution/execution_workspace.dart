@@ -3,6 +3,13 @@ import 'package:flutter/material.dart';
 
 import 'execution_board_controller.dart';
 
+const _reportOutcomeOptions = <({String label, String value})>[
+  (label: 'Completed', value: 'completed'),
+  (label: 'Partial', value: 'partial'),
+  (label: 'Not Completed', value: 'not_completed'),
+  (label: 'Overrun', value: 'overrun'),
+];
+
 class ExecutionWorkspace extends StatelessWidget {
   const ExecutionWorkspace({super.key, required this.controller});
 
@@ -18,7 +25,7 @@ class ExecutionWorkspace extends StatelessWidget {
             _SectionCard(
               title: 'Execution Control',
               subtitle:
-                  'Read-only monitoring of released work: tasks, execution reports, problems, and WIP.',
+                  'Monitor released work and send manual execution reports from the desktop client.',
               child: Wrap(
                 spacing: 12,
                 runSpacing: 12,
@@ -115,10 +122,13 @@ class ExecutionWorkspace extends StatelessWidget {
               child: _SectionCard(
                 title: 'Task Detail',
                 subtitle:
-                    'Selected task context with machine/version linkage and progress.',
+                    'Selected task context, progress, and manual execution report form.',
                 child: controller.selectedTask == null
                     ? const Text('Select a task to inspect its execution data.')
-                    : _TaskDetailSection(task: controller.selectedTask!),
+                    : _ExecutionReportFormSection(
+                        controller: controller,
+                        task: controller.selectedTask!,
+                      ),
               ),
             ),
             Padding(
@@ -238,17 +248,78 @@ class ExecutionWorkspace extends StatelessWidget {
   }
 }
 
-class _TaskDetailSection extends StatelessWidget {
-  const _TaskDetailSection({required this.task});
+class _ExecutionReportFormSection extends StatefulWidget {
+  const _ExecutionReportFormSection({
+    required this.controller,
+    required this.task,
+  });
 
+  final ExecutionBoardController controller;
   final TaskDetailDto task;
 
   @override
+  State<_ExecutionReportFormSection> createState() =>
+      _ExecutionReportFormSectionState();
+}
+
+class _ExecutionReportFormSectionState
+    extends State<_ExecutionReportFormSection> {
+  late final TextEditingController _authorController;
+  late final TextEditingController _quantityController;
+  late final TextEditingController _reasonController;
+
+  @override
+  void initState() {
+    super.initState();
+    _authorController =
+        TextEditingController(text: widget.controller.reportAuthor)
+          ..addListener(() {
+            widget.controller.setReportAuthor(_authorController.text);
+          });
+    _quantityController =
+        TextEditingController(text: widget.controller.reportQuantity)
+          ..addListener(() {
+            widget.controller.setReportQuantity(_quantityController.text);
+          });
+    _reasonController =
+        TextEditingController(text: widget.controller.reportReason)
+          ..addListener(() {
+            widget.controller.setReportReason(_reasonController.text);
+          });
+  }
+
+  @override
+  void didUpdateWidget(covariant _ExecutionReportFormSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncControllerText(_authorController, widget.controller.reportAuthor);
+    _syncControllerText(_quantityController, widget.controller.reportQuantity);
+    _syncControllerText(_reasonController, widget.controller.reportReason);
+  }
+
+  @override
+  void dispose() {
+    _authorController.dispose();
+    _quantityController.dispose();
+    _reasonController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final task = widget.task;
+    final controller = widget.controller;
+    final isClosed = task.isClosed;
+    final isSubmitting = controller.isReportSubmitting;
+
+    _syncControllerText(_authorController, controller.reportAuthor);
+    _syncControllerText(_quantityController, controller.reportQuantity);
+    _syncControllerText(_reasonController, controller.reportReason);
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _DetailTile(
-          title: '${task.structureDisplayName} • ${task.operationName}',
+          title: '${task.structureDisplayName} | ${task.operationName}',
           lines: [
             'Task: ${task.id}',
             'Machine: ${task.machineId}',
@@ -262,7 +333,99 @@ class _TaskDetailSection extends StatelessWidget {
             'Remaining: ${task.remainingQuantity}',
           ],
         ),
+        const SizedBox(height: 16),
+        Text(
+          'Manual Execution Report',
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          isClosed
+              ? 'This task is already closed. Manual reporting is disabled.'
+              : 'Supervisor can enter the execution result from the desktop client.',
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          key: const Key('executionReportedByField'),
+          controller: _authorController,
+          enabled: !isClosed && !isSubmitting,
+          decoration: const InputDecoration(
+            labelText: 'Reported by',
+            hintText: 'Supervisor or operator id',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _reportOutcomeOptions
+              .map(
+                (option) => ChoiceChip(
+                  key: Key('executionOutcome-${option.value}'),
+                  label: Text(option.label),
+                  selected: controller.reportOutcome == option.value,
+                  onSelected: isClosed || isSubmitting
+                      ? null
+                      : (_) => controller.setReportOutcome(option.value),
+                ),
+              )
+              .toList(growable: false),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          key: const Key('executionQuantityField'),
+          controller: _quantityController,
+          enabled: !isClosed && !isSubmitting,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: 'Reported quantity',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          key: const Key('executionReasonField'),
+          controller: _reasonController,
+          enabled: !isClosed && !isSubmitting,
+          minLines: 1,
+          maxLines: 2,
+          decoration: const InputDecoration(
+            labelText: 'Reason / comment',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        if (controller.submissionMessage case final message?) ...[
+          const SizedBox(height: 12),
+          _Banner(
+            title: 'Execution sent',
+            message: message,
+            color: const Color(0xFF166534),
+          ),
+        ],
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          key: const Key('submitExecutionReportButton'),
+          onPressed: !controller.canSubmitSelectedTaskReport
+              ? null
+              : controller.submitSelectedTaskReport,
+          icon: const Icon(Icons.send_outlined),
+          label: Text(isSubmitting ? 'Sending...' : 'Send execution report'),
+        ),
       ],
+    );
+  }
+
+  void _syncControllerText(TextEditingController controller, String value) {
+    if (controller.text == value) {
+      return;
+    }
+    controller.value = controller.value.copyWith(
+      text: value,
+      selection: TextSelection.collapsed(offset: value.length),
+      composing: TextRange.empty,
     );
   }
 }

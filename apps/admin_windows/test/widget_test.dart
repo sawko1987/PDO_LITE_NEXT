@@ -5,6 +5,8 @@ import 'package:admin_windows/src/execution/execution_board_controller.dart';
 import 'package:admin_windows/src/execution/execution_workspace.dart';
 import 'package:admin_windows/src/import/admin_backend_client.dart';
 import 'package:admin_windows/src/import/import_flow_controller.dart';
+import 'package:admin_windows/src/machines/machines_registry_controller.dart';
+import 'package:admin_windows/src/machines/machines_workspace.dart';
 import 'package:admin_windows/src/plans/plan_board_controller.dart';
 import 'package:admin_windows/src/plans/plan_workspace.dart';
 import 'package:data_models/data_models.dart';
@@ -12,39 +14,40 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets(
-    'admin app renders import workspace instead of static dashboard',
-    (tester) async {
-      final client = _FakeBackendClient(
-        machines: const [
-          MachineSummaryDto(
-            id: 'machine-1',
-            code: 'PDO-100',
-            name: 'Machine 100',
-            activeVersionId: 'ver-1',
-          ),
-        ],
-      );
-      final controller = ImportFlowController(client: client);
-      final planController = PlanBoardController(client: client);
-      final executionController = ExecutionBoardController(client: client);
-
-      await tester.pumpWidget(
-        AdminWindowsApp(
-          controller: controller,
-          planController: planController,
-          executionController: executionController,
+  testWidgets('admin app renders machines registry and all main tabs', (
+    tester,
+  ) async {
+    final client = _FakeBackendClient(
+      machines: const [
+        MachineSummaryDto(
+          id: 'machine-1',
+          code: 'PDO-100',
+          name: 'Machine 100',
+          activeVersionId: 'ver-1',
         ),
-      );
-      await tester.pumpAndSettle();
+      ],
+    );
+    final controller = ImportFlowController(client: client);
+    final machinesController = MachinesRegistryController(client: client);
+    final planController = PlanBoardController(client: client);
+    final executionController = ExecutionBoardController(client: client);
 
-      expect(find.text('PDO Lite Next'), findsOneWidget);
-      expect(find.text('Import Workspace'), findsOneWidget);
-      expect(find.text('Plans'), findsOneWidget);
-      expect(find.text('Execution'), findsOneWidget);
-      expect(find.textContaining('machines loaded'), findsOneWidget);
-    },
-  );
+    await tester.pumpWidget(
+      AdminWindowsApp(
+        controller: controller,
+        machinesController: machinesController,
+        planController: planController,
+        executionController: executionController,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('PDO Lite Next'), findsOneWidget);
+    expect(find.text('Machines Registry'), findsOneWidget);
+    expect(find.text('Machines'), findsOneWidget);
+    expect(find.text('Plans'), findsOneWidget);
+    expect(find.text('Execution'), findsOneWidget);
+  });
 
   testWidgets('conflicts and warnings are shown and confirm stays disabled', (
     tester,
@@ -60,6 +63,7 @@ void main() {
       ],
     );
     final controller = ImportFlowController(client: client);
+    final machinesController = MachinesRegistryController(client: client);
     final planController = PlanBoardController(client: client);
     final executionController = ExecutionBoardController(client: client);
     controller.setSelectedFile(
@@ -71,10 +75,14 @@ void main() {
     await tester.pumpWidget(
       AdminWindowsApp(
         controller: controller,
+        machinesController: machinesController,
         planController: planController,
         executionController: executionController,
       ),
     );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Import'));
     await tester.pumpAndSettle();
 
     expect(find.text('Conflicts'), findsOneWidget);
@@ -100,6 +108,7 @@ void main() {
     );
     final planController = PlanBoardController(client: client);
     await planController.bootstrap();
+    await planController.selectMachine('machine-1');
 
     await tester.pumpWidget(
       MaterialApp(
@@ -108,14 +117,237 @@ void main() {
     );
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
-      find.text('Plan Index'),
+      find.byKey(const Key('planningTreePane')),
       400,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Plan Index'), findsOneWidget);
+    expect(find.text('Structure Tree'), findsOneWidget);
+    expect(find.byKey(const Key('planningTreePane')), findsOneWidget);
+    expect(find.byKey(const Key('bulkPlanningQuantityField')), findsOneWidget);
+    expect(find.byKey(const Key('addPlanningSelectionButton')), findsOneWidget);
   });
+
+  testWidgets('plans tab adds subtree to draft and shows duplicate feedback', (
+    tester,
+  ) async {
+    final client = _FakeBackendClient(
+      machines: const [
+        MachineSummaryDto(
+          id: 'machine-1',
+          code: 'PDO-100',
+          name: 'Machine 100',
+          activeVersionId: 'ver-1',
+        ),
+      ],
+    );
+    final planController = PlanBoardController(client: client);
+    await planController.bootstrap();
+    await planController.selectMachine('machine-1');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: PlanWorkspace(controller: planController)),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('planningTreePane')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey('planningNode-node:machine/body')),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('bulkPlanningQuantityField')),
+      '3',
+    );
+
+    expect(find.text('Occurrences in branch: 2'), findsOneWidget);
+    expect(find.text('Will add new rows: 2'), findsOneWidget);
+    expect(find.text('Skipped as duplicates: 0'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('addPlanningSelectionButton')),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('addPlanningSelectionButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Selection merged into draft'), findsOneWidget);
+    expect(
+      find.textContaining('2 added, 0 skipped as duplicates'),
+      findsOneWidget,
+    );
+    expect(find.text('Body Panel Left'), findsWidgets);
+    expect(find.text('Body Panel Right'), findsWidgets);
+
+    planController.selectPlanningNode('root');
+    await tester.pumpAndSettle();
+    expect(find.text('Skipped as duplicates: 2'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const Key('bulkPlanningQuantityField')),
+      '5',
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('addPlanningSelectionButton')),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('addPlanningSelectionButton')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('2 added, 2 skipped as duplicates'),
+      findsOneWidget,
+    );
+    expect(find.text('Clamp'), findsWidgets);
+  });
+
+  testWidgets(
+    'plans tab shows completion controls and blocker summary for active plan',
+    (tester) async {
+      final client = _FakeBackendClient(
+        machines: const [
+          MachineSummaryDto(
+            id: 'machine-1',
+            code: 'PDO-100',
+            name: 'Machine 100',
+            activeVersionId: 'ver-1',
+          ),
+        ],
+      );
+      final planController = PlanBoardController(client: client);
+      await planController.openPlan('plan-1');
+      await planController.checkActivePlanCompletion();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: PlanWorkspace(controller: planController)),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('Check Completion'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Check Completion'), findsOneWidget);
+      expect(find.text('Confirm Completion'), findsOneWidget);
+      expect(find.text('Completion blockers'), findsOneWidget);
+      expect(find.textContaining('Open tasks: task-1'), findsOneWidget);
+    },
+  );
+
+  testWidgets('machines tab shows machine detail and version structure tree', (
+    tester,
+  ) async {
+    final client = _FakeBackendClient(
+      machines: const [
+        MachineSummaryDto(
+          id: 'machine-1',
+          code: 'PDO-100',
+          name: 'Machine 100',
+          activeVersionId: 'ver-1',
+        ),
+      ],
+    );
+    final machinesController = MachinesRegistryController(client: client);
+    await machinesController.bootstrap();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MachinesWorkspace(
+            controller: machinesController,
+            onOpenInPlans: (_, __) async {},
+            onCreateNewVersionInImport: (_) async {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Machine Detail'), findsOneWidget);
+    expect(find.byKey(const Key('machinesListPane')), findsOneWidget);
+    expect(find.byKey(const Key('machineVersionsPane')), findsOneWidget);
+    expect(find.byKey(const Key('machineStructureTreePane')), findsOneWidget);
+    expect(find.text('Frame'), findsWidgets);
+
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('versionTile-ver-2')),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('versionTile-ver-2')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Label v2-import'), findsOneWidget);
+    expect(find.text('Upgrade Kit'), findsWidgets);
+  });
+
+  testWidgets(
+    'machines workspace actions forward selected machine and version context',
+    (tester) async {
+      final client = _FakeBackendClient(
+        machines: const [
+          MachineSummaryDto(
+            id: 'machine-1',
+            code: 'PDO-100',
+            name: 'Machine 100',
+            activeVersionId: 'ver-1',
+          ),
+        ],
+      );
+      final machinesController = MachinesRegistryController(client: client);
+      await machinesController.bootstrap();
+      await machinesController.selectVersion('ver-2');
+      String? openedPlanMachineId;
+      String? openedPlanVersionId;
+      String? importMachineId;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MachinesWorkspace(
+              controller: machinesController,
+              onOpenInPlans: (machineId, versionId) async {
+                openedPlanMachineId = machineId;
+                openedPlanVersionId = versionId;
+              },
+              onCreateNewVersionInImport: (machineId) async {
+                importMachineId = machineId;
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -600));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('openInPlansButton')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('createNewVersionInImportButton')));
+      await tester.pumpAndSettle();
+
+      expect(openedPlanMachineId, 'machine-1');
+      expect(openedPlanVersionId, 'ver-2');
+      expect(importMachineId, 'machine-1');
+    },
+  );
 
   testWidgets('execution tab renders task drill-down blocks', (tester) async {
     final client = _FakeBackendClient(
@@ -149,6 +381,12 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Task Detail'), findsOneWidget);
+    expect(find.text('Manual Execution Report'), findsOneWidget);
+    expect(find.byKey(const Key('executionReportedByField')), findsOneWidget);
+    expect(
+      find.byKey(const Key('submitExecutionReportButton')),
+      findsOneWidget,
+    );
     await tester.scrollUntilVisible(
       find.text('Problems'),
       300,
@@ -165,12 +403,148 @@ void main() {
     expect(find.text('Scoped WIP'), findsOneWidget);
     expect(find.textContaining('Task: task-1'), findsWidgets);
   });
+
+  testWidgets(
+    'execution form validates partial reason and keeps entered values',
+    (tester) async {
+      final client = _FakeBackendClient(
+        machines: const [
+          MachineSummaryDto(
+            id: 'machine-1',
+            code: 'PDO-100',
+            name: 'Machine 100',
+            activeVersionId: 'ver-1',
+          ),
+        ],
+      );
+      final executionController = ExecutionBoardController(client: client);
+      await executionController.bootstrap();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ExecutionWorkspace(controller: executionController),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('executionReportedByField')),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(const Key('executionReportedByField')),
+        'supervisor-1',
+      );
+      await tester.tap(find.byKey(const Key('executionOutcome-partial')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('executionQuantityField')),
+        '3',
+      );
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('submitExecutionReportButton')),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('submitExecutionReportButton')));
+      await tester.pumpAndSettle();
+
+      expect(
+        executionController.errorMessage,
+        'Reason is required for partial report.',
+      );
+      expect(find.text('3'), findsOneWidget);
+      expect(find.text('supervisor-1'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'execution form submits desktop report and shows updated feedback',
+    (tester) async {
+      final client = _FakeBackendClient(
+        machines: const [
+          MachineSummaryDto(
+            id: 'machine-1',
+            code: 'PDO-100',
+            name: 'Machine 100',
+            activeVersionId: 'ver-1',
+          ),
+        ],
+      );
+      final executionController = ExecutionBoardController(client: client);
+      await executionController.bootstrap();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ExecutionWorkspace(controller: executionController),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('executionReportedByField')),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(const Key('executionReportedByField')),
+        'supervisor-1',
+      );
+      await tester.tap(find.byKey(const Key('executionOutcome-overrun')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('executionQuantityField')),
+        '7',
+      );
+      await tester.enterText(
+        find.byKey(const Key('executionReasonField')),
+        'Closed extra unit from the same setup.',
+      );
+      await tester.tap(find.byKey(const Key('submitExecutionReportButton')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Execution sent'), findsOneWidget);
+      expect(
+        find.text('Execution report sent. WIP updated (1.0 pcs).'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Reported: 13.0'), findsOneWidget);
+      expect(find.textContaining('Remaining: 0.0'), findsOneWidget);
+      expect(find.textContaining('WIP updated (1.0 pcs).'), findsOneWidget);
+    },
+  );
 }
 
 class _FakeBackendClient implements AdminBackendClient {
   _FakeBackendClient({required this.machines});
 
   final List<MachineSummaryDto> machines;
+  bool _planCompleted = false;
+  double _task1ReportedQuantity = 6;
+  String _task1Status = 'inProgress';
+  bool _task1Closed = false;
+  double _task1WipBalance = 2;
+  int _reportSequence = 1;
+  final List<ExecutionReportDto> _task1Reports = [
+    ExecutionReportDto(
+      id: 'report-1',
+      taskId: 'task-1',
+      reportedBy: 'master-1',
+      reportedAt: DateTime.utc(2026, 3, 31, 8),
+      reportedQuantity: 6,
+      outcome: 'partial',
+      acceptedAt: DateTime.utc(2026, 3, 31, 8, 5),
+      isAccepted: true,
+    ),
+  ];
 
   @override
   Future<PlanDetailDto> createPlan(CreatePlanRequestDto request) async {
@@ -180,24 +554,98 @@ class _FakeBackendClient implements AdminBackendClient {
       status: 'draft',
       canRelease: true,
       items: request.items
-          .map(
-            (item) => PlanDetailItemDto(
+          .map((item) {
+            final occurrence = _planningSourceItems.firstWhere(
+              (sourceItem) => sourceItem.id == item.structureOccurrenceId,
+            );
+            return PlanDetailItemDto(
               id: 'item-${item.structureOccurrenceId}',
               structureOccurrenceId: item.structureOccurrenceId,
-              catalogItemId: 'catalog-${item.structureOccurrenceId}',
-              displayName: item.structureOccurrenceId == 'occ-1'
-                  ? 'Frame'
-                  : 'Body Panel',
-              pathKey: item.structureOccurrenceId == 'occ-1'
-                  ? 'machine/frame'
-                  : 'machine/body/panel',
+              catalogItemId: occurrence.catalogItemId,
+              displayName: occurrence.displayName,
+              pathKey: occurrence.pathKey,
               requestedQuantity: item.requestedQuantity,
               hasRecordedExecution: false,
               canEdit: true,
-              workshop: 'WS-1',
-            ),
-          )
+              workshop: occurrence.workshop,
+            );
+          })
           .toList(growable: false),
+    );
+  }
+
+  @override
+  Future<CreateExecutionReportResultDto> createExecutionReport(
+    String taskId,
+    CreateExecutionReportRequestDto request,
+  ) async {
+    if (taskId != 'task-1') {
+      throw const AdminBackendException(message: 'Task was not found.');
+    }
+
+    _reportSequence += 1;
+    _task1ReportedQuantity += request.reportedQuantity;
+    final remainingQuantity = _task1ReportedQuantity >= 12
+        ? 0.0
+        : 12 - _task1ReportedQuantity;
+    if (remainingQuantity == 0) {
+      _task1Status = 'completed';
+      _task1Closed = true;
+    }
+
+    ExecutionReportWipEffectDto? wipEffect;
+    switch (request.outcome) {
+      case 'completed':
+        _task1WipBalance = 0;
+        wipEffect = const ExecutionReportWipEffectDto(
+          type: 'consumed',
+          wipEntryId: 'wip-1',
+          status: 'consumed',
+        );
+        break;
+      case 'partial':
+      case 'not_completed':
+        _task1WipBalance = remainingQuantity;
+        wipEffect = ExecutionReportWipEffectDto(
+          type: 'updated',
+          wipEntryId: 'wip-1',
+          balanceQuantity: _task1WipBalance,
+          status: 'open',
+        );
+        break;
+      case 'overrun':
+        _task1WipBalance = _task1ReportedQuantity - 12;
+        wipEffect = ExecutionReportWipEffectDto(
+          type: 'updated',
+          wipEntryId: 'wip-1',
+          balanceQuantity: _task1WipBalance,
+          status: 'open',
+        );
+        break;
+      default:
+        wipEffect = null;
+    }
+
+    final report = ExecutionReportDto(
+      id: 'report-$_reportSequence',
+      taskId: taskId,
+      reportedBy: request.reportedBy,
+      reportedAt: DateTime.utc(2026, 3, 31, 11, _reportSequence),
+      reportedQuantity: request.reportedQuantity,
+      outcome: request.outcome,
+      acceptedAt: DateTime.utc(2026, 3, 31, 11, _reportSequence, 5),
+      isAccepted: true,
+      reason: request.reason,
+    );
+    _task1Reports.add(report);
+
+    return CreateExecutionReportResultDto(
+      report: report,
+      taskStatus: _task1Status,
+      reportedQuantityTotal: _task1ReportedQuantity,
+      remainingQuantity: remainingQuantity,
+      outboxStatus: 'sent',
+      wipEffect: wipEffect,
     );
   }
 
@@ -308,6 +756,22 @@ class _FakeBackendClient implements AdminBackendClient {
   }
 
   @override
+  Future<PlanCompletionDecisionDto> getPlanCompletionDecision(
+    String planId,
+  ) async {
+    return PlanCompletionDecisionDto(
+      planId: planId,
+      canComplete: _planCompleted,
+      blockers: _planCompleted
+          ? const []
+          : const [
+              CompletionBlockerDto(type: 'openTasks', entityIds: ['task-1']),
+              CompletionBlockerDto(type: 'openWip', entityIds: ['wip-1']),
+            ],
+    );
+  }
+
+  @override
   Future<ImportSessionSummaryDto> getImportSession(String sessionId) async {
     return createImportPreview(
       const CreateImportPreviewRequestDto(
@@ -323,8 +787,8 @@ class _FakeBackendClient implements AdminBackendClient {
     return _buildPlanDetail(
       id: planId,
       title: 'Seed plan',
-      status: 'draft',
-      canRelease: true,
+      status: _planCompleted ? 'completed' : 'released',
+      canRelease: false,
       items: const [
         PlanDetailItemDto(
           id: 'plan-item-1',
@@ -337,6 +801,17 @@ class _FakeBackendClient implements AdminBackendClient {
           canEdit: true,
           workshop: 'WS-1',
         ),
+        PlanDetailItemDto(
+          id: 'plan-item-2',
+          structureOccurrenceId: 'occ-2',
+          catalogItemId: 'catalog-2',
+          displayName: 'Body Panel Left',
+          pathKey: 'machine/body/panel-left',
+          requestedQuantity: 1,
+          hasRecordedExecution: false,
+          canEdit: true,
+          workshop: 'WS-2',
+        ),
       ],
     );
   }
@@ -344,7 +819,7 @@ class _FakeBackendClient implements AdminBackendClient {
   @override
   Future<TaskDetailDto> getTask(String taskId) async {
     return switch (taskId) {
-      'task-1' => const TaskDetailDto(
+      'task-1' => TaskDetailDto(
         id: 'task-1',
         planItemId: 'plan-item-1',
         operationOccurrenceId: 'op-1',
@@ -355,11 +830,13 @@ class _FakeBackendClient implements AdminBackendClient {
         operationName: 'Cut',
         workshop: 'WS-1',
         requiredQuantity: 12,
-        reportedQuantity: 6,
-        remainingQuantity: 6,
+        reportedQuantity: _task1ReportedQuantity,
+        remainingQuantity: _task1ReportedQuantity >= 12
+            ? 0
+            : 12 - _task1ReportedQuantity,
         assigneeId: 'master-1',
-        status: 'inProgress',
-        isClosed: false,
+        status: _task1Status,
+        isClosed: _task1Closed,
       ),
       _ => const TaskDetailDto(
         id: 'task-2',
@@ -394,16 +871,7 @@ class _FakeBackendClient implements AdminBackendClient {
     String machineId,
   ) async {
     return ApiListResponseDto(
-      items: [
-        MachineVersionSummaryDto(
-          id: 'ver-1',
-          machineId: 'machine-1',
-          label: 'v1',
-          createdAt: DateTime.utc(2026, 3, 30),
-          status: 'published',
-          isImmutable: true,
-        ),
-      ],
+      items: _versionsByMachine[machineId] ?? const [],
       meta: const {'resource': 'machine_versions'},
     );
   }
@@ -419,7 +887,7 @@ class _FakeBackendClient implements AdminBackendClient {
           title: 'Seed plan',
           createdAt: DateTime.utc(2026, 3, 30),
           status: 'draft',
-          itemCount: 1,
+          itemCount: 2,
           revisionCount: 0,
         ),
       ],
@@ -432,18 +900,8 @@ class _FakeBackendClient implements AdminBackendClient {
     String machineId,
     String versionId,
   ) async {
-    return const ApiListResponseDto(
-      items: [
-        PlanningSourceOccurrenceDto(
-          id: 'occ-1',
-          catalogItemId: 'catalog-1',
-          displayName: 'Frame',
-          pathKey: 'machine/frame',
-          quantityPerMachine: 1,
-          workshop: 'WS-1',
-          operationCount: 1,
-        ),
-      ],
+    return ApiListResponseDto(
+      items: _planningSourceByVersion[versionId] ?? const [],
       meta: {'resource': 'planning_source'},
     );
   }
@@ -492,18 +950,7 @@ class _FakeBackendClient implements AdminBackendClient {
     String taskId,
   ) async {
     final items = taskId == 'task-1'
-        ? [
-            ExecutionReportDto(
-              id: 'report-1',
-              taskId: taskId,
-              reportedBy: 'master-1',
-              reportedAt: DateTime.utc(2026, 3, 31, 8),
-              reportedQuantity: 6,
-              outcome: 'partial',
-              acceptedAt: DateTime.utc(2026, 3, 31, 8, 5),
-              isAccepted: true,
-            ),
-          ]
+        ? List<ExecutionReportDto>.unmodifiable(_task1Reports)
         : const <ExecutionReportDto>[];
     return ApiListResponseDto(
       items: items,
@@ -514,25 +961,27 @@ class _FakeBackendClient implements AdminBackendClient {
   @override
   Future<ApiListResponseDto<TaskSummaryDto>> listTasks({String? status}) async {
     final items =
-        const [
+        [
               TaskSummaryDto(
                 id: 'task-1',
                 planItemId: 'plan-item-1',
                 operationOccurrenceId: 'op-1',
                 requiredQuantity: 12,
                 assigneeId: 'master-1',
-                status: 'inProgress',
-                isClosed: false,
+                status: _task1Status,
+                isClosed: _task1Closed,
                 machineId: 'machine-1',
                 versionId: 'ver-1',
                 structureOccurrenceId: 'occ-1',
                 structureDisplayName: 'Frame',
                 operationName: 'Cut',
                 workshop: 'WS-1',
-                reportedQuantity: 6,
-                remainingQuantity: 6,
+                reportedQuantity: _task1ReportedQuantity,
+                remainingQuantity: _task1ReportedQuantity >= 12
+                    ? 0
+                    : 12 - _task1ReportedQuantity,
               ),
-              TaskSummaryDto(
+              const TaskSummaryDto(
                 id: 'task-2',
                 planItemId: 'plan-item-2',
                 operationOccurrenceId: 'op-2',
@@ -564,7 +1013,7 @@ class _FakeBackendClient implements AdminBackendClient {
 
   @override
   Future<ApiListResponseDto<WipEntryDto>> listWipEntries() async {
-    return const ApiListResponseDto(
+    return ApiListResponseDto(
       items: [
         WipEntryDto(
           id: 'wip-1',
@@ -572,15 +1021,15 @@ class _FakeBackendClient implements AdminBackendClient {
           versionId: 'ver-1',
           structureOccurrenceId: 'occ-1',
           operationOccurrenceId: 'op-1',
-          balanceQuantity: 2,
+          balanceQuantity: _task1WipBalance,
           status: 'open',
-          blocksCompletion: true,
+          blocksCompletion: _task1WipBalance > 0,
           taskId: 'task-1',
-          sourceReportId: 'report-1',
-          sourceOutcome: 'partial',
+          sourceReportId: _task1Reports.last.id,
+          sourceOutcome: _task1Reports.last.outcome,
         ),
       ],
-      meta: {'resource': 'wip_entries'},
+      meta: const {'resource': 'wip_entries'},
     );
   }
 
@@ -594,6 +1043,15 @@ class _FakeBackendClient implements AdminBackendClient {
       status: 'released',
       generatedTaskCount: 1,
     );
+  }
+
+  @override
+  Future<PlanCompletionResultDto> completePlan(
+    String planId,
+    CompletePlanRequestDto request,
+  ) async {
+    _planCompleted = true;
+    return const PlanCompletionResultDto(planId: 'plan-1', status: 'completed');
   }
 
   PlanDetailDto _buildPlanDetail({
@@ -617,3 +1075,87 @@ class _FakeBackendClient implements AdminBackendClient {
     );
   }
 }
+
+const List<PlanningSourceOccurrenceDto> _planningSourceItems = [
+  PlanningSourceOccurrenceDto(
+    id: 'occ-1',
+    catalogItemId: 'catalog-1',
+    displayName: 'Frame',
+    pathKey: 'machine/frame',
+    quantityPerMachine: 1,
+    workshop: 'WS-1',
+    operationCount: 1,
+  ),
+  PlanningSourceOccurrenceDto(
+    id: 'occ-2',
+    catalogItemId: 'catalog-2',
+    displayName: 'Body Panel Left',
+    pathKey: 'machine/body/panel-left',
+    quantityPerMachine: 1,
+    workshop: 'WS-2',
+    operationCount: 2,
+  ),
+  PlanningSourceOccurrenceDto(
+    id: 'occ-3',
+    catalogItemId: 'catalog-3',
+    displayName: 'Body Panel Right',
+    pathKey: 'machine/body/panel-right',
+    quantityPerMachine: 1,
+    workshop: 'WS-2',
+    operationCount: 2,
+  ),
+  PlanningSourceOccurrenceDto(
+    id: 'occ-4',
+    catalogItemId: 'catalog-4',
+    displayName: 'Clamp',
+    pathKey: 'machine/tooling/clamp',
+    quantityPerMachine: 1,
+    workshop: 'WS-3',
+    operationCount: 1,
+  ),
+];
+
+const List<PlanningSourceOccurrenceDto> _planningSourceItemsVersion2 = [
+  PlanningSourceOccurrenceDto(
+    id: 'occ-5',
+    catalogItemId: 'catalog-5',
+    displayName: 'Upgrade Kit',
+    pathKey: 'machine/upgrade/kit',
+    quantityPerMachine: 1,
+    workshop: 'WS-4',
+    operationCount: 3,
+  ),
+  PlanningSourceOccurrenceDto(
+    id: 'occ-6',
+    catalogItemId: 'catalog-6',
+    displayName: 'Safety Cover',
+    pathKey: 'machine/upgrade/safety-cover',
+    quantityPerMachine: 1,
+    workshop: 'WS-4',
+    operationCount: 2,
+  ),
+];
+
+final Map<String, List<MachineVersionSummaryDto>> _versionsByMachine = {
+  'machine-1': [
+    MachineVersionSummaryDto(
+      id: 'ver-1',
+      machineId: 'machine-1',
+      label: 'v1',
+      createdAt: DateTime.utc(2026, 3, 30),
+      status: 'published',
+      isImmutable: true,
+    ),
+    MachineVersionSummaryDto(
+      id: 'ver-2',
+      machineId: 'machine-1',
+      label: 'v2-import',
+      createdAt: DateTime.utc(2026, 4, 1),
+      status: 'published',
+      isImmutable: true,
+    ),
+  ],
+};
+
+final Map<String, List<PlanningSourceOccurrenceDto>> _planningSourceByVersion =
+    {'ver-1': _planningSourceItems, 'ver-2': _planningSourceItemsVersion2};

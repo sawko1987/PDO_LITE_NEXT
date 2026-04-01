@@ -8,6 +8,8 @@ import 'src/import/admin_backend_client.dart';
 import 'src/import/http_admin_backend_client.dart';
 import 'src/import/import_flow_controller.dart';
 import 'src/import/import_workspace.dart';
+import 'src/machines/machines_registry_controller.dart';
+import 'src/machines/machines_workspace.dart';
 import 'src/plans/plan_board_controller.dart';
 import 'src/plans/plan_workspace.dart';
 
@@ -19,12 +21,14 @@ class AdminWindowsApp extends StatelessWidget {
   const AdminWindowsApp({
     super.key,
     this.controller,
+    this.machinesController,
     this.planController,
     this.executionController,
     this.client,
   });
 
   final ImportFlowController? controller;
+  final MachinesRegistryController? machinesController;
   final PlanBoardController? planController;
   final ExecutionBoardController? executionController;
   final AdminBackendClient? client;
@@ -48,12 +52,14 @@ class AdminHomePage extends StatefulWidget {
   const AdminHomePage({
     super.key,
     this.controller,
+    this.machinesController,
     this.planController,
     this.executionController,
     this.client,
   });
 
   final ImportFlowController? controller;
+  final MachinesRegistryController? machinesController;
   final PlanBoardController? planController;
   final ExecutionBoardController? executionController;
   final AdminBackendClient? client;
@@ -62,30 +68,46 @@ class AdminHomePage extends StatefulWidget {
   State<AdminHomePage> createState() => _AdminHomePageState();
 }
 
-class _AdminHomePageState extends State<AdminHomePage> {
+class _AdminHomePageState extends State<AdminHomePage>
+    with SingleTickerProviderStateMixin {
   late final ImportFlowController _importController;
+  late final MachinesRegistryController _machinesController;
   late final PlanBoardController _planController;
   late final ExecutionBoardController _executionController;
   late final bool _ownsImportController;
+  late final bool _ownsMachinesController;
   late final bool _ownsPlanController;
   late final bool _ownsExecutionController;
+  late final TabController _tabController;
 
   @override
   void initState() {
     super.initState();
     _ownsImportController = widget.controller == null;
+    _ownsMachinesController = widget.machinesController == null;
     _ownsPlanController = widget.planController == null;
     _ownsExecutionController = widget.executionController == null;
-    final backendClient = widget.client ?? HttpAdminBackendClient();
+    _tabController = TabController(length: 4, vsync: this);
+    AdminBackendClient? backendClient;
+    AdminBackendClient ensureBackendClient() {
+      return backendClient ??= widget.client ?? HttpAdminBackendClient();
+    }
+
     _importController =
-        widget.controller ?? ImportFlowController(client: backendClient);
+        widget.controller ??
+        ImportFlowController(client: ensureBackendClient());
+    _machinesController =
+        widget.machinesController ??
+        MachinesRegistryController(client: ensureBackendClient());
     _planController =
-        widget.planController ?? PlanBoardController(client: backendClient);
+        widget.planController ??
+        PlanBoardController(client: ensureBackendClient());
     _executionController =
         widget.executionController ??
-        ExecutionBoardController(client: backendClient);
+        ExecutionBoardController(client: ensureBackendClient());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _importController.bootstrap();
+      _machinesController.bootstrap();
       _planController.bootstrap();
       _executionController.bootstrap();
     });
@@ -96,12 +118,16 @@ class _AdminHomePageState extends State<AdminHomePage> {
     if (_ownsImportController) {
       _importController.dispose();
     }
+    if (_ownsMachinesController) {
+      _machinesController.dispose();
+    }
     if (_ownsPlanController) {
       _planController.dispose();
     }
     if (_ownsExecutionController) {
       _executionController.dispose();
     }
+    _tabController.dispose();
     super.dispose();
   }
 
@@ -112,11 +138,13 @@ class _AdminHomePageState extends State<AdminHomePage> {
       subtitle:
           'Windows panel for import sessions, machine versions, planning, and release control.',
       child: DefaultTabController(
-        length: 3,
+        length: 4,
         child: Column(
           children: [
-            const TabBar(
+            TabBar(
+              controller: _tabController,
               tabs: [
+                const Tab(text: 'Machines'),
                 Tab(text: 'Import'),
                 Tab(text: 'Plans'),
                 Tab(text: 'Execution'),
@@ -125,7 +153,13 @@ class _AdminHomePageState extends State<AdminHomePage> {
             const SizedBox(height: 20),
             Expanded(
               child: TabBarView(
+                controller: _tabController,
                 children: [
+                  MachinesWorkspace(
+                    controller: _machinesController,
+                    onOpenInPlans: _openInPlans,
+                    onCreateNewVersionInImport: _openCreateVersionInImport,
+                  ),
                   ImportWorkspace(
                     controller: _importController,
                     onPickFile: _pickFile,
@@ -139,6 +173,22 @@ class _AdminHomePageState extends State<AdminHomePage> {
         ),
       ),
     );
+  }
+
+  Future<void> _openCreateVersionInImport(String machineId) async {
+    _importController.prepareCreateVersion(machineId);
+    _tabController.animateTo(1);
+  }
+
+  Future<void> _openInPlans(String machineId, String versionId) async {
+    await _planController.openMachineVersion(
+      machineId: machineId,
+      versionId: versionId,
+    );
+    if (!mounted) {
+      return;
+    }
+    _tabController.animateTo(2);
   }
 
   Future<void> _pickFile() async {

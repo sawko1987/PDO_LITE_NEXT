@@ -907,6 +907,222 @@ void main() {
     );
   });
 
+  test('completion-check returns blockers for released plan', () async {
+    final handler = buildHandler();
+    final response = await handler(
+      Request(
+        'GET',
+        Uri.parse('http://localhost/v1/plans/plan-1/completion-check'),
+      ),
+    );
+    final body =
+        jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+
+    expect(response.statusCode, 200);
+    expect(body['planId'], 'plan-1');
+    expect(body['canComplete'], isFalse);
+    expect(
+      (body['blockers'] as List)
+          .map((item) => (item as Map<String, dynamic>)['type'])
+          .toList(),
+      containsAll(['openTasks', 'openProblems', 'openWip']),
+    );
+  });
+
+  test('complete rejects plan when blockers exist', () async {
+    final handler = buildHandler();
+    final response = await handler(
+      _jsonRequest('POST', 'http://localhost/v1/plans/plan-1/complete', {
+        'requestId': 'complete-plan-blocked',
+        'completedBy': 'supervisor-1',
+      }),
+    );
+    final body =
+        jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+
+    expect(response.statusCode, 409);
+    expect(
+      (body['error'] as Map<String, dynamic>)['code'],
+      'plan_completion_blocked',
+    );
+    expect(
+      ((body['error'] as Map<String, dynamic>)['details']
+          as Map<String, dynamic>)['blockers'],
+      isNotEmpty,
+    );
+  });
+
+  test(
+    'complete transitions released plan to completed when blockers clear',
+    () async {
+      final handler = buildHandler();
+      final createResponse = await handler(
+        _jsonRequest('POST', 'http://localhost/v1/plans', {
+          'requestId': 'create-plan-complete',
+          'machineId': 'machine-1',
+          'versionId': 'ver-2026-03',
+          'title': 'Completable plan',
+          'items': [
+            {'structureOccurrenceId': 'occ-1', 'requestedQuantity': 1},
+          ],
+        }),
+      );
+      final createBody =
+          jsonDecode(await createResponse.readAsString())
+              as Map<String, dynamic>;
+      final planId = createBody['id'] as String;
+
+      final releaseResponse = await handler(
+        _jsonRequest('POST', 'http://localhost/v1/plans/$planId/release', {
+          'requestId': 'release-plan-complete',
+          'releasedBy': 'planner-1',
+        }),
+      );
+      expect(releaseResponse.statusCode, 200);
+
+      final tasksResponse = await handler(
+        Request('GET', Uri.parse('http://localhost/v1/tasks?status=pending')),
+      );
+      final tasksBody =
+          jsonDecode(await tasksResponse.readAsString())
+              as Map<String, dynamic>;
+      final newTask = (tasksBody['items'] as List)
+          .map((item) => item as Map<String, dynamic>)
+          .firstWhere((item) => item['planItemId'] != 'plan-item-2');
+      final taskId = newTask['id'] as String;
+
+      final reportResponse = await handler(
+        _jsonRequest('POST', 'http://localhost/v1/tasks/$taskId/reports', {
+          'requestId': 'report-plan-complete',
+          'reportedBy': 'master-1',
+          'reportedQuantity': 1,
+          'outcome': 'completed',
+        }),
+      );
+      expect(reportResponse.statusCode, 201);
+
+      final checkResponse = await handler(
+        Request(
+          'GET',
+          Uri.parse('http://localhost/v1/plans/$planId/completion-check'),
+        ),
+      );
+      final checkBody =
+          jsonDecode(await checkResponse.readAsString())
+              as Map<String, dynamic>;
+      expect(checkResponse.statusCode, 200);
+      expect(checkBody['canComplete'], isTrue);
+      expect(checkBody['blockers'], isEmpty);
+
+      final completeResponse = await handler(
+        _jsonRequest('POST', 'http://localhost/v1/plans/$planId/complete', {
+          'requestId': 'complete-plan-success',
+          'completedBy': 'supervisor-1',
+        }),
+      );
+      final completeBody =
+          jsonDecode(await completeResponse.readAsString())
+              as Map<String, dynamic>;
+      expect(completeResponse.statusCode, 200);
+      expect(completeBody['status'], 'completed');
+
+      final detailResponse = await handler(
+        Request('GET', Uri.parse('http://localhost/v1/plans/$planId')),
+      );
+      final detailBody =
+          jsonDecode(await detailResponse.readAsString())
+              as Map<String, dynamic>;
+      expect(detailBody['status'], 'completed');
+      expect(detailBody['canRelease'], isFalse);
+    },
+  );
+
+  test(
+    'complete is idempotent and rejects replay with different payload',
+    () async {
+      final handler = buildHandler();
+      final createResponse = await handler(
+        _jsonRequest('POST', 'http://localhost/v1/plans', {
+          'requestId': 'create-plan-complete-idempotent',
+          'machineId': 'machine-1',
+          'versionId': 'ver-2026-03',
+          'title': 'Idempotent complete',
+          'items': [
+            {'structureOccurrenceId': 'occ-1', 'requestedQuantity': 1},
+          ],
+        }),
+      );
+      final createBody =
+          jsonDecode(await createResponse.readAsString())
+              as Map<String, dynamic>;
+      final planId = createBody['id'] as String;
+
+      final releaseResponse = await handler(
+        _jsonRequest('POST', 'http://localhost/v1/plans/$planId/release', {
+          'requestId': 'release-plan-complete-idempotent',
+          'releasedBy': 'planner-1',
+        }),
+      );
+      expect(releaseResponse.statusCode, 200);
+
+      final tasksResponse = await handler(
+        Request('GET', Uri.parse('http://localhost/v1/tasks?status=pending')),
+      );
+      final tasksBody =
+          jsonDecode(await tasksResponse.readAsString())
+              as Map<String, dynamic>;
+      final newTask = (tasksBody['items'] as List)
+          .map((item) => item as Map<String, dynamic>)
+          .firstWhere((item) => item['planItemId'] != 'plan-item-2');
+      final taskId = newTask['id'] as String;
+
+      final reportResponse = await handler(
+        _jsonRequest('POST', 'http://localhost/v1/tasks/$taskId/reports', {
+          'requestId': 'report-plan-complete-idempotent',
+          'reportedBy': 'master-1',
+          'reportedQuantity': 1,
+          'outcome': 'completed',
+        }),
+      );
+      expect(reportResponse.statusCode, 201);
+
+      final first = await handler(
+        _jsonRequest('POST', 'http://localhost/v1/plans/$planId/complete', {
+          'requestId': 'complete-plan-idempotent',
+          'completedBy': 'supervisor-1',
+        }),
+      );
+      final second = await handler(
+        _jsonRequest('POST', 'http://localhost/v1/plans/$planId/complete', {
+          'requestId': 'complete-plan-idempotent',
+          'completedBy': 'supervisor-1',
+        }),
+      );
+      final replay = await handler(
+        _jsonRequest('POST', 'http://localhost/v1/plans/$planId/complete', {
+          'requestId': 'complete-plan-idempotent',
+          'completedBy': 'supervisor-2',
+        }),
+      );
+
+      final firstBody =
+          jsonDecode(await first.readAsString()) as Map<String, dynamic>;
+      final secondBody =
+          jsonDecode(await second.readAsString()) as Map<String, dynamic>;
+      final replayBody =
+          jsonDecode(await replay.readAsString()) as Map<String, dynamic>;
+
+      expect(first.statusCode, 200);
+      expect(second.statusCode, 200);
+      expect(secondBody['status'], firstBody['status']);
+      expect(replay.statusCode, 409);
+      expect(
+        (replayBody['error'] as Map<String, dynamic>)['code'],
+        'plan_request_replayed_with_different_payload',
+      );
+    },
+  );
+
   test('preview session endpoint creates import session from xlsx', () async {
     final handler = buildHandler();
     final response = await handler(

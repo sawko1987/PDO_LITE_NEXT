@@ -64,6 +64,14 @@ class HttpAdminBackendClient implements AdminBackendClient {
   }
 
   @override
+  Future<PlanCompletionDecisionDto> getPlanCompletionDecision(
+    String planId,
+  ) async {
+    final json = await _getJsonObject('/v1/plans/$planId/completion-check');
+    return PlanCompletionDecisionDto.fromJson(json);
+  }
+
+  @override
   Future<PlanDetailDto> createPlan(CreatePlanRequestDto request) async {
     final json = await _postJsonObject('/v1/plans', request.toJson());
     return PlanDetailDto.fromJson(json);
@@ -79,6 +87,18 @@ class HttpAdminBackendClient implements AdminBackendClient {
       request.toJson(),
     );
     return PlanReleaseResultDto.fromJson(json);
+  }
+
+  @override
+  Future<PlanCompletionResultDto> completePlan(
+    String planId,
+    CompletePlanRequestDto request,
+  ) async {
+    final json = await _postJsonObject(
+      '/v1/plans/$planId/complete',
+      request.toJson(),
+    );
+    return PlanCompletionResultDto.fromJson(json);
   }
 
   @override
@@ -106,6 +126,18 @@ class HttpAdminBackendClient implements AdminBackendClient {
       json,
       ExecutionReportDto.fromJson,
     );
+  }
+
+  @override
+  Future<CreateExecutionReportResultDto> createExecutionReport(
+    String taskId,
+    CreateExecutionReportRequestDto request,
+  ) async {
+    final json = await _postJsonObject(
+      '/v1/tasks/$taskId/reports',
+      request.toJson(),
+    );
+    return CreateExecutionReportResultDto.fromJson(json);
   }
 
   @override

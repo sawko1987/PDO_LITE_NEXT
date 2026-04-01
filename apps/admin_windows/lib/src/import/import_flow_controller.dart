@@ -93,6 +93,14 @@ class ImportFlowController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void prepareCreateVersion(String machineId) {
+    _confirmMode = ImportConfirmMode.createVersion;
+    _targetMachineId = machineId;
+    _confirmResult = null;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
   Future<void> loadMachines() async {
     _isMachinesLoading = true;
     _errorMessage = null;
