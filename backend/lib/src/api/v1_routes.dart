@@ -250,7 +250,7 @@ Router buildV1Router(
       final status = request.url.queryParameters['status'];
       final items = store
           .listTasks(assigneeId: assigneeId, status: status)
-          .map(TaskSummaryDto.fromDomain)
+          .map((task) => _toTaskSummaryDto(task, store))
           .toList(growable: false);
       final dto = ApiListResponseDto(
         items: items,
@@ -590,6 +590,27 @@ Response _storeErrorResponse(
   );
 }
 
+TaskSummaryDto _toTaskSummaryDto(ProductionTask task, DemoContractStore store) {
+  final projection = _buildTaskProjection(task, store);
+  return TaskSummaryDto(
+    id: task.id,
+    planItemId: task.planItemId,
+    operationOccurrenceId: task.operationOccurrenceId,
+    requiredQuantity: task.requiredQuantity,
+    assigneeId: task.assigneeId,
+    status: task.status.name,
+    isClosed: task.isClosed,
+    machineId: projection.machineId,
+    versionId: projection.versionId,
+    structureOccurrenceId: projection.structureOccurrenceId,
+    structureDisplayName: projection.structureDisplayName,
+    operationName: projection.operationName,
+    workshop: projection.workshop,
+    reportedQuantity: projection.reportedQuantity,
+    remainingQuantity: projection.remainingQuantity,
+  );
+}
+
 PlanDetailDto _toPlanDetailDto(Plan plan, DemoContractStore store) {
   final items = plan.items
       .map((item) {
@@ -607,30 +628,48 @@ PlanDetailDto _toPlanDetailDto(Plan plan, DemoContractStore store) {
 }
 
 TaskDetailDto _toTaskDetailDto(ProductionTask task, DemoContractStore store) {
+  final projection = _buildTaskProjection(task, store);
+  return TaskDetailDto(
+    id: task.id,
+    planItemId: task.planItemId,
+    operationOccurrenceId: task.operationOccurrenceId,
+    machineId: projection.machineId,
+    versionId: projection.versionId,
+    structureOccurrenceId: projection.structureOccurrenceId,
+    structureDisplayName: projection.structureDisplayName,
+    operationName: projection.operationName,
+    workshop: projection.workshop,
+    requiredQuantity: task.requiredQuantity,
+    reportedQuantity: projection.reportedQuantity,
+    remainingQuantity: projection.remainingQuantity,
+    assigneeId: task.assigneeId,
+    status: task.status.name,
+    isClosed: task.isClosed,
+  );
+}
+
+_TaskProjection _buildTaskProjection(
+  ProductionTask task,
+  DemoContractStore store,
+) {
   final operation = store.getOperationOccurrence(task.operationOccurrenceId);
   final occurrence = store.getStructureOccurrence(
     operation.structureOccurrenceId,
   );
   final plan = store.getPlanByItemId(task.planItemId);
   final reportedQuantity = store.reportedQuantityForTask(task.id);
-  return TaskDetailDto(
-    id: task.id,
-    planItemId: task.planItemId,
-    operationOccurrenceId: task.operationOccurrenceId,
+  final remainingQuantity = reportedQuantity >= task.requiredQuantity
+      ? 0.0
+      : task.requiredQuantity - reportedQuantity;
+  return _TaskProjection(
     machineId: plan.machineId,
     versionId: plan.versionId,
     structureOccurrenceId: occurrence.id,
     structureDisplayName: occurrence.displayName,
     operationName: operation.name,
     workshop: operation.workshop ?? occurrence.workshop ?? '',
-    requiredQuantity: task.requiredQuantity,
     reportedQuantity: reportedQuantity,
-    remainingQuantity: reportedQuantity >= task.requiredQuantity
-        ? 0
-        : task.requiredQuantity - reportedQuantity,
-    assigneeId: task.assigneeId,
-    status: task.status.name,
-    isClosed: task.isClosed,
+    remainingQuantity: remainingQuantity,
   );
 }
 
@@ -719,4 +758,26 @@ String _problemTypeToApi(ProblemType type) {
     ProblemType.blockedByOtherWorkshop => 'blocked_by_other_workshop',
     ProblemType.other => 'other',
   };
+}
+
+class _TaskProjection {
+  const _TaskProjection({
+    required this.machineId,
+    required this.versionId,
+    required this.structureOccurrenceId,
+    required this.structureDisplayName,
+    required this.operationName,
+    required this.workshop,
+    required this.reportedQuantity,
+    required this.remainingQuantity,
+  });
+
+  final String machineId;
+  final String versionId;
+  final String structureOccurrenceId;
+  final String structureDisplayName;
+  final String operationName;
+  final String workshop;
+  final double reportedQuantity;
+  final double remainingQuantity;
 }

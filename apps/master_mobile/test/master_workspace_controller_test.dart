@@ -73,6 +73,44 @@ void main() {
     });
 
     test(
+      'search filters visible tasks by operation and structure context',
+      () async {
+        final controller = MasterWorkspaceController(
+          client: _FakeMasterBackendClient(),
+          outboxRepository: _MemoryOutboxRepository(),
+        );
+
+        await controller.bootstrap();
+        controller.setSearchQuery('body');
+
+        expect(controller.visibleTasks.map((task) => task.id), ['task-2']);
+
+        controller.setSearchQuery('WS-1');
+
+        expect(controller.visibleTasks.map((task) => task.id), ['task-1']);
+      },
+    );
+
+    test(
+      'search is trimmed and can be cleared back to full active list',
+      () async {
+        final controller = MasterWorkspaceController(
+          client: _FakeMasterBackendClient(),
+          outboxRepository: _MemoryOutboxRepository(),
+        );
+
+        await controller.bootstrap();
+        controller.setSearchQuery('  weld  ');
+
+        expect(controller.visibleTasks.map((task) => task.id), ['task-2']);
+
+        controller.setSearchQuery('');
+
+        expect(controller.visibleTasks.length, 2);
+      },
+    );
+
+    test(
       'create problem refreshes task problems and stores sent outbox item',
       () async {
         final controller = MasterWorkspaceController(
@@ -407,6 +445,14 @@ class _FakeMasterBackendClient implements MasterBackendClient {
             assigneeId: task.assigneeId,
             status: task.status,
             isClosed: task.isClosed,
+            machineId: task.machineId,
+            versionId: task.versionId,
+            structureOccurrenceId: task.structureOccurrenceId,
+            structureDisplayName: task.structureDisplayName,
+            operationName: task.operationName,
+            workshop: task.workshop,
+            reportedQuantity: task.reportedQuantity,
+            remainingQuantity: task.remainingQuantity,
           ),
         )
         .toList(growable: false);

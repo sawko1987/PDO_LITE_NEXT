@@ -82,6 +82,59 @@ class HttpAdminBackendClient implements AdminBackendClient {
   }
 
   @override
+  Future<ApiListResponseDto<TaskSummaryDto>> listTasks({String? status}) async {
+    final query = status == null || status.isEmpty ? '' : '?status=$status';
+    final json = await _getJsonObject('/v1/tasks$query');
+    return ApiListResponseDto<TaskSummaryDto>.fromJson(
+      json,
+      TaskSummaryDto.fromJson,
+    );
+  }
+
+  @override
+  Future<TaskDetailDto> getTask(String taskId) async {
+    final json = await _getJsonObject('/v1/tasks/$taskId');
+    return TaskDetailDto.fromJson(json);
+  }
+
+  @override
+  Future<ApiListResponseDto<ExecutionReportDto>> listTaskReports(
+    String taskId,
+  ) async {
+    final json = await _getJsonObject('/v1/tasks/$taskId/reports');
+    return ApiListResponseDto<ExecutionReportDto>.fromJson(
+      json,
+      ExecutionReportDto.fromJson,
+    );
+  }
+
+  @override
+  Future<ApiListResponseDto<ProblemSummaryDto>> listProblems({
+    String? taskId,
+    String? status,
+  }) async {
+    final queryParameters = <String, String>{
+      if (taskId != null && taskId.isNotEmpty) 'taskId': taskId,
+      if (status != null && status.isNotEmpty) 'status': status,
+    };
+    final uri = Uri(
+      path: '/v1/problems',
+      queryParameters: queryParameters.isEmpty ? null : queryParameters,
+    );
+    final json = await _getJsonObject(uri.toString());
+    return ApiListResponseDto<ProblemSummaryDto>.fromJson(
+      json,
+      ProblemSummaryDto.fromJson,
+    );
+  }
+
+  @override
+  Future<ProblemDetailDto> getProblem(String problemId) async {
+    final json = await _getJsonObject('/v1/problems/$problemId');
+    return ProblemDetailDto.fromJson(json);
+  }
+
+  @override
   Future<ApiListResponseDto<WipEntryDto>> listWipEntries() async {
     final json = await _getJsonObject('/v1/wip');
     return ApiListResponseDto<WipEntryDto>.fromJson(json, WipEntryDto.fromJson);

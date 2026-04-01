@@ -34,6 +34,7 @@ class MasterWorkspaceController extends ChangeNotifier {
   String? _selectedProblemId;
   TaskDetailDto? _selectedTask;
   String? _selectedTaskId;
+  String _searchQuery = '';
   MasterTaskFilter _taskFilter = MasterTaskFilter.active;
   List<TaskSummaryDto> _tasks = const [];
 
@@ -46,16 +47,27 @@ class MasterWorkspaceController extends ChangeNotifier {
   List<ExecutionReportDto> get reports => _reports;
   ProblemDetailDto? get selectedProblem => _selectedProblem;
   TaskDetailDto? get selectedTask => _selectedTask;
+  String get searchQuery => _searchQuery;
   MasterTaskFilter get taskFilter => _taskFilter;
   List<TaskSummaryDto> get tasks => _tasks;
 
   List<TaskSummaryDto> get visibleTasks {
+    final normalizedQuery = _searchQuery.trim().toLowerCase();
     return _tasks
         .where((task) {
-          return switch (_taskFilter) {
+          final matchesFilter = switch (_taskFilter) {
             MasterTaskFilter.active => !task.isClosed,
             MasterTaskFilter.completed => task.isClosed,
           };
+          if (!matchesFilter) {
+            return false;
+          }
+
+          if (normalizedQuery.isEmpty) {
+            return true;
+          }
+
+          return _matchesTaskSearch(task, normalizedQuery);
         })
         .toList(growable: false);
   }
@@ -175,6 +187,15 @@ class MasterWorkspaceController extends ChangeNotifier {
       return;
     }
     _taskFilter = filter;
+    notifyListeners();
+  }
+
+  void setSearchQuery(String value) {
+    final normalizedValue = value.trimLeft();
+    if (_searchQuery == normalizedValue) {
+      return;
+    }
+    _searchQuery = normalizedValue;
     notifyListeners();
   }
 
@@ -380,12 +401,28 @@ class MasterWorkspaceController extends ChangeNotifier {
       return null;
     }
     final balance = effect.balanceQuantity;
-    final formattedBalance = balance == null ? '' : ' (${balance} pcs)';
+    final formattedBalance = balance == null ? '' : ' ($balance pcs)';
     return switch (effect.type) {
       'created' => 'WIP created$formattedBalance.',
       'updated' => 'WIP updated$formattedBalance.',
       'consumed' => 'Existing WIP was consumed.',
       _ => null,
     };
+  }
+
+  bool _matchesTaskSearch(TaskSummaryDto task, String query) {
+    final haystack = <String>[
+      task.id,
+      task.machineId,
+      task.versionId,
+      task.structureOccurrenceId,
+      task.structureDisplayName,
+      task.operationName,
+      task.workshop,
+      task.assigneeId ?? '',
+      task.status,
+    ].map((value) => value.toLowerCase());
+
+    return haystack.any((value) => value.contains(query));
   }
 }

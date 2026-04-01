@@ -34,6 +34,7 @@ class MasterWorkspace extends StatefulWidget {
 class _MasterWorkspaceState extends State<MasterWorkspace> {
   final _quantityController = TextEditingController();
   final _reasonController = TextEditingController();
+  final _searchController = TextEditingController();
   String _selectedReportOutcome = 'completed';
 
   MasterWorkspaceController get _controller => widget.controller;
@@ -41,6 +42,7 @@ class _MasterWorkspaceState extends State<MasterWorkspace> {
   @override
   void initState() {
     super.initState();
+    _searchController.text = _controller.searchQuery;
     _controller.bootstrap();
   }
 
@@ -48,6 +50,7 @@ class _MasterWorkspaceState extends State<MasterWorkspace> {
   void dispose() {
     _quantityController.dispose();
     _reasonController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -77,6 +80,8 @@ class _MasterWorkspaceState extends State<MasterWorkspace> {
                 assigneeId: _controller.assigneeId,
                 filter: _controller.taskFilter,
                 onChanged: _controller.setFilter,
+                onSearchChanged: _controller.setSearchQuery,
+                searchController: _searchController,
               ),
               const SizedBox(height: 16),
               if (_controller.errorMessage case final error?)
@@ -88,7 +93,10 @@ class _MasterWorkspaceState extends State<MasterWorkspace> {
                 onSelected: _controller.selectTask,
               ),
               const SizedBox(height: 16),
-              if (_controller.selectedTask case final task?)
+              if (_controller.selectedTask case final task?
+                  when _controller.visibleTasks.any(
+                    (visibleTask) => visibleTask.id == task.id,
+                  ))
                 _TaskDetailCard(
                   isSubmitting: _controller.isSubmitting,
                   onCreateProblem: () => _showCreateProblemSheet(context, task),
@@ -381,11 +389,15 @@ class _FilterCard extends StatelessWidget {
     required this.assigneeId,
     required this.filter,
     required this.onChanged,
+    required this.onSearchChanged,
+    required this.searchController,
   });
 
   final String assigneeId;
   final MasterTaskFilter filter;
   final ValueChanged<MasterTaskFilter> onChanged;
+  final ValueChanged<String> onSearchChanged;
+  final TextEditingController searchController;
 
   @override
   Widget build(BuildContext context) {
@@ -396,6 +408,20 @@ class _FilterCard extends StatelessWidget {
           spacing: 12,
           runSpacing: 12,
           children: [
+            SizedBox(
+              width: 280,
+              child: TextField(
+                key: const Key('taskSearchField'),
+                controller: searchController,
+                onChanged: onSearchChanged,
+                decoration: const InputDecoration(
+                  labelText: 'Search tasks',
+                  hintText: 'Task, operation, item, machine, workshop',
+                  prefixIcon: Icon(Icons.search),
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
             Chip(
               avatar: const Icon(Icons.person_outline, size: 18),
               label: Text('Assignee: $assigneeId'),

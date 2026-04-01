@@ -23,6 +23,19 @@ abstract interface class AdminBackendClient {
     ReleasePlanRequestDto request,
   );
 
+  Future<ApiListResponseDto<TaskSummaryDto>> listTasks({String? status});
+
+  Future<TaskDetailDto> getTask(String taskId);
+
+  Future<ApiListResponseDto<ExecutionReportDto>> listTaskReports(String taskId);
+
+  Future<ApiListResponseDto<ProblemSummaryDto>> listProblems({
+    String? taskId,
+    String? status,
+  });
+
+  Future<ProblemDetailDto> getProblem(String problemId);
+
   Future<ApiListResponseDto<WipEntryDto>> listWipEntries();
 
   Future<ImportSessionSummaryDto> createImportPreview(

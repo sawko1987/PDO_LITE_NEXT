@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:admin_windows/main.dart';
+import 'package:admin_windows/src/execution/execution_board_controller.dart';
+import 'package:admin_windows/src/execution/execution_workspace.dart';
 import 'package:admin_windows/src/import/admin_backend_client.dart';
 import 'package:admin_windows/src/import/import_flow_controller.dart';
 import 'package:admin_windows/src/plans/plan_board_controller.dart';
@@ -25,15 +27,21 @@ void main() {
       );
       final controller = ImportFlowController(client: client);
       final planController = PlanBoardController(client: client);
+      final executionController = ExecutionBoardController(client: client);
 
       await tester.pumpWidget(
-        AdminWindowsApp(controller: controller, planController: planController),
+        AdminWindowsApp(
+          controller: controller,
+          planController: planController,
+          executionController: executionController,
+        ),
       );
       await tester.pumpAndSettle();
 
       expect(find.text('PDO Lite Next'), findsOneWidget);
       expect(find.text('Import Workspace'), findsOneWidget);
       expect(find.text('Plans'), findsOneWidget);
+      expect(find.text('Execution'), findsOneWidget);
       expect(find.textContaining('machines loaded'), findsOneWidget);
     },
   );
@@ -53,6 +61,7 @@ void main() {
     );
     final controller = ImportFlowController(client: client);
     final planController = PlanBoardController(client: client);
+    final executionController = ExecutionBoardController(client: client);
     controller.setSelectedFile(
       fileName: 'conflict.mxl',
       bytes: Uint8List.fromList([1, 2, 3]),
@@ -60,7 +69,11 @@ void main() {
     await controller.createPreview();
 
     await tester.pumpWidget(
-      AdminWindowsApp(controller: controller, planController: planController),
+      AdminWindowsApp(
+        controller: controller,
+        planController: planController,
+        executionController: executionController,
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -103,12 +116,90 @@ void main() {
 
     expect(find.text('Plan Index'), findsOneWidget);
   });
+
+  testWidgets('execution tab renders task drill-down blocks', (tester) async {
+    final client = _FakeBackendClient(
+      machines: const [
+        MachineSummaryDto(
+          id: 'machine-1',
+          code: 'PDO-100',
+          name: 'Machine 100',
+          activeVersionId: 'ver-1',
+        ),
+      ],
+    );
+    final executionController = ExecutionBoardController(client: client);
+    await executionController.bootstrap();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ExecutionWorkspace(controller: executionController),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Execution Control'), findsOneWidget);
+    expect(find.text('Task Monitor'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Task Detail'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Task Detail'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Problems'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Problems'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Scoped WIP'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Scoped WIP'), findsOneWidget);
+    expect(find.textContaining('Task: task-1'), findsWidgets);
+  });
 }
 
 class _FakeBackendClient implements AdminBackendClient {
   _FakeBackendClient({required this.machines});
 
   final List<MachineSummaryDto> machines;
+
+  @override
+  Future<PlanDetailDto> createPlan(CreatePlanRequestDto request) async {
+    return _buildPlanDetail(
+      id: 'plan-created',
+      title: request.title,
+      status: 'draft',
+      canRelease: true,
+      items: request.items
+          .map(
+            (item) => PlanDetailItemDto(
+              id: 'item-${item.structureOccurrenceId}',
+              structureOccurrenceId: item.structureOccurrenceId,
+              catalogItemId: 'catalog-${item.structureOccurrenceId}',
+              displayName: item.structureOccurrenceId == 'occ-1'
+                  ? 'Frame'
+                  : 'Body Panel',
+              pathKey: item.structureOccurrenceId == 'occ-1'
+                  ? 'machine/frame'
+                  : 'machine/body/panel',
+              requestedQuantity: item.requestedQuantity,
+              hasRecordedExecution: false,
+              canEdit: true,
+              workshop: 'WS-1',
+            ),
+          )
+          .toList(growable: false),
+    );
+  }
 
   @override
   Future<ImportSessionSummaryDto> createImportPreview(
@@ -194,6 +285,29 @@ class _FakeBackendClient implements AdminBackendClient {
   void dispose() {}
 
   @override
+  Future<ProblemDetailDto> getProblem(String problemId) async {
+    return ProblemDetailDto(
+      id: 'problem-1',
+      machineId: 'machine-1',
+      type: 'equipment',
+      taskId: 'task-1',
+      title: 'Fixture blocked',
+      status: 'inProgress',
+      isOpen: true,
+      createdAt: DateTime.utc(2026, 3, 31, 9),
+      messages: [
+        ProblemMessageDto(
+          id: 'problem-message-1',
+          problemId: 'problem-1',
+          authorId: 'master-1',
+          message: 'Waiting for setup fixture.',
+          createdAt: DateTime.utc(2026, 3, 31, 9, 5),
+        ),
+      ],
+    );
+  }
+
+  @override
   Future<ImportSessionSummaryDto> getImportSession(String sessionId) async {
     return createImportPreview(
       const CreateImportPreviewRequestDto(
@@ -201,43 +315,6 @@ class _FakeBackendClient implements AdminBackendClient {
         fileName: 'machine.xlsx',
         fileContentBase64: 'AQID',
       ),
-    );
-  }
-
-  @override
-  Future<ApiListResponseDto<MachineSummaryDto>> listMachines() async {
-    return ApiListResponseDto(
-      items: machines,
-      meta: const {'resource': 'machines'},
-    );
-  }
-
-  @override
-  Future<PlanDetailDto> createPlan(CreatePlanRequestDto request) async {
-    return _buildPlanDetail(
-      id: 'plan-created',
-      title: request.title,
-      status: 'draft',
-      canRelease: true,
-      items: request.items
-          .map(
-            (item) => PlanDetailItemDto(
-              id: 'item-${item.structureOccurrenceId}',
-              structureOccurrenceId: item.structureOccurrenceId,
-              catalogItemId: 'catalog-${item.structureOccurrenceId}',
-              displayName: item.structureOccurrenceId == 'occ-1'
-                  ? 'Frame'
-                  : 'Body Panel',
-              pathKey: item.structureOccurrenceId == 'occ-1'
-                  ? 'machine/frame'
-                  : 'machine/body/panel',
-              requestedQuantity: item.requestedQuantity,
-              hasRecordedExecution: false,
-              canEdit: true,
-              workshop: 'WS-1',
-            ),
-          )
-          .toList(growable: false),
     );
   }
 
@@ -261,6 +338,54 @@ class _FakeBackendClient implements AdminBackendClient {
           workshop: 'WS-1',
         ),
       ],
+    );
+  }
+
+  @override
+  Future<TaskDetailDto> getTask(String taskId) async {
+    return switch (taskId) {
+      'task-1' => const TaskDetailDto(
+        id: 'task-1',
+        planItemId: 'plan-item-1',
+        operationOccurrenceId: 'op-1',
+        machineId: 'machine-1',
+        versionId: 'ver-1',
+        structureOccurrenceId: 'occ-1',
+        structureDisplayName: 'Frame',
+        operationName: 'Cut',
+        workshop: 'WS-1',
+        requiredQuantity: 12,
+        reportedQuantity: 6,
+        remainingQuantity: 6,
+        assigneeId: 'master-1',
+        status: 'inProgress',
+        isClosed: false,
+      ),
+      _ => const TaskDetailDto(
+        id: 'task-2',
+        planItemId: 'plan-item-2',
+        operationOccurrenceId: 'op-2',
+        machineId: 'machine-1',
+        versionId: 'ver-1',
+        structureOccurrenceId: 'occ-2',
+        structureDisplayName: 'Body Panel',
+        operationName: 'Weld',
+        workshop: 'WS-2',
+        requiredQuantity: 4,
+        reportedQuantity: 4,
+        remainingQuantity: 0,
+        assigneeId: 'master-2',
+        status: 'completed',
+        isClosed: true,
+      ),
+    };
+  }
+
+  @override
+  Future<ApiListResponseDto<MachineSummaryDto>> listMachines() async {
+    return ApiListResponseDto(
+      items: machines,
+      meta: const {'resource': 'machines'},
     );
   }
 
@@ -307,8 +432,8 @@ class _FakeBackendClient implements AdminBackendClient {
     String machineId,
     String versionId,
   ) async {
-    return ApiListResponseDto(
-      items: const [
+    return const ApiListResponseDto(
+      items: [
         PlanningSourceOccurrenceDto(
           id: 'occ-1',
           catalogItemId: 'catalog-1',
@@ -319,8 +444,122 @@ class _FakeBackendClient implements AdminBackendClient {
           operationCount: 1,
         ),
       ],
-      meta: const {'resource': 'planning_source'},
+      meta: {'resource': 'planning_source'},
     );
+  }
+
+  @override
+  Future<ApiListResponseDto<ProblemSummaryDto>> listProblems({
+    String? taskId,
+    String? status,
+  }) async {
+    final items =
+        [
+              ProblemSummaryDto(
+                id: 'problem-1',
+                machineId: 'machine-1',
+                type: 'equipment',
+                taskId: 'task-1',
+                title: 'Fixture blocked',
+                status: 'inProgress',
+                isOpen: true,
+                createdAt: DateTime.utc(2026, 3, 31, 9),
+                messageCount: 1,
+              ),
+            ]
+            .where((problem) {
+              if (taskId != null &&
+                  taskId.isNotEmpty &&
+                  problem.taskId != taskId) {
+                return false;
+              }
+              if (status != null &&
+                  status.isNotEmpty &&
+                  problem.status != status) {
+                return false;
+              }
+              return true;
+            })
+            .toList(growable: false);
+    return ApiListResponseDto(
+      items: items,
+      meta: const {'resource': 'problems'},
+    );
+  }
+
+  @override
+  Future<ApiListResponseDto<ExecutionReportDto>> listTaskReports(
+    String taskId,
+  ) async {
+    final items = taskId == 'task-1'
+        ? [
+            ExecutionReportDto(
+              id: 'report-1',
+              taskId: taskId,
+              reportedBy: 'master-1',
+              reportedAt: DateTime.utc(2026, 3, 31, 8),
+              reportedQuantity: 6,
+              outcome: 'partial',
+              acceptedAt: DateTime.utc(2026, 3, 31, 8, 5),
+              isAccepted: true,
+            ),
+          ]
+        : const <ExecutionReportDto>[];
+    return ApiListResponseDto(
+      items: items,
+      meta: const {'resource': 'execution_reports'},
+    );
+  }
+
+  @override
+  Future<ApiListResponseDto<TaskSummaryDto>> listTasks({String? status}) async {
+    final items =
+        const [
+              TaskSummaryDto(
+                id: 'task-1',
+                planItemId: 'plan-item-1',
+                operationOccurrenceId: 'op-1',
+                requiredQuantity: 12,
+                assigneeId: 'master-1',
+                status: 'inProgress',
+                isClosed: false,
+                machineId: 'machine-1',
+                versionId: 'ver-1',
+                structureOccurrenceId: 'occ-1',
+                structureDisplayName: 'Frame',
+                operationName: 'Cut',
+                workshop: 'WS-1',
+                reportedQuantity: 6,
+                remainingQuantity: 6,
+              ),
+              TaskSummaryDto(
+                id: 'task-2',
+                planItemId: 'plan-item-2',
+                operationOccurrenceId: 'op-2',
+                requiredQuantity: 4,
+                assigneeId: 'master-2',
+                status: 'completed',
+                isClosed: true,
+                machineId: 'machine-1',
+                versionId: 'ver-1',
+                structureOccurrenceId: 'occ-2',
+                structureDisplayName: 'Body Panel',
+                operationName: 'Weld',
+                workshop: 'WS-2',
+                reportedQuantity: 4,
+                remainingQuantity: 0,
+              ),
+            ]
+            .where((task) {
+              if (status != null &&
+                  status.isNotEmpty &&
+                  task.status != status) {
+                return false;
+              }
+              return true;
+            })
+            .toList(growable: false);
+    return ApiListResponseDto(items: items, meta: const {'resource': 'tasks'});
   }
 
   @override

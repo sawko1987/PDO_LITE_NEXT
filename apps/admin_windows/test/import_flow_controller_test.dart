@@ -257,6 +257,11 @@ class FakeAdminBackendClient implements AdminBackendClient {
   }
 
   @override
+  Future<ProblemDetailDto> getProblem(String problemId) async {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<ApiListResponseDto<MachineVersionSummaryDto>> listMachineVersions(
     String machineId,
   ) async {
@@ -280,6 +285,34 @@ class FakeAdminBackendClient implements AdminBackendClient {
       items: [],
       meta: {'resource': 'planning_source'},
     );
+  }
+
+  @override
+  Future<ApiListResponseDto<ProblemSummaryDto>> listProblems({
+    String? taskId,
+    String? status,
+  }) async {
+    return const ApiListResponseDto(items: [], meta: {'resource': 'problems'});
+  }
+
+  @override
+  Future<TaskDetailDto> getTask(String taskId) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<ApiListResponseDto<ExecutionReportDto>> listTaskReports(
+    String taskId,
+  ) async {
+    return const ApiListResponseDto(
+      items: [],
+      meta: {'resource': 'execution_reports'},
+    );
+  }
+
+  @override
+  Future<ApiListResponseDto<TaskSummaryDto>> listTasks({String? status}) async {
+    return const ApiListResponseDto(items: [], meta: {'resource': 'tasks'});
   }
 
   @override

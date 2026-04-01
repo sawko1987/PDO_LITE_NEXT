@@ -102,21 +102,47 @@ void main() {
     expect((body['items'] as List).single['outcome'], 'partial');
   });
 
-  test('tasks endpoint supports assignee filter', () async {
-    final handler = buildHandler();
-    final response = await handler(
-      Request(
-        'GET',
-        Uri.parse('http://localhost/v1/tasks?assigneeId=master-1'),
-      ),
-    );
-    final body =
-        jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+  test(
+    'tasks endpoint supports assignee filter and returns execution context',
+    () async {
+      final handler = buildHandler();
+      final response = await handler(
+        Request(
+          'GET',
+          Uri.parse('http://localhost/v1/tasks?assigneeId=master-1'),
+        ),
+      );
+      final body =
+          jsonDecode(await response.readAsString()) as Map<String, dynamic>;
 
-    expect(response.statusCode, 200);
-    expect(body['count'], 1);
-    expect((body['items'] as List).single['assigneeId'], 'master-1');
-  });
+      expect(response.statusCode, 200);
+      expect(body['count'], 1);
+      final item = (body['items'] as List).single as Map<String, dynamic>;
+      expect(item['assigneeId'], 'master-1');
+      expect(item['machineId'], 'machine-1');
+      expect(item['versionId'], 'ver-2026-03');
+      expect(item['structureDisplayName'], 'Frame');
+      expect(item['operationName'], 'Cut');
+      expect(item['reportedQuantity'], 6);
+      expect(item['remainingQuantity'], 6);
+    },
+  );
+
+  test(
+    'tasks endpoint status filter still works for enriched task summaries',
+    () async {
+      final handler = buildHandler();
+      final response = await handler(
+        Request('GET', Uri.parse('http://localhost/v1/tasks?status=pending')),
+      );
+      final body =
+          jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+
+      expect(response.statusCode, 200);
+      expect(body['count'], 1);
+      expect((body['items'] as List).single['id'], 'task-2');
+    },
+  );
 
   test('task detail endpoint returns planning context and progress', () async {
     final handler = buildHandler();

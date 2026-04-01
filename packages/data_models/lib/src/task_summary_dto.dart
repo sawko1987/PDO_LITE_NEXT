@@ -9,6 +9,14 @@ class TaskSummaryDto {
     required this.status,
     required this.isClosed,
     this.assigneeId,
+    this.machineId = '',
+    this.versionId = '',
+    this.structureOccurrenceId = '',
+    this.structureDisplayName = '',
+    this.operationName = '',
+    this.workshop = '',
+    this.reportedQuantity = 0,
+    this.remainingQuantity = 0,
   });
 
   factory TaskSummaryDto.fromDomain(ProductionTask task) {
@@ -32,6 +40,14 @@ class TaskSummaryDto {
       assigneeId: json['assigneeId'] as String?,
       status: json['status'] as String? ?? '',
       isClosed: json['isClosed'] as bool? ?? false,
+      machineId: json['machineId'] as String? ?? '',
+      versionId: json['versionId'] as String? ?? '',
+      structureOccurrenceId: json['structureOccurrenceId'] as String? ?? '',
+      structureDisplayName: json['structureDisplayName'] as String? ?? '',
+      operationName: json['operationName'] as String? ?? '',
+      workshop: json['workshop'] as String? ?? '',
+      reportedQuantity: (json['reportedQuantity'] as num?)?.toDouble() ?? 0,
+      remainingQuantity: (json['remainingQuantity'] as num?)?.toDouble() ?? 0,
     );
   }
 
@@ -42,6 +58,14 @@ class TaskSummaryDto {
   final String? assigneeId;
   final String status;
   final bool isClosed;
+  final String machineId;
+  final String versionId;
+  final String structureOccurrenceId;
+  final String structureDisplayName;
+  final String operationName;
+  final String workshop;
+  final double reportedQuantity;
+  final double remainingQuantity;
 
   Map<String, Object?> toJson() => {
     'id': id,
@@ -51,5 +75,13 @@ class TaskSummaryDto {
     'assigneeId': assigneeId,
     'status': status,
     'isClosed': isClosed,
+    'machineId': machineId,
+    'versionId': versionId,
+    'structureOccurrenceId': structureOccurrenceId,
+    'structureDisplayName': structureDisplayName,
+    'operationName': operationName,
+    'workshop': workshop,
+    'reportedQuantity': reportedQuantity,
+    'remainingQuantity': remainingQuantity,
   };
 }

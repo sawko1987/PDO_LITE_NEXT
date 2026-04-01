@@ -104,6 +104,11 @@ class _FakePlanBackendClient implements AdminBackendClient {
   }
 
   @override
+  Future<ProblemDetailDto> getProblem(String problemId) async {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<PlanDetailDto> getPlan(String planId) async {
     return PlanDetailDto(
       id: planId,
@@ -202,6 +207,31 @@ class _FakePlanBackendClient implements AdminBackendClient {
       ],
       meta: {'resource': 'planning_source'},
     );
+  }
+
+  @override
+  Future<ApiListResponseDto<ProblemSummaryDto>> listProblems({
+    String? taskId,
+    String? status,
+  }) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<TaskDetailDto> getTask(String taskId) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<ApiListResponseDto<ExecutionReportDto>> listTaskReports(
+    String taskId,
+  ) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<ApiListResponseDto<TaskSummaryDto>> listTasks({String? status}) async {
+    throw UnimplementedError();
   }
 
   @override
