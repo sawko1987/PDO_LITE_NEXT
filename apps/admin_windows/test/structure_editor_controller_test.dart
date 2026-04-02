@@ -330,9 +330,6 @@ class _FakeStructureBackendClient implements AdminBackendClient {
     UpdateStructureOccurrenceRequestDto request,
   ) async {
     final detail = _detailsByVersion[versionId]!;
-    final existing = detail.structureOccurrences.firstWhere(
-      (item) => item.id == occurrenceId,
-    );
     final updated = MachineVersionDetailDto(
       id: detail.id,
       machineId: detail.machineId,

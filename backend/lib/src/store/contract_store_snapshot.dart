@@ -7,6 +7,7 @@ class ContractStoreSnapshot {
     required this.versions,
     required this.structureOccurrences,
     required this.operationOccurrences,
+    required this.users,
     required this.plans,
     required this.tasks,
     required this.reportsByTask,
@@ -26,6 +27,7 @@ class ContractStoreSnapshot {
     required this.problemSequence,
     required this.problemMessageSequence,
     required this.auditSequence,
+    required this.userSequence,
   });
 
   final List<CatalogItem> catalogItems;
@@ -33,6 +35,7 @@ class ContractStoreSnapshot {
   final List<MachineVersion> versions;
   final List<StructureOccurrence> structureOccurrences;
   final List<OperationOccurrence> operationOccurrences;
+  final List<User> users;
   final List<Plan> plans;
   final List<ProductionTask> tasks;
   final Map<String, List<ExecutionReport>> reportsByTask;
@@ -52,6 +55,7 @@ class ContractStoreSnapshot {
   final int problemSequence;
   final int problemMessageSequence;
   final int auditSequence;
+  final int userSequence;
 }
 
 class IdempotencyRecord {

@@ -383,9 +383,9 @@ class _MutableMachineVersionTreeNode {
     required this.id,
     required this.label,
     required this.pathKey,
-    required Set<String> occurrenceIds,
+    required this.occurrenceIds,
     this.occurrence,
-  }) : occurrenceIds = occurrenceIds;
+  });
 
   final String id;
   final String label;

@@ -221,12 +221,6 @@ class ImportFlowController extends ChangeNotifier {
     }
   }
 
-  @override
-  void dispose() {
-    client.dispose();
-    super.dispose();
-  }
-
   String _nextRequestId(String prefix) {
     _requestSequence += 1;
     return '$prefix-${DateTime.now().toUtc().microsecondsSinceEpoch}-$_requestSequence';

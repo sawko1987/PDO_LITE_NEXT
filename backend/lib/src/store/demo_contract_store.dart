@@ -1,63 +1,40 @@
+import 'dart:convert';
 import 'dart:math';
 
+import 'package:crypto/crypto.dart';
 import 'package:domain/domain.dart';
 
 import '../persistence/contract_store_snapshot_repository.dart';
 import 'contract_store_snapshot.dart';
 
 class DemoContractStore {
-  DemoContractStore({ContractStoreSnapshotRepository? snapshotRepository})
-    : _snapshotRepository = snapshotRepository {
+  DemoContractStore({
+    ContractStoreSnapshotRepository? snapshotRepository,
+    Duration sessionTtl = const Duration(hours: 8),
+  }) : _snapshotRepository = snapshotRepository,
+       _sessionTtl = sessionTtl {
     final snapshot =
         snapshotRepository?.loadOrSeed(_buildSeedSnapshot()) ??
         _buildSeedSnapshot();
-    _catalogItems = List<CatalogItem>.from(snapshot.catalogItems);
-    _machines = List<Machine>.from(snapshot.machines);
-    _versions = List<MachineVersion>.from(snapshot.versions);
-    _structureOccurrences = List<StructureOccurrence>.from(
-      snapshot.structureOccurrences,
-    );
-    _operationOccurrences = List<OperationOccurrence>.from(
-      snapshot.operationOccurrences,
-    );
-    _plans = List<Plan>.from(snapshot.plans);
-    _tasks = List<ProductionTask>.from(snapshot.tasks);
-    _reportsByTask = snapshot.reportsByTask.map(
-      (key, value) => MapEntry(key, List<ExecutionReport>.from(value)),
-    );
-    _problems = List<Problem>.from(snapshot.problems);
-    _problemMessagesByProblem = snapshot.problemMessagesByProblem.map(
-      (key, value) => MapEntry(key, List<ProblemMessage>.from(value)),
-    );
-    _wipEntries = List<WipEntry>.from(snapshot.wipEntries);
-    _auditEntries = List<AuditEntry>.from(snapshot.auditEntries);
-    _machineSequence = snapshot.machineSequence;
-    _versionSequence = snapshot.versionSequence;
-    _structureSequence = snapshot.structureSequence;
-    _operationSequence = snapshot.operationSequence;
-    _planSequence = snapshot.planSequence;
-    _planItemSequence = snapshot.planItemSequence;
-    _taskSequence = snapshot.taskSequence;
-    _reportSequence = snapshot.reportSequence;
-    _problemSequence = snapshot.problemSequence;
-    _problemMessageSequence = snapshot.problemMessageSequence;
-    _auditSequence = snapshot.auditSequence;
-    _restoreIdempotency(snapshot.idempotencyRecords);
+    _hydrateFromSnapshot(snapshot);
   }
 
   final ContractStoreSnapshotRepository? _snapshotRepository;
-  late final List<CatalogItem> _catalogItems;
-  late final List<Machine> _machines;
-  late final List<MachineVersion> _versions;
-  late final List<StructureOccurrence> _structureOccurrences;
-  late final List<OperationOccurrence> _operationOccurrences;
-  late final List<Plan> _plans;
-  late final List<ProductionTask> _tasks;
-  late final Map<String, List<ExecutionReport>> _reportsByTask;
-  late final List<Problem> _problems;
-  late final Map<String, List<ProblemMessage>> _problemMessagesByProblem;
-  late final List<WipEntry> _wipEntries;
-  late final List<AuditEntry> _auditEntries;
+  final Duration _sessionTtl;
+  late List<CatalogItem> _catalogItems;
+  late List<Machine> _machines;
+  late List<MachineVersion> _versions;
+  late List<StructureOccurrence> _structureOccurrences;
+  late List<OperationOccurrence> _operationOccurrences;
+  late List<User> _users;
+  late List<Plan> _plans;
+  late List<ProductionTask> _tasks;
+  late Map<String, List<ExecutionReport>> _reportsByTask;
+  late List<Problem> _problems;
+  late Map<String, List<ProblemMessage>> _problemMessagesByProblem;
+  late List<WipEntry> _wipEntries;
+  late List<AuditEntry> _auditEntries;
+  final Map<String, AuthSession> _sessionsByToken = {};
   final Map<String, _StoredPlanCommand> _planByCreateRequestId = {};
   final Map<String, _StoredReleaseCommand> _releaseByRequestId = {};
   final Map<String, _StoredCompleteCommand> _completionByRequestId = {};
@@ -82,6 +59,11 @@ class DemoContractStore {
       {};
   final Map<String, _StoredMachineVersionCommand> _operationDeleteByRequestId =
       {};
+  final Map<String, _StoredUserCommand> _userCreateByRequestId = {};
+  final Map<String, _StoredUserCommand> _userDeactivateByRequestId = {};
+  final Map<String, _StoredUserCommand> _userResetPasswordByRequestId = {};
+  final Map<String, _StoredBackupCommand> _backupCreateByRequestId = {};
+  final Map<String, _StoredBackupCommand> _backupRestoreByRequestId = {};
   late int _machineSequence;
   late int _versionSequence;
   late int _structureSequence;
@@ -93,6 +75,74 @@ class DemoContractStore {
   late int _problemSequence;
   late int _problemMessageSequence;
   late int _auditSequence;
+  late int _userSequence;
+
+  void _hydrateFromSnapshot(ContractStoreSnapshot snapshot) {
+    _catalogItems = List<CatalogItem>.from(snapshot.catalogItems);
+    _machines = List<Machine>.from(snapshot.machines);
+    _versions = List<MachineVersion>.from(snapshot.versions);
+    _structureOccurrences = List<StructureOccurrence>.from(
+      snapshot.structureOccurrences,
+    );
+    _operationOccurrences = List<OperationOccurrence>.from(
+      snapshot.operationOccurrences,
+    );
+    _users = List<User>.from(snapshot.users);
+    _plans = List<Plan>.from(snapshot.plans);
+    _tasks = List<ProductionTask>.from(snapshot.tasks);
+    _reportsByTask = snapshot.reportsByTask.map(
+      (key, value) => MapEntry(key, List<ExecutionReport>.from(value)),
+    );
+    _problems = List<Problem>.from(snapshot.problems);
+    _problemMessagesByProblem = snapshot.problemMessagesByProblem.map(
+      (key, value) => MapEntry(key, List<ProblemMessage>.from(value)),
+    );
+    _wipEntries = List<WipEntry>.from(snapshot.wipEntries);
+    _auditEntries = List<AuditEntry>.from(snapshot.auditEntries);
+    _machineSequence = snapshot.machineSequence;
+    _versionSequence = snapshot.versionSequence;
+    _structureSequence = snapshot.structureSequence;
+    _operationSequence = snapshot.operationSequence;
+    _planSequence = snapshot.planSequence;
+    _planItemSequence = snapshot.planItemSequence;
+    _taskSequence = snapshot.taskSequence;
+    _reportSequence = snapshot.reportSequence;
+    _problemSequence = snapshot.problemSequence;
+    _problemMessageSequence = snapshot.problemMessageSequence;
+    _auditSequence = snapshot.auditSequence;
+    _userSequence = snapshot.userSequence;
+    _sessionsByToken.clear();
+    _clearIdempotencyMaps();
+    _restoreIdempotency(snapshot.idempotencyRecords);
+  }
+
+  void _clearIdempotencyMaps() {
+    _planByCreateRequestId.clear();
+    _releaseByRequestId.clear();
+    _completionByRequestId.clear();
+    _reportByRequestId.clear();
+    _problemByCreateRequestId.clear();
+    _problemMessageByRequestId.clear();
+    _problemTransitionByRequestId.clear();
+    _draftVersionByRequestId.clear();
+    _publishVersionByRequestId.clear();
+    _structureCreateByRequestId.clear();
+    _structureUpdateByRequestId.clear();
+    _structureDeleteByRequestId.clear();
+    _operationCreateByRequestId.clear();
+    _operationUpdateByRequestId.clear();
+    _operationDeleteByRequestId.clear();
+    _userCreateByRequestId.clear();
+    _userDeactivateByRequestId.clear();
+    _userResetPasswordByRequestId.clear();
+    _backupCreateByRequestId.clear();
+    _backupRestoreByRequestId.clear();
+  }
+
+  static String _hashSeedPassword(String password, String salt) {
+    final digest = sha256.convert(utf8.encode('$salt::$password'));
+    return '$salt:${digest.toString()}';
+  }
 
   static ContractStoreSnapshot _buildSeedSnapshot() {
     return ContractStoreSnapshot(
@@ -204,6 +254,35 @@ class DemoContractStore {
           workshop: 'WS-3',
         ),
       ],
+      users: [
+        User(
+          id: 'planner-1',
+          login: 'planner-1',
+          passwordHash: _hashSeedPassword('planner123', 'seed-planner'),
+          role: UserRole.planner,
+          displayName: 'Planner One',
+          isActive: true,
+          createdAt: DateTime.utc(2026, 3, 1, 6),
+        ),
+        User(
+          id: 'supervisor-1',
+          login: 'supervisor-1',
+          passwordHash: _hashSeedPassword('supervisor123', 'seed-supervisor'),
+          role: UserRole.supervisor,
+          displayName: 'Supervisor One',
+          isActive: true,
+          createdAt: DateTime.utc(2026, 3, 1, 6, 5),
+        ),
+        User(
+          id: 'master-1',
+          login: 'master-1',
+          passwordHash: _hashSeedPassword('master123', 'seed-master'),
+          role: UserRole.master,
+          displayName: 'Master One',
+          isActive: true,
+          createdAt: DateTime.utc(2026, 3, 1, 6, 10),
+        ),
+      ],
       plans: [
         Plan(
           id: 'plan-1',
@@ -253,6 +332,49 @@ class DemoContractStore {
             ),
           ],
         ),
+        Plan(
+          id: 'plan-2',
+          machineId: 'machine-1',
+          versionId: 'ver-2026-03',
+          title: 'Completed plan 2026-03-27',
+          createdAt: DateTime.utc(2026, 3, 27, 6),
+          status: PlanStatus.completed,
+          closedAt: DateTime.utc(2026, 3, 27, 15, 30),
+          items: const [
+            PlanItem(
+              id: 'plan-item-3',
+              source: PlanItemSource(
+                machineId: 'machine-1',
+                versionId: 'ver-2026-03',
+                structureOccurrenceId: 'occ-1',
+                catalogItemId: 'catalog-1',
+              ),
+              requestedQuantity: 5,
+              hasRecordedExecution: true,
+            ),
+          ],
+        ),
+        Plan(
+          id: 'plan-3',
+          machineId: 'machine-1',
+          versionId: 'ver-2026-03',
+          title: 'Cancelled plan 2026-03-26',
+          createdAt: DateTime.utc(2026, 3, 26, 6),
+          status: PlanStatus.cancelled,
+          closedAt: DateTime.utc(2026, 3, 26, 8, 45),
+          items: const [
+            PlanItem(
+              id: 'plan-item-4',
+              source: PlanItemSource(
+                machineId: 'machine-1',
+                versionId: 'ver-2026-03',
+                structureOccurrenceId: 'occ-2',
+                catalogItemId: 'catalog-2',
+              ),
+              requestedQuantity: 2,
+            ),
+          ],
+        ),
       ],
       tasks: const [
         ProductionTask(
@@ -271,6 +393,14 @@ class DemoContractStore {
           assigneeId: 'master-2',
           status: TaskStatus.pending,
         ),
+        ProductionTask(
+          id: 'task-3',
+          planItemId: 'plan-item-3',
+          operationOccurrenceId: 'op-1',
+          requiredQuantity: 5,
+          assigneeId: 'master-archive',
+          status: TaskStatus.completed,
+        ),
       ],
       reportsByTask: {
         'task-1': [
@@ -285,6 +415,17 @@ class DemoContractStore {
           ),
         ],
         'task-2': const [],
+        'task-3': [
+          ExecutionReport(
+            id: 'report-2',
+            taskId: 'task-3',
+            reportedBy: 'master-1',
+            reportedAt: DateTime.utc(2026, 3, 27, 14, 30),
+            reportedQuantity: 5,
+            outcome: ExecutionReportOutcome.completed,
+            acceptedAt: DateTime.utc(2026, 3, 27, 14, 32),
+          ),
+        ],
       },
       problems: [
         Problem(
@@ -334,19 +475,42 @@ class DemoContractStore {
           beforeValue: '10',
           afterValue: '12',
         ),
+        AuditEntry(
+          id: 'audit-2',
+          entityType: 'plan',
+          entityId: 'plan-2',
+          action: AuditAction.updated,
+          changedBy: 'supervisor-1',
+          changedAt: DateTime.utc(2026, 3, 27, 15, 30),
+          field: 'status',
+          beforeValue: 'released',
+          afterValue: 'completed',
+        ),
+        AuditEntry(
+          id: 'audit-3',
+          entityType: 'plan',
+          entityId: 'plan-3',
+          action: AuditAction.archived,
+          changedBy: 'planner-1',
+          changedAt: DateTime.utc(2026, 3, 26, 8, 45),
+          field: 'status',
+          beforeValue: 'draft',
+          afterValue: 'cancelled',
+        ),
       ],
       idempotencyRecords: const [],
       machineSequence: 1,
       versionSequence: 2,
       structureSequence: 3,
       operationSequence: 4,
-      planSequence: 1,
-      planItemSequence: 2,
-      taskSequence: 2,
-      reportSequence: 1,
+      planSequence: 3,
+      planItemSequence: 4,
+      taskSequence: 3,
+      reportSequence: 2,
       problemSequence: 1,
       problemMessageSequence: 1,
-      auditSequence: 1,
+      auditSequence: 3,
+      userSequence: 3,
     );
   }
 
@@ -487,6 +651,40 @@ class DemoContractStore {
               signature: record.signature,
               versionId: record.resourceId!,
             );
+      } else if (record.resourceId != null &&
+          record.category == 'user_create') {
+        _userCreateByRequestId[record.requestId] = _StoredUserCommand(
+          signature: record.signature,
+          userId: record.resourceId!,
+        );
+      } else if (record.resourceId != null &&
+          record.category == 'user_deactivate') {
+        _userDeactivateByRequestId[record.requestId] = _StoredUserCommand(
+          signature: record.signature,
+          userId: record.resourceId!,
+        );
+      } else if (record.resourceId != null &&
+          record.category == 'user_reset_password') {
+        _userResetPasswordByRequestId[record.requestId] = _StoredUserCommand(
+          signature: record.signature,
+          userId: record.resourceId!,
+        );
+      } else if (record.resourceId != null &&
+          record.secondaryResourceId != null &&
+          record.category == 'backup_create') {
+        _backupCreateByRequestId[record.requestId] = _StoredBackupCommand(
+          signature: record.signature,
+          backupId: record.resourceId!,
+          backupFileName: record.secondaryResourceId!,
+        );
+      } else if (record.secondaryResourceId != null &&
+          record.category == 'backup_restore') {
+        _backupRestoreByRequestId[record.requestId] = _StoredBackupCommand(
+          signature: record.signature,
+          backupId: record.resourceId ?? '',
+          backupFileName: record.secondaryResourceId!,
+          status: record.status,
+        );
       }
     }
   }
@@ -513,6 +711,7 @@ class DemoContractStore {
         versions: List.unmodifiable(_versions),
         structureOccurrences: List.unmodifiable(_structureOccurrences),
         operationOccurrences: List.unmodifiable(_operationOccurrences),
+        users: List.unmodifiable(_users),
         plans: List.unmodifiable(_plans),
         tasks: List.unmodifiable(_tasks),
         reportsByTask: _reportsByTask.map(
@@ -536,6 +735,7 @@ class DemoContractStore {
         problemSequence: _problemSequence,
         problemMessageSequence: _problemMessageSequence,
         auditSequence: _auditSequence,
+        userSequence: _userSequence,
       ),
     );
   }
@@ -639,6 +839,60 @@ class DemoContractStore {
         );
       });
     }
+    _userCreateByRequestId.forEach((requestId, stored) {
+      records.add(
+        IdempotencyRecord(
+          requestId: requestId,
+          category: 'user_create',
+          signature: stored.signature,
+          resourceId: stored.userId,
+        ),
+      );
+    });
+    _userDeactivateByRequestId.forEach((requestId, stored) {
+      records.add(
+        IdempotencyRecord(
+          requestId: requestId,
+          category: 'user_deactivate',
+          signature: stored.signature,
+          resourceId: stored.userId,
+        ),
+      );
+    });
+    _userResetPasswordByRequestId.forEach((requestId, stored) {
+      records.add(
+        IdempotencyRecord(
+          requestId: requestId,
+          category: 'user_reset_password',
+          signature: stored.signature,
+          resourceId: stored.userId,
+        ),
+      );
+    });
+    _backupCreateByRequestId.forEach((requestId, stored) {
+      records.add(
+        IdempotencyRecord(
+          requestId: requestId,
+          category: 'backup_create',
+          signature: stored.signature,
+          resourceId: stored.backupId,
+          secondaryResourceId: stored.backupFileName,
+          status: stored.status,
+        ),
+      );
+    });
+    _backupRestoreByRequestId.forEach((requestId, stored) {
+      records.add(
+        IdempotencyRecord(
+          requestId: requestId,
+          category: 'backup_restore',
+          signature: stored.signature,
+          resourceId: stored.backupId.isEmpty ? null : stored.backupId,
+          secondaryResourceId: stored.backupFileName,
+          status: stored.status,
+        ),
+      );
+    });
     return records;
   }
 
@@ -691,6 +945,225 @@ class DemoContractStore {
     );
   }
 
+  List<User> listUsers() => List.unmodifiable(_users);
+
+  User getUser(String userId) {
+    return _users.firstWhere(
+      (user) => user.id == userId,
+      orElse: () => throw const DemoStoreNotFound(
+        'user_not_found',
+        'User was not found.',
+      ),
+    );
+  }
+
+  User getUserByLogin(String login) {
+    return _users.firstWhere(
+      (user) => user.login == login,
+      orElse: () => throw const DemoStoreNotFound(
+        'user_not_found',
+        'User was not found.',
+      ),
+    );
+  }
+
+  AuthSession login({required String login, required String password}) {
+    final user = _users.cast<User?>().firstWhere(
+      (item) => item?.login == login.trim(),
+      orElse: () => null,
+    );
+    if (user == null || !_verifyPassword(password, user.passwordHash)) {
+      throw const DemoStoreUnauthorized(
+        'invalid_credentials',
+        'Login or password is incorrect.',
+      );
+    }
+    if (!user.isActive) {
+      throw const DemoStoreForbidden(
+        'account_disabled',
+        'User account is disabled.',
+      );
+    }
+
+    final session = AuthSession(
+      token: _generateSessionToken(user.id),
+      userId: user.id,
+      role: user.role,
+      expiresAt: DateTime.now().toUtc().add(_sessionTtl),
+    );
+    _sessionsByToken[session.token] = session;
+    return session;
+  }
+
+  void logout(String token) {
+    if (token.trim().isEmpty) {
+      return;
+    }
+    _sessionsByToken.remove(token.trim());
+  }
+
+  AuthSession requireSession(String token) {
+    final trimmed = token.trim();
+    final session = _sessionsByToken[trimmed];
+    if (session == null) {
+      throw const DemoStoreUnauthorized(
+        'unauthorized',
+        'Authorization token is missing or invalid.',
+      );
+    }
+    if (session.isExpired) {
+      _sessionsByToken.remove(trimmed);
+      throw const DemoStoreUnauthorized(
+        'unauthorized',
+        'Authorization token is missing or invalid.',
+      );
+    }
+    return session;
+  }
+
+  User createUser(CreateUserCommand command) {
+    _validateCreateUserCommand(command);
+    final requestSignature = _buildCreateUserSignature(command);
+    final existing = _userCreateByRequestId[command.requestId];
+    if (existing != null) {
+      if (existing.signature != requestSignature) {
+        throw const DemoStoreConflict(
+          'user_request_replayed_with_different_payload',
+          'User create requestId was already used with different payload.',
+        );
+      }
+      return getUser(existing.userId);
+    }
+
+    final normalizedLogin = command.login.trim();
+    if (_users.any((user) => user.login == normalizedLogin)) {
+      throw DemoStoreConflict(
+        'login_already_exists',
+        'User login already exists.',
+        details: {'login': normalizedLogin},
+      );
+    }
+
+    final user = User(
+      id: 'user-${++_userSequence}',
+      login: normalizedLogin,
+      passwordHash: _hashPassword(command.password),
+      role: command.role,
+      displayName: command.displayName.trim(),
+      isActive: true,
+      createdAt: DateTime.now().toUtc(),
+    );
+    _users.add(user);
+    _userCreateByRequestId[command.requestId] = _StoredUserCommand(
+      signature: requestSignature,
+      userId: user.id,
+    );
+    _appendAudit(
+      entityType: 'user',
+      entityId: user.id,
+      action: AuditAction.created,
+      changedBy: command.createdBy,
+      field: 'role',
+      beforeValue: '',
+      afterValue: user.role.name,
+    );
+    _persist();
+    return user;
+  }
+
+  User deactivateUser(DeactivateUserCommand command) {
+    _validateDeactivateUserCommand(command);
+    final requestSignature = _buildDeactivateUserSignature(command);
+    final existing = _userDeactivateByRequestId[command.requestId];
+    if (existing != null) {
+      if (existing.signature != requestSignature) {
+        throw const DemoStoreConflict(
+          'user_request_replayed_with_different_payload',
+          'User deactivate requestId was already used with different payload.',
+        );
+      }
+      return getUser(existing.userId);
+    }
+
+    final index = _users.indexWhere((user) => user.id == command.userId);
+    if (index == -1) {
+      throw const DemoStoreNotFound('user_not_found', 'User was not found.');
+    }
+    final user = _users[index];
+    final updated = User(
+      id: user.id,
+      login: user.login,
+      passwordHash: user.passwordHash,
+      role: user.role,
+      displayName: user.displayName,
+      isActive: false,
+      createdAt: user.createdAt,
+    );
+    _users[index] = updated;
+    _sessionsByToken.removeWhere((_, session) => session.userId == user.id);
+    _userDeactivateByRequestId[command.requestId] = _StoredUserCommand(
+      signature: requestSignature,
+      userId: user.id,
+    );
+    _appendAudit(
+      entityType: 'user',
+      entityId: user.id,
+      action: AuditAction.updated,
+      changedBy: command.changedBy,
+      field: 'isActive',
+      beforeValue: user.isActive.toString(),
+      afterValue: updated.isActive.toString(),
+    );
+    _persist();
+    return updated;
+  }
+
+  User resetPassword(ResetPasswordCommand command) {
+    _validateResetPasswordCommand(command);
+    final requestSignature = _buildResetPasswordSignature(command);
+    final existing = _userResetPasswordByRequestId[command.requestId];
+    if (existing != null) {
+      if (existing.signature != requestSignature) {
+        throw const DemoStoreConflict(
+          'user_request_replayed_with_different_payload',
+          'User reset password requestId was already used with different payload.',
+        );
+      }
+      return getUser(existing.userId);
+    }
+
+    final index = _users.indexWhere((user) => user.id == command.userId);
+    if (index == -1) {
+      throw const DemoStoreNotFound('user_not_found', 'User was not found.');
+    }
+    final user = _users[index];
+    final updated = User(
+      id: user.id,
+      login: user.login,
+      passwordHash: _hashPassword(command.newPassword),
+      role: user.role,
+      displayName: user.displayName,
+      isActive: user.isActive,
+      createdAt: user.createdAt,
+    );
+    _users[index] = updated;
+    _userResetPasswordByRequestId[command.requestId] = _StoredUserCommand(
+      signature: requestSignature,
+      userId: user.id,
+    );
+    _appendAudit(
+      entityType: 'user',
+      entityId: user.id,
+      action: AuditAction.updated,
+      changedBy: command.changedBy,
+      field: 'passwordHash',
+      beforeValue: 'updated',
+      afterValue: 'updated',
+    );
+    _persist();
+    return updated;
+  }
+
   List<StructureOccurrence> listPlanningSource(
     String machineId,
     String versionId,
@@ -735,7 +1208,7 @@ class DemoContractStore {
     final draftVersion = MachineVersion(
       id: newVersionId,
       machineId: command.machineId,
-      label: '${sourceVersion.label}-draft-${_versionSequence}',
+      label: '${sourceVersion.label}-draft-$_versionSequence',
       createdAt: DateTime.now().toUtc(),
       status: MachineVersionStatus.draft,
     );
@@ -802,6 +1275,80 @@ class DemoContractStore {
         'plan_not_found',
         'Plan was not found.',
       ),
+    );
+  }
+
+  List<Plan> listArchivePlans({
+    String? machineId,
+    DateTime? fromDate,
+    DateTime? toDate,
+    String? status,
+  }) {
+    return _plans
+        .where((plan) {
+          if (plan.status != PlanStatus.completed &&
+              plan.status != PlanStatus.cancelled) {
+            return false;
+          }
+          if (machineId != null &&
+              machineId.isNotEmpty &&
+              plan.machineId != machineId) {
+            return false;
+          }
+          if (status != null &&
+              status.isNotEmpty &&
+              plan.status.name != status) {
+            return false;
+          }
+          final closedAt = plan.closedAt ?? plan.createdAt;
+          if (fromDate != null && closedAt.isBefore(fromDate)) {
+            return false;
+          }
+          if (toDate != null && closedAt.isAfter(toDate)) {
+            return false;
+          }
+          return true;
+        })
+        .toList(growable: false)
+      ..sort((left, right) {
+        final leftClosedAt = left.closedAt ?? left.createdAt;
+        final rightClosedAt = right.closedAt ?? right.createdAt;
+        return rightClosedAt.compareTo(leftClosedAt);
+      });
+  }
+
+  PlanExecutionSummary getPlanExecutionSummary(String planId) {
+    final plan = getPlan(planId);
+    final tasks = _listTasksForPlan(planId);
+    final taskIds = tasks.map((task) => task.id).toSet();
+    final totalRequested = plan.items.fold<double>(
+      0,
+      (sum, item) => sum + item.requestedQuantity,
+    );
+    final totalReported = tasks.fold<double>(
+      0,
+      (sum, task) => sum + reportedQuantityForTask(task.id),
+    );
+    final completionPercent = totalRequested <= 0
+        ? 0.0
+        : min(100.0, (totalReported / totalRequested) * 100).toDouble();
+    return PlanExecutionSummary(
+      planId: plan.id,
+      totalRequested: totalRequested,
+      totalReported: totalReported,
+      completionPercent: completionPercent,
+      taskCount: tasks.length,
+      closedTaskCount: tasks.where((task) => task.isClosed).length,
+      problemCount: _problems
+          .where((problem) => taskIds.contains(problem.taskId))
+          .length,
+      wipConsumedCount: _wipEntries
+          .where(
+            (entry) =>
+                taskIds.contains(entry.taskId) &&
+                entry.status == WipEntryStatus.consumed,
+          )
+          .length,
     );
   }
 
@@ -903,8 +1450,10 @@ class DemoContractStore {
         ).toDouble();
         final completionPercent = item.requestedQuantity <= 0
             ? 0.0
-            : min(100.0, (reportedQuantity / item.requestedQuantity) * 100)
-                .toDouble();
+            : min(
+                100.0,
+                (reportedQuantity / item.requestedQuantity) * 100,
+              ).toDouble();
         final operationName = tasks.isEmpty
             ? ''
             : getOperationOccurrence(tasks.first.operationOccurrenceId).name;
@@ -1208,7 +1757,7 @@ class DemoContractStore {
     final occurrence = StructureOccurrence(
       id: 'occ-${++_structureSequence}',
       versionId: version.id,
-      catalogItemId: 'catalog-draft-${_structureSequence}',
+      catalogItemId: 'catalog-draft-$_structureSequence',
       pathKey: '',
       displayName: command.displayName.trim(),
       quantityPerMachine: command.quantityPerMachine,
@@ -1692,6 +2241,7 @@ class DemoContractStore {
       items: plan.items,
       status: PlanStatus.released,
       revisions: plan.revisions,
+      closedAt: null,
     );
     _plans[planIndex] = releasedPlan;
     _tasks.addAll(generatedTasks);
@@ -1772,6 +2322,7 @@ class DemoContractStore {
       items: plan.items,
       status: PlanStatus.completed,
       revisions: plan.revisions,
+      closedAt: DateTime.now().toUtc(),
     );
     _plans[planIndex] = completedPlan;
     _appendPlanAudit(
@@ -1795,7 +2346,7 @@ class DemoContractStore {
   }
 
   List<ProductionTask> listTasks({String? assigneeId, String? status}) {
-    var tasks = _tasks.where((task) {
+    final tasks = _tasks.where((task) {
       if (assigneeId != null &&
           assigneeId.isNotEmpty &&
           task.assigneeId != assigneeId) {
@@ -2166,7 +2717,175 @@ class DemoContractStore {
 
   List<WipEntry> listWipEntries() => List.unmodifiable(_wipEntries);
 
-  List<AuditEntry> listAuditEntries() => List.unmodifiable(_auditEntries);
+  List<AuditEntry> listAuditEntries({
+    String? entityType,
+    String? entityId,
+    String? action,
+    String? changedBy,
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) {
+    return _auditEntries
+        .where((entry) {
+          if (entityType != null &&
+              entityType.isNotEmpty &&
+              entry.entityType != entityType) {
+            return false;
+          }
+          if (entityId != null &&
+              entityId.isNotEmpty &&
+              entry.entityId != entityId) {
+            return false;
+          }
+          if (action != null &&
+              action.isNotEmpty &&
+              entry.action.name != action) {
+            return false;
+          }
+          if (changedBy != null &&
+              changedBy.isNotEmpty &&
+              entry.changedBy != changedBy) {
+            return false;
+          }
+          if (fromDate != null && entry.changedAt.isBefore(fromDate)) {
+            return false;
+          }
+          if (toDate != null && entry.changedAt.isAfter(toDate)) {
+            return false;
+          }
+          return true;
+        })
+        .toList(growable: false)
+      ..sort((left, right) => right.changedAt.compareTo(left.changedAt));
+  }
+
+  int get totalMachines => _machines.length;
+
+  int get totalPlans => _plans.length;
+
+  int get totalTasks => _tasks.length;
+
+  int get totalAuditEntries => _auditEntries.length;
+
+  DateTime? get lastAuditAt =>
+      _auditEntries.isEmpty ? null : _auditEntries.last.changedAt;
+
+  String get databasePath => _snapshotRepository?.databasePath ?? ':memory:';
+
+  int getDatabaseSizeBytes() =>
+      _snapshotRepository?.getDatabaseSizeBytes() ?? 0;
+
+  Map<String, int> getIdempotencyCategoryStats() {
+    final counts = <String, int>{};
+    for (final record in _buildIdempotencyRecords()) {
+      counts.update(record.category, (count) => count + 1, ifAbsent: () => 1);
+    }
+    return counts;
+  }
+
+  BackupInfo createBackup(CreateBackupCommand command) {
+    _validateCreateBackupCommand(command);
+    final requestSignature = _buildCreateBackupSignature(command);
+    final existing = _backupCreateByRequestId[command.requestId];
+    if (existing != null) {
+      if (existing.signature != requestSignature) {
+        throw const DemoStoreConflict(
+          'backup_request_replayed_with_different_payload',
+          'Backup create requestId was already used with different payload.',
+        );
+      }
+      final backup = (_snapshotRepository?.listBackups() ?? const [])
+          .cast<BackupFileRecord?>()
+          .firstWhere(
+            (item) => item?.fileName == existing.backupFileName,
+            orElse: () => null,
+          );
+      if (backup != null) {
+        return BackupInfo.fromRecord(backup);
+      }
+    }
+
+    final fileName = _buildBackupFileName();
+    final record = _snapshotRepository!.createBackup(backupFileName: fileName);
+    _backupCreateByRequestId[command.requestId] = _StoredBackupCommand(
+      signature: requestSignature,
+      backupId: record.backupId,
+      backupFileName: record.fileName,
+      status: record.status,
+    );
+    _appendAudit(
+      entityType: 'backup',
+      entityId: record.backupId,
+      action: AuditAction.created,
+      changedBy: command.createdBy,
+      field: 'fileName',
+      beforeValue: '',
+      afterValue: record.fileName,
+    );
+    _persist();
+    return BackupInfo.fromRecord(record);
+  }
+
+  List<BackupInfo> listBackups() {
+    return (_snapshotRepository?.listBackups() ?? const [])
+        .map(BackupInfo.fromRecord)
+        .toList(growable: false);
+  }
+
+  RestoreBackupOutcome restoreBackup(RestoreBackupCommand command) {
+    _validateRestoreBackupCommand(command);
+    final requestSignature = _buildRestoreBackupSignature(command);
+    final existing = _backupRestoreByRequestId[command.requestId];
+    if (existing != null) {
+      if (existing.signature != requestSignature) {
+        throw const DemoStoreConflict(
+          'backup_request_replayed_with_different_payload',
+          'Backup restore requestId was already used with different payload.',
+        );
+      }
+      return RestoreBackupOutcome(
+        status: existing.status ?? 'restored',
+        restoredAt: DateTime.now().toUtc(),
+      );
+    }
+
+    final fileName = command.backupFileName.trim();
+    final available = _snapshotRepository?.listBackups() ?? const [];
+    if (!available.any((backup) => backup.fileName == fileName)) {
+      throw DemoStoreNotFound(
+        'backup_not_found',
+        'Backup file was not found.',
+        details: {'backupFileName': fileName},
+      );
+    }
+
+    _snapshotRepository?.createBackup(
+      backupFileName: 'auto_before_restore_${_buildBackupFileName()}',
+    );
+    final result = _snapshotRepository!.restoreBackup(backupFileName: fileName);
+    final snapshot = _snapshotRepository.loadOrSeed(_buildSeedSnapshot());
+    _hydrateFromSnapshot(snapshot);
+    _backupRestoreByRequestId[command.requestId] = _StoredBackupCommand(
+      signature: requestSignature,
+      backupId: '',
+      backupFileName: fileName,
+      status: 'restored',
+    );
+    _appendAudit(
+      entityType: 'backup',
+      entityId: fileName,
+      action: AuditAction.updated,
+      changedBy: command.changedBy,
+      field: 'restore',
+      beforeValue: '',
+      afterValue: fileName,
+    );
+    _persist();
+    return RestoreBackupOutcome(
+      status: 'restored',
+      restoredAt: result.restoredAt,
+    );
+  }
 
   String? planIdForTask(String? taskId) {
     if (taskId == null || taskId.isEmpty) {
@@ -2783,6 +3502,74 @@ class DemoContractStore {
     }
   }
 
+  void _validateCreateUserCommand(CreateUserCommand command) {
+    if (command.requestId.trim().isEmpty ||
+        command.login.trim().isEmpty ||
+        command.password.trim().isEmpty ||
+        command.displayName.trim().isEmpty ||
+        command.createdBy.trim().isEmpty) {
+      throw const DemoStoreValidation(
+        'invalid_request',
+        'requestId, login, password, displayName, and createdBy are required.',
+      );
+    }
+  }
+
+  void _validateDeactivateUserCommand(DeactivateUserCommand command) {
+    if (command.requestId.trim().isEmpty ||
+        command.userId.trim().isEmpty ||
+        command.changedBy.trim().isEmpty) {
+      throw const DemoStoreValidation(
+        'invalid_request',
+        'requestId, userId, and changedBy are required.',
+      );
+    }
+  }
+
+  void _validateResetPasswordCommand(ResetPasswordCommand command) {
+    if (command.requestId.trim().isEmpty ||
+        command.userId.trim().isEmpty ||
+        command.newPassword.trim().isEmpty ||
+        command.changedBy.trim().isEmpty) {
+      throw const DemoStoreValidation(
+        'invalid_request',
+        'requestId, userId, newPassword, and changedBy are required.',
+      );
+    }
+  }
+
+  void _validateCreateBackupCommand(CreateBackupCommand command) {
+    if (command.requestId.trim().isEmpty || command.createdBy.trim().isEmpty) {
+      throw const DemoStoreValidation(
+        'invalid_request',
+        'requestId and createdBy are required.',
+      );
+    }
+    if (_snapshotRepository == null) {
+      throw const DemoStoreValidation(
+        'backup_not_supported',
+        'Backup is not supported for the current storage mode.',
+      );
+    }
+  }
+
+  void _validateRestoreBackupCommand(RestoreBackupCommand command) {
+    if (command.requestId.trim().isEmpty ||
+        command.backupFileName.trim().isEmpty ||
+        command.changedBy.trim().isEmpty) {
+      throw const DemoStoreValidation(
+        'invalid_request',
+        'requestId, backupFileName, and changedBy are required.',
+      );
+    }
+    if (_snapshotRepository == null) {
+      throw const DemoStoreValidation(
+        'backup_not_supported',
+        'Backup is not supported for the current storage mode.',
+      );
+    }
+  }
+
   String _buildCreatePlanSignature(CreatePlanCommand command) {
     final itemsSignature = command.items
         .map(
@@ -2991,6 +3778,63 @@ class DemoContractStore {
     return '${command.problemId}::${command.changedBy}::${command.toStatus.name}';
   }
 
+  String _buildCreateUserSignature(CreateUserCommand command) {
+    return '${command.login}::${command.password}::${command.role.name}::${command.displayName}';
+  }
+
+  String _buildDeactivateUserSignature(DeactivateUserCommand command) {
+    return '${command.userId}::${command.changedBy}';
+  }
+
+  String _buildResetPasswordSignature(ResetPasswordCommand command) {
+    return '${command.userId}::${command.newPassword}::${command.changedBy}';
+  }
+
+  String _buildCreateBackupSignature(CreateBackupCommand command) {
+    return command.createdBy;
+  }
+
+  String _buildRestoreBackupSignature(RestoreBackupCommand command) {
+    return '${command.backupFileName}::${command.changedBy}';
+  }
+
+  String _buildBackupFileName() {
+    final now = DateTime.now().toUtc();
+    final timestamp =
+        '${now.year.toString().padLeft(4, '0')}'
+        '${now.month.toString().padLeft(2, '0')}'
+        '${now.day.toString().padLeft(2, '0')}_'
+        '${now.hour.toString().padLeft(2, '0')}'
+        '${now.minute.toString().padLeft(2, '0')}'
+        '${now.second.toString().padLeft(2, '0')}';
+    return 'pdo_lite_next_backup_$timestamp.sqlite3';
+  }
+
+  String _hashPassword(String password) {
+    final salt =
+        'salt-${DateTime.now().toUtc().microsecondsSinceEpoch}-${Random().nextInt(1 << 32)}';
+    final digest = sha256.convert(utf8.encode('$salt::${password.trim()}'));
+    return '$salt:${digest.toString()}';
+  }
+
+  bool _verifyPassword(String password, String passwordHash) {
+    final separator = passwordHash.indexOf(':');
+    if (separator <= 0) {
+      return false;
+    }
+    final salt = passwordHash.substring(0, separator);
+    final expectedHash = passwordHash.substring(separator + 1);
+    final digest = sha256.convert(utf8.encode('$salt::${password.trim()}'));
+    return digest.toString() == expectedHash;
+  }
+
+  String _generateSessionToken(String userId) {
+    final nonce = Random().nextInt(1 << 32);
+    final input =
+        '$userId::${DateTime.now().toUtc().microsecondsSinceEpoch}::$nonce';
+    return sha256.convert(utf8.encode(input)).toString();
+  }
+
   bool _canTransitionProblem(ProblemStatus current, ProblemStatus next) {
     return switch (current) {
       ProblemStatus.open =>
@@ -3179,6 +4023,69 @@ class CreateProblemCommand {
   final ProblemType type;
   final String title;
   final String description;
+}
+
+class CreateUserCommand {
+  const CreateUserCommand({
+    required this.requestId,
+    required this.login,
+    required this.password,
+    required this.role,
+    required this.displayName,
+    required this.createdBy,
+  });
+
+  final String requestId;
+  final String login;
+  final String password;
+  final UserRole role;
+  final String displayName;
+  final String createdBy;
+}
+
+class DeactivateUserCommand {
+  const DeactivateUserCommand({
+    required this.requestId,
+    required this.userId,
+    required this.changedBy,
+  });
+
+  final String requestId;
+  final String userId;
+  final String changedBy;
+}
+
+class ResetPasswordCommand {
+  const ResetPasswordCommand({
+    required this.requestId,
+    required this.userId,
+    required this.newPassword,
+    required this.changedBy,
+  });
+
+  final String requestId;
+  final String userId;
+  final String newPassword;
+  final String changedBy;
+}
+
+class CreateBackupCommand {
+  const CreateBackupCommand({required this.requestId, required this.createdBy});
+
+  final String requestId;
+  final String createdBy;
+}
+
+class RestoreBackupCommand {
+  const RestoreBackupCommand({
+    required this.requestId,
+    required this.backupFileName,
+    required this.changedBy,
+  });
+
+  final String requestId;
+  final String backupFileName;
+  final String changedBy;
 }
 
 class AddProblemMessageCommand {
@@ -3509,8 +4416,83 @@ class ReportSummary {
   final int totalExecutionReports;
 }
 
+class PlanExecutionSummary {
+  const PlanExecutionSummary({
+    required this.planId,
+    required this.totalRequested,
+    required this.totalReported,
+    required this.completionPercent,
+    required this.taskCount,
+    required this.closedTaskCount,
+    required this.problemCount,
+    required this.wipConsumedCount,
+  });
+
+  final String planId;
+  final double totalRequested;
+  final double totalReported;
+  final double completionPercent;
+  final int taskCount;
+  final int closedTaskCount;
+  final int problemCount;
+  final int wipConsumedCount;
+}
+
+class BackupInfo {
+  const BackupInfo({
+    required this.backupId,
+    required this.fileName,
+    required this.createdAt,
+    required this.sizeBytes,
+    required this.status,
+  });
+
+  factory BackupInfo.fromRecord(BackupFileRecord record) {
+    return BackupInfo(
+      backupId: record.backupId,
+      fileName: record.fileName,
+      createdAt: record.createdAt,
+      sizeBytes: record.sizeBytes,
+      status: record.status,
+    );
+  }
+
+  final String backupId;
+  final String fileName;
+  final DateTime createdAt;
+  final int sizeBytes;
+  final String status;
+}
+
+class RestoreBackupOutcome {
+  const RestoreBackupOutcome({required this.status, required this.restoredAt});
+
+  final String status;
+  final DateTime restoredAt;
+}
+
 class DemoStoreNotFound implements Exception {
   const DemoStoreNotFound(this.code, this.message, {this.details = const {}});
+
+  final String code;
+  final String message;
+  final Map<String, Object?> details;
+}
+
+class DemoStoreUnauthorized implements Exception {
+  const DemoStoreUnauthorized(
+    this.code,
+    this.message, {
+    this.details = const {},
+  });
+
+  final String code;
+  final String message;
+  final Map<String, Object?> details;
+}
+
+class DemoStoreForbidden implements Exception {
+  const DemoStoreForbidden(this.code, this.message, {this.details = const {}});
 
   final String code;
   final String message;
@@ -3604,4 +4586,25 @@ class _StoredMachineVersionCommand {
 
   final String signature;
   final String versionId;
+}
+
+class _StoredUserCommand {
+  const _StoredUserCommand({required this.signature, required this.userId});
+
+  final String signature;
+  final String userId;
+}
+
+class _StoredBackupCommand {
+  const _StoredBackupCommand({
+    required this.signature,
+    required this.backupId,
+    required this.backupFileName,
+    this.status,
+  });
+
+  final String signature;
+  final String backupId;
+  final String backupFileName;
+  final String? status;
 }

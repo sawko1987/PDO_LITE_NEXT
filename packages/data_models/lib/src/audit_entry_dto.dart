@@ -27,6 +27,23 @@ class AuditEntryDto {
     );
   }
 
+  factory AuditEntryDto.fromJson(Map<String, Object?> json) {
+    return AuditEntryDto(
+      id: json['id'] as String? ?? '',
+      entityType: json['entityType'] as String? ?? '',
+      entityId: json['entityId'] as String? ?? '',
+      action: json['action'] as String? ?? '',
+      changedBy: json['changedBy'] as String? ?? '',
+      changedAt: DateTime.parse(
+        json['changedAt'] as String? ??
+            DateTime.fromMillisecondsSinceEpoch(0).toIso8601String(),
+      ),
+      field: json['field'] as String?,
+      beforeValue: json['beforeValue'] as String?,
+      afterValue: json['afterValue'] as String?,
+    );
+  }
+
   final String id;
   final String entityType;
   final String entityId;

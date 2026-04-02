@@ -1,5 +1,5 @@
-import 'structure_occurrence_detail_dto.dart';
 import 'operation_occurrence_detail_dto.dart';
+import 'structure_occurrence_detail_dto.dart';
 
 class MachineVersionDetailDto {
   const MachineVersionDetailDto({
@@ -19,20 +19,18 @@ class MachineVersionDetailDto {
         (json['structureOccurrences'] as List<Object?>? ?? const [])
             .whereType<Map<Object?, Object?>>()
             .map(
-              (item) =>
-                  StructureOccurrenceDetailDto.fromJson(
-                    item.cast<String, Object?>(),
-                  ),
+              (item) => StructureOccurrenceDetailDto.fromJson(
+                item.cast<String, Object?>(),
+              ),
             )
             .toList(growable: false);
     final operationOccurrences =
         (json['operationOccurrences'] as List<Object?>? ?? const [])
             .whereType<Map<Object?, Object?>>()
             .map(
-              (item) =>
-                  OperationOccurrenceDetailDto.fromJson(
-                    item.cast<String, Object?>(),
-                  ),
+              (item) => OperationOccurrenceDetailDto.fromJson(
+                item.cast<String, Object?>(),
+              ),
             )
             .toList(growable: false);
     return MachineVersionDetailDto(

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:data_models/data_models.dart';
 import 'package:domain/domain.dart';
@@ -8,13 +9,201 @@ import 'package:shelf_router/shelf_router.dart';
 import '../import/import_session.dart';
 import '../import/import_session_service.dart';
 import '../store/demo_contract_store.dart';
+import 'auth_middleware.dart';
 import 'json_response.dart';
 
 Router buildV1Router(
   DemoContractStore store,
   ImportSessionService importSessionService,
+  DateTime serviceStartedAt,
 ) {
   final router = Router()
+    ..post('/auth/login', (Request request) async {
+      try {
+        final body = await _readJsonBody(request);
+        final dto = LoginRequestDto.fromJson(body);
+        final session = store.login(login: dto.login, password: dto.password);
+        final user = store.getUser(session.userId);
+        return jsonResponse(
+          LoginResponseDto(
+            token: session.token,
+            userId: user.id,
+            role: session.role.name,
+            displayName: user.displayName,
+            expiresAt: session.expiresAt,
+          ).toJson(),
+        );
+      } on DemoStoreUnauthorized catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          401,
+        );
+      } on DemoStoreForbidden catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          403,
+        );
+      } on FormatException {
+        return _invalidJsonResponse();
+      }
+    })
+    ..post('/auth/logout', (Request request) {
+      final token = _extractBearerToken(request);
+      if (token == null) {
+        return unauthorizedResponse();
+      }
+      store.logout(token);
+      return jsonResponse({'ok': true});
+    })
+    ..get('/users', (Request request) {
+      final session = _requireAuthSession(request);
+      if (!session.role.canViewUsers) {
+        return forbiddenResponse();
+      }
+      final items = store
+          .listUsers()
+          .map(UserSummaryDto.fromDomain)
+          .toList(growable: false);
+      final dto = ApiListResponseDto(
+        items: items,
+        meta: const {'resource': 'users'},
+      );
+      return jsonResponse(dto.toJson((item) => item.toJson()));
+    })
+    ..post('/users', (Request request) async {
+      final session = _requireAuthSession(request);
+      if (!session.role.canManageUsers) {
+        return forbiddenResponse();
+      }
+      try {
+        final body = await _readJsonBody(request);
+        final dto = CreateUserRequestDto.fromJson(body);
+        final role = _parseUserRole(dto.role);
+        final user = store.createUser(
+          CreateUserCommand(
+            requestId: dto.requestId,
+            login: dto.login,
+            password: dto.password,
+            role: role,
+            displayName: dto.displayName,
+            createdBy: session.userId,
+          ),
+        );
+        return jsonResponse(
+          UserSummaryDto.fromDomain(user).toJson(),
+          statusCode: 201,
+        );
+      } on DemoStoreValidation catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          422,
+        );
+      } on DemoStoreConflict catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          409,
+        );
+      } on FormatException {
+        return _invalidJsonResponse();
+      }
+    })
+    ..post('/users/<userId>/deactivate', (
+      Request request,
+      String userId,
+    ) async {
+      final session = _requireAuthSession(request);
+      if (!session.role.canManageUsers) {
+        return forbiddenResponse();
+      }
+      try {
+        final body = await _readJsonBody(request);
+        final dto = RequestIdDto.fromJson(body);
+        final user = store.deactivateUser(
+          DeactivateUserCommand(
+            requestId: dto.requestId,
+            userId: userId,
+            changedBy: session.userId,
+          ),
+        );
+        return jsonResponse(UserSummaryDto.fromDomain(user).toJson());
+      } on DemoStoreNotFound catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          404,
+        );
+      } on DemoStoreValidation catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          422,
+        );
+      } on DemoStoreConflict catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          409,
+        );
+      } on FormatException {
+        return _invalidJsonResponse();
+      }
+    })
+    ..post('/users/<userId>/reset-password', (
+      Request request,
+      String userId,
+    ) async {
+      final session = _requireAuthSession(request);
+      if (!session.role.canManageUsers) {
+        return forbiddenResponse();
+      }
+      try {
+        final body = await _readJsonBody(request);
+        final dto = ResetPasswordRequestDto.fromJson(body);
+        final user = store.resetPassword(
+          ResetPasswordCommand(
+            requestId: dto.requestId,
+            userId: userId,
+            newPassword: dto.newPassword,
+            changedBy: session.userId,
+          ),
+        );
+        return jsonResponse(UserSummaryDto.fromDomain(user).toJson());
+      } on DemoStoreNotFound catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          404,
+        );
+      } on DemoStoreValidation catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          422,
+        );
+      } on DemoStoreConflict catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          409,
+        );
+      } on FormatException {
+        return _invalidJsonResponse();
+      }
+    })
     ..get('/machines', (Request request) {
       final items = store
           .listMachines()
@@ -77,6 +266,10 @@ Router buildV1Router(
       String machineId,
       String versionId,
     ) async {
+      final session = _requireAuthSession(request);
+      if (!session.role.canEditPlan) {
+        return forbiddenResponse();
+      }
       try {
         final body = await _readJsonBody(request);
         final dto = CreateDraftMachineVersionRequestDto.fromJson(body);
@@ -85,7 +278,7 @@ Router buildV1Router(
             requestId: dto.requestId,
             machineId: machineId,
             sourceVersionId: versionId,
-            createdBy: dto.createdBy,
+            createdBy: session.userId,
           ),
         );
         return jsonResponse(
@@ -124,6 +317,10 @@ Router buildV1Router(
       String machineId,
       String versionId,
     ) async {
+      final session = _requireAuthSession(request);
+      if (!session.role.canEditPlan) {
+        return forbiddenResponse();
+      }
       try {
         final body = await _readJsonBody(request);
         final dto = CreateStructureOccurrenceRequestDto.fromJson(body);
@@ -132,7 +329,7 @@ Router buildV1Router(
             requestId: dto.requestId,
             machineId: machineId,
             versionId: versionId,
-            createdBy: 'planner-1',
+            createdBy: session.userId,
             displayName: dto.displayName,
             quantityPerMachine: dto.quantityPerMachine,
             parentOccurrenceId: dto.parentOccurrenceId,
@@ -178,6 +375,10 @@ Router buildV1Router(
         String versionId,
         String occurrenceId,
       ) async {
+        final session = _requireAuthSession(request);
+        if (!session.role.canEditPlan) {
+          return forbiddenResponse();
+        }
         try {
           final body = await _readJsonBody(request);
           final dto = UpdateStructureOccurrenceRequestDto.fromJson(body);
@@ -187,7 +388,7 @@ Router buildV1Router(
               machineId: machineId,
               versionId: versionId,
               occurrenceId: occurrenceId,
-              changedBy: 'planner-1',
+              changedBy: session.userId,
               displayName: dto.displayName,
               quantityPerMachine: dto.quantityPerMachine,
               workshop: dto.workshop,
@@ -232,6 +433,10 @@ Router buildV1Router(
         String versionId,
         String occurrenceId,
       ) async {
+        final session = _requireAuthSession(request);
+        if (!session.role.canEditPlan) {
+          return forbiddenResponse();
+        }
         try {
           final body = await _readJsonBody(request);
           final dto = DeleteStructureOccurrenceRequestDto.fromJson(body);
@@ -241,7 +446,7 @@ Router buildV1Router(
               machineId: machineId,
               versionId: versionId,
               occurrenceId: occurrenceId,
-              deletedBy: 'planner-1',
+              deletedBy: session.userId,
             ),
           );
           return jsonResponse(
@@ -280,6 +485,10 @@ Router buildV1Router(
       String machineId,
       String versionId,
     ) async {
+      final session = _requireAuthSession(request);
+      if (!session.role.canEditPlan) {
+        return forbiddenResponse();
+      }
       try {
         final body = await _readJsonBody(request);
         final dto = CreateOperationOccurrenceRequestDto.fromJson(body);
@@ -289,7 +498,7 @@ Router buildV1Router(
             machineId: machineId,
             versionId: versionId,
             structureOccurrenceId: dto.structureOccurrenceId,
-            createdBy: 'planner-1',
+            createdBy: session.userId,
             name: dto.name,
             quantityPerMachine: dto.quantityPerMachine,
             workshop: dto.workshop,
@@ -334,6 +543,10 @@ Router buildV1Router(
         String versionId,
         String operationId,
       ) async {
+        final session = _requireAuthSession(request);
+        if (!session.role.canEditPlan) {
+          return forbiddenResponse();
+        }
         try {
           final body = await _readJsonBody(request);
           final dto = UpdateOperationOccurrenceRequestDto.fromJson(body);
@@ -343,7 +556,7 @@ Router buildV1Router(
               machineId: machineId,
               versionId: versionId,
               operationId: operationId,
-              changedBy: 'planner-1',
+              changedBy: session.userId,
               name: dto.name,
               quantityPerMachine: dto.quantityPerMachine,
               workshop: dto.workshop,
@@ -388,6 +601,10 @@ Router buildV1Router(
         String versionId,
         String operationId,
       ) async {
+        final session = _requireAuthSession(request);
+        if (!session.role.canEditPlan) {
+          return forbiddenResponse();
+        }
         try {
           final body = await _readJsonBody(request);
           final dto = DeleteOperationOccurrenceRequestDto.fromJson(body);
@@ -397,7 +614,7 @@ Router buildV1Router(
               machineId: machineId,
               versionId: versionId,
               operationId: operationId,
-              deletedBy: 'planner-1',
+              deletedBy: session.userId,
             ),
           );
           return jsonResponse(
@@ -436,6 +653,10 @@ Router buildV1Router(
       String machineId,
       String versionId,
     ) async {
+      final session = _requireAuthSession(request);
+      if (!session.role.canEditPlan) {
+        return forbiddenResponse();
+      }
       try {
         final body = await _readJsonBody(request);
         final dto = PublishMachineVersionRequestDto.fromJson(body);
@@ -444,7 +665,7 @@ Router buildV1Router(
             requestId: dto.requestId,
             machineId: machineId,
             versionId: versionId,
-            publishedBy: dto.publishedBy,
+            publishedBy: session.userId,
           ),
         );
         return jsonResponse(
@@ -514,6 +735,10 @@ Router buildV1Router(
       }
     })
     ..post('/import-sessions/preview', (Request request) async {
+      final session = _requireAuthSession(request);
+      if (!session.role.canEditPlan) {
+        return forbiddenResponse();
+      }
       try {
         final body = await _readJsonBody(request);
         final dto = importSessionService.createPreviewSession(
@@ -538,6 +763,10 @@ Router buildV1Router(
       Request request,
       String sessionId,
     ) async {
+      final session = _requireAuthSession(request);
+      if (!session.role.canEditPlan) {
+        return forbiddenResponse();
+      }
       try {
         final body = await _readJsonBody(request);
         final dto = importSessionService.confirmImport(
@@ -563,6 +792,10 @@ Router buildV1Router(
       return jsonResponse(dto.toJson((item) => item.toJson()));
     })
     ..post('/plans', (Request request) async {
+      final session = _requireAuthSession(request);
+      if (!session.role.canEditPlan) {
+        return forbiddenResponse();
+      }
       try {
         final body = await _readJsonBody(request);
         final dto = CreatePlanRequestDto.fromJson(body);
@@ -640,6 +873,10 @@ Router buildV1Router(
       }
     })
     ..post('/plans/<planId>/release', (Request request, String planId) async {
+      final session = _requireAuthSession(request);
+      if (!session.role.canEditPlan) {
+        return forbiddenResponse();
+      }
       try {
         final body = await _readJsonBody(request);
         final dto = ReleasePlanRequestDto.fromJson(body);
@@ -647,7 +884,7 @@ Router buildV1Router(
           ReleasePlanCommand(
             requestId: dto.requestId,
             planId: planId,
-            releasedBy: dto.releasedBy,
+            releasedBy: session.userId,
           ),
         );
         return jsonResponse(
@@ -683,6 +920,12 @@ Router buildV1Router(
       }
     })
     ..post('/plans/<planId>/complete', (Request request, String planId) async {
+      final session = _requireAuthSession(request);
+      if (!session.role.canClosePlan) {
+        return forbiddenResponse(
+          message: 'Supervisor role is required to complete a plan.',
+        );
+      }
       try {
         final body = await _readJsonBody(request);
         final dto = CompletePlanRequestDto.fromJson(body);
@@ -690,7 +933,7 @@ Router buildV1Router(
           CompletePlanCommand(
             requestId: dto.requestId,
             planId: planId,
-            completedBy: dto.completedBy,
+            completedBy: session.userId,
           ),
         );
         return jsonResponse(
@@ -745,18 +988,18 @@ Router buildV1Router(
             )
             .map(_toPlanFactReportItemDto)
             .toList(growable: false);
+        final fromDateQuery = request.url.queryParameters['fromDate'];
+        final toDateQuery = request.url.queryParameters['toDate'];
         final dto = ApiListResponseDto(
           items: items,
           meta: {
             'source': 'local_contract_seed',
             'resource': 'plan_fact_reports',
-            if (machineId != null) 'machineId': machineId,
-            if (versionId != null) 'versionId': versionId,
-            if (planId != null) 'planId': planId,
-            if (request.url.queryParameters['fromDate'] != null)
-              'fromDate': request.url.queryParameters['fromDate'],
-            if (request.url.queryParameters['toDate'] != null)
-              'toDate': request.url.queryParameters['toDate'],
+            ...?machineId == null ? null : {'machineId': machineId},
+            ...?versionId == null ? null : {'versionId': versionId},
+            ...?planId == null ? null : {'planId': planId},
+            ...?fromDateQuery == null ? null : {'fromDate': fromDateQuery},
+            ...?toDateQuery == null ? null : {'toDate': toDateQuery},
           },
         );
         return jsonResponse(dto.toJson((item) => item.toJson()));
@@ -787,8 +1030,8 @@ Router buildV1Router(
             'source': 'local_contract_seed',
             'resource': 'shift_reports',
             'date': dateRaw,
-            if (machineId != null) 'machineId': machineId,
-            if (assigneeId != null) 'assigneeId': assigneeId,
+            ...?machineId == null ? null : {'machineId': machineId},
+            ...?assigneeId == null ? null : {'assigneeId': assigneeId},
           },
         );
         return jsonResponse(dto.toJson((item) => item.toJson()));
@@ -817,18 +1060,18 @@ Router buildV1Router(
             )
             .map(_toProblemReportItemDto)
             .toList(growable: false);
+        final fromDateQuery = request.url.queryParameters['fromDate'];
+        final toDateQuery = request.url.queryParameters['toDate'];
         final dto = ApiListResponseDto(
           items: items,
           meta: {
             'source': 'local_contract_seed',
             'resource': 'problem_reports',
-            if (machineId != null) 'machineId': machineId,
-            if (status != null) 'status': status,
-            if (type != null) 'type': type,
-            if (request.url.queryParameters['fromDate'] != null)
-              'fromDate': request.url.queryParameters['fromDate'],
-            if (request.url.queryParameters['toDate'] != null)
-              'toDate': request.url.queryParameters['toDate'],
+            ...?machineId == null ? null : {'machineId': machineId},
+            ...?status == null ? null : {'status': status},
+            ...?type == null ? null : {'type': type},
+            ...?fromDateQuery == null ? null : {'fromDate': fromDateQuery},
+            ...?toDateQuery == null ? null : {'toDate': toDateQuery},
           },
         );
         return jsonResponse(dto.toJson((item) => item.toJson()));
@@ -872,8 +1115,8 @@ Router buildV1Router(
         meta: {
           'source': 'local_contract_seed',
           'resource': 'tasks',
-          if (assigneeId != null) 'assigneeId': assigneeId,
-          if (status != null) 'status': status,
+          ...?assigneeId == null ? null : {'assigneeId': assigneeId},
+          ...?status == null ? null : {'status': status},
         },
       );
       return jsonResponse(dto.toJson((item) => item.toJson()));
@@ -984,8 +1227,8 @@ Router buildV1Router(
         meta: {
           'source': 'local_contract_seed',
           'resource': 'problems',
-          if (taskId != null) 'taskId': taskId,
-          if (status != null) 'status': status,
+          ...?taskId == null ? null : {'taskId': taskId},
+          ...?status == null ? null : {'status': status},
         },
       );
       return jsonResponse(dto.toJson((item) => item.toJson()));
@@ -1145,18 +1388,266 @@ Router buildV1Router(
       return jsonResponse(dto.toJson((item) => item.toJson()));
     })
     ..get('/audit', (Request request) {
+      final session = _requireAuthSession(request);
+      if (!session.role.canViewAudit) {
+        return forbiddenResponse();
+      }
+      final entityType = request.url.queryParameters['entityType'];
+      final entityId = request.url.queryParameters['entityId'];
+      final action = request.url.queryParameters['action'];
+      final changedBy = request.url.queryParameters['changedBy'];
+      final fromDate = _parseOptionalIsoDateTime(
+        request.url.queryParameters['fromDate'],
+      );
+      final toDate = _parseOptionalIsoDateTime(
+        request.url.queryParameters['toDate'],
+      );
+      final limit =
+          int.tryParse(request.url.queryParameters['limit'] ?? '100') ?? 100;
+      final offset =
+          int.tryParse(request.url.queryParameters['offset'] ?? '0') ?? 0;
       final items = store
-          .listAuditEntries()
+          .listAuditEntries(
+            entityType: entityType,
+            entityId: entityId,
+            action: action,
+            changedBy: changedBy,
+            fromDate: fromDate,
+            toDate: toDate,
+          )
+          .skip(offset)
+          .take(limit)
           .map(AuditEntryDto.fromDomain)
           .toList(growable: false);
+      final total = store
+          .listAuditEntries(
+            entityType: entityType,
+            entityId: entityId,
+            action: action,
+            changedBy: changedBy,
+            fromDate: fromDate,
+            toDate: toDate,
+          )
+          .length;
       final dto = ApiListResponseDto(
         items: items,
-        meta: const {
+        total: total,
+        meta: {
           'source': 'local_contract_seed',
           'resource': 'audit_entries',
+          'limit': limit,
+          'offset': offset,
         },
       );
       return jsonResponse(dto.toJson((item) => item.toJson()));
+    })
+    ..get('/archive/plans', (Request request) {
+      final session = _requireAuthSession(request);
+      if (!session.role.canViewAudit) {
+        return forbiddenResponse();
+      }
+      try {
+        final machineId = request.url.queryParameters['machineId'];
+        final fromDate = request.url.queryParameters['fromDate'];
+        final toDate = request.url.queryParameters['toDate'];
+        final status = request.url.queryParameters['status'];
+        final items = store
+            .listArchivePlans(
+              machineId: machineId,
+              fromDate: fromDate == null ? null : _parseQueryDate(fromDate),
+              toDate: toDate == null ? null : _parseQueryDate(toDate),
+              status: status,
+            )
+            .map((plan) => _toPlanArchiveItemDto(plan, store))
+            .toList(growable: false);
+        final dto = ApiListResponseDto(
+          items: items,
+          meta: const {'resource': 'archive_plans'},
+        );
+        return jsonResponse(dto.toJson((item) => item.toJson()));
+      } on FormatException {
+        return _invalidJsonResponse();
+      }
+    })
+    ..get('/archive/plans/<planId>', (Request request, String planId) {
+      final session = _requireAuthSession(request);
+      if (!session.role.canViewAudit) {
+        return forbiddenResponse();
+      }
+      try {
+        return jsonResponse(
+          _toPlanDetailDto(store.getPlan(planId), store).toJson(),
+        );
+      } on DemoStoreNotFound catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          404,
+        );
+      }
+    })
+    ..get('/archive/plans/<planId>/execution-summary', (
+      Request request,
+      String planId,
+    ) {
+      final session = _requireAuthSession(request);
+      if (!session.role.canViewAudit) {
+        return forbiddenResponse();
+      }
+      try {
+        return jsonResponse(
+          _toPlanExecutionSummaryDto(
+            store.getPlanExecutionSummary(planId),
+          ).toJson(),
+        );
+      } on DemoStoreNotFound catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          404,
+        );
+      }
+    })
+    ..get('/diagnostics/health-extended', (Request request) {
+      final session = _requireAuthSession(request);
+      if (!session.role.canViewAudit) {
+        return forbiddenResponse();
+      }
+      final dto = HealthExtendedDto(
+        status: 'ok',
+        service: 'pdo_lite_next_backend',
+        timestamp: DateTime.now().toUtc(),
+        databasePath: store.databasePath,
+        databaseSizeBytes: store.getDatabaseSizeBytes(),
+        totalMachines: store.totalMachines,
+        totalPlans: store.totalPlans,
+        totalTasks: store.totalTasks,
+        totalAuditEntries: store.totalAuditEntries,
+        lastAuditAt: store.lastAuditAt,
+        uptime: DateTime.now().toUtc().difference(serviceStartedAt).toString(),
+      );
+      return jsonResponse(dto.toJson());
+    })
+    ..get('/diagnostics/idempotency-stats', (Request request) {
+      final session = _requireAuthSession(request);
+      if (!session.role.canViewAudit) {
+        return forbiddenResponse();
+      }
+      final stats = store.getIdempotencyCategoryStats();
+      final dto = IdempotencyStatsDto(
+        totalRecords: stats.values.fold(0, (sum, count) => sum + count),
+        byCategory: stats.entries
+            .map(
+              (entry) => IdempotencyCategoryStatDto(
+                category: entry.key,
+                count: entry.value,
+              ),
+            )
+            .toList(growable: false),
+      );
+      return jsonResponse(dto.toJson());
+    })
+    ..post('/backup/create', (Request request) async {
+      final session = _requireAuthSession(request);
+      if (!session.role.canViewAudit) {
+        return forbiddenResponse();
+      }
+      try {
+        final body = await _readJsonBody(request);
+        final dto = CreateBackupRequestDto.fromJson(body);
+        final backup = store.createBackup(
+          CreateBackupCommand(
+            requestId: dto.requestId,
+            createdBy: session.userId,
+          ),
+        );
+        return jsonResponse(_toBackupInfoDto(backup).toJson(), statusCode: 201);
+      } on DemoStoreValidation catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          422,
+        );
+      } on DemoStoreConflict catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          409,
+        );
+      } on FormatException {
+        return _invalidJsonResponse();
+      } on FileSystemException catch (error) {
+        return _storeErrorResponse('backup_failed', error.message, {
+          'path': error.path,
+        }, 422);
+      }
+    })
+    ..get('/backup/list', (Request request) {
+      final session = _requireAuthSession(request);
+      if (!session.role.canViewAudit) {
+        return forbiddenResponse();
+      }
+      final items = store
+          .listBackups()
+          .map(_toBackupInfoDto)
+          .toList(growable: false);
+      final dto = ApiListResponseDto(
+        items: items,
+        meta: const {'resource': 'backups'},
+      );
+      return jsonResponse(dto.toJson((item) => item.toJson()));
+    })
+    ..post('/backup/restore', (Request request) async {
+      final session = _requireAuthSession(request);
+      if (!session.role.canViewAudit) {
+        return forbiddenResponse();
+      }
+      try {
+        final body = await _readJsonBody(request);
+        final dto = RestoreBackupRequestDto.fromJson(body);
+        final result = store.restoreBackup(
+          RestoreBackupCommand(
+            requestId: dto.requestId,
+            backupFileName: dto.backupFileName,
+            changedBy: session.userId,
+          ),
+        );
+        return jsonResponse({
+          'status': result.status,
+          'restoredAt': result.restoredAt.toIso8601String(),
+        });
+      } on DemoStoreNotFound catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          404,
+        );
+      } on DemoStoreValidation catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          422,
+        );
+      } on DemoStoreConflict catch (error) {
+        return _storeErrorResponse(
+          error.code,
+          error.message,
+          error.details,
+          409,
+        );
+      } on FormatException {
+        return _invalidJsonResponse();
+      } on FileSystemException catch (error) {
+        return _storeErrorResponse('restore_failed', error.message, {
+          'path': error.path,
+        }, 422);
+      }
     });
 
   return router;
@@ -1224,6 +1715,77 @@ Response _storeErrorResponse(
   return jsonResponse(
     ApiErrorDto(code: code, message: message, details: details).toJson(),
     statusCode: statusCode,
+  );
+}
+
+AuthSession _requireAuthSession(Request request) {
+  final session = authSessionFromRequest(request);
+  if (session == null) {
+    throw StateError('Authenticated request is missing auth session context.');
+  }
+  return session;
+}
+
+String? _extractBearerToken(Request request) {
+  final authorization = request.headers['authorization'];
+  if (authorization == null || !authorization.startsWith('Bearer ')) {
+    return null;
+  }
+  return authorization.substring('Bearer '.length).trim();
+}
+
+UserRole _parseUserRole(String value) {
+  return switch (value) {
+    'planner' => UserRole.planner,
+    'supervisor' => UserRole.supervisor,
+    'master' => UserRole.master,
+    _ => throw const DemoStoreValidation(
+      'invalid_role',
+      'User role is not supported.',
+    ),
+  };
+}
+
+PlanArchiveItemDto _toPlanArchiveItemDto(Plan plan, DemoContractStore store) {
+  final machine = store.getMachine(plan.machineId);
+  final summary = store.getPlanExecutionSummary(plan.id);
+  return PlanArchiveItemDto(
+    id: plan.id,
+    machineId: plan.machineId,
+    machineCode: machine.code,
+    versionId: plan.versionId,
+    title: plan.title,
+    status: plan.status.name,
+    createdAt: plan.createdAt,
+    completedAt: plan.closedAt ?? plan.createdAt,
+    itemCount: plan.items.length,
+    totalReported: summary.totalReported,
+    completionPercent: summary.completionPercent,
+  );
+}
+
+PlanExecutionSummaryDto _toPlanExecutionSummaryDto(
+  PlanExecutionSummary summary,
+) {
+  return PlanExecutionSummaryDto(
+    planId: summary.planId,
+    totalRequested: summary.totalRequested,
+    totalReported: summary.totalReported,
+    completionPercent: summary.completionPercent,
+    taskCount: summary.taskCount,
+    closedTaskCount: summary.closedTaskCount,
+    problemCount: summary.problemCount,
+    wipConsumedCount: summary.wipConsumedCount,
+  );
+}
+
+BackupInfoDto _toBackupInfoDto(BackupInfo backup) {
+  return BackupInfoDto(
+    backupId: backup.backupId,
+    fileName: backup.fileName,
+    createdAt: backup.createdAt,
+    sizeBytes: backup.sizeBytes,
+    status: backup.status,
   );
 }
 
@@ -1325,7 +1887,24 @@ PlanDetailDto _toPlanDetailDto(Plan plan, DemoContractStore store) {
         );
       })
       .toList(growable: false);
-  return PlanDetailDto.fromDomain(plan, items: items);
+  return PlanDetailDto(
+    id: plan.id,
+    machineId: plan.machineId,
+    versionId: plan.versionId,
+    title: plan.title,
+    createdAt: plan.createdAt,
+    status: plan.status.name,
+    canRelease: plan.canRelease,
+    itemCount: plan.items.length,
+    revisionCount: plan.revisions.length,
+    items: items,
+    revisions: plan.revisions
+        .map(PlanRevisionDto.fromDomain)
+        .toList(growable: false),
+    executionSummary: _toPlanExecutionSummaryDto(
+      store.getPlanExecutionSummary(plan.id),
+    ),
+  );
 }
 
 TaskDetailDto _toTaskDetailDto(ProductionTask task, DemoContractStore store) {

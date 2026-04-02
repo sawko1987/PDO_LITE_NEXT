@@ -4,9 +4,13 @@ import 'package:flutter/foundation.dart';
 import '../import/admin_backend_client.dart';
 
 class ProblemsBoardController extends ChangeNotifier {
-  ProblemsBoardController({required this.client});
+  ProblemsBoardController({
+    required this.client,
+    this.actorId = 'supervisor-1',
+  });
 
   final AdminBackendClient client;
+  final String actorId;
 
   final List<ProblemSummaryDto> _problems = [];
   final List<TaskSummaryDto> _tasks = [];
@@ -175,7 +179,7 @@ class ProblemsBoardController extends ChangeNotifier {
         taskId,
         CreateProblemRequestDto(
           requestId: _nextRequestId('desktop-problem'),
-          createdBy: 'supervisor-1',
+          createdBy: actorId,
           type: type,
           title: title.trim(),
           description: description.trim(),
@@ -215,7 +219,7 @@ class ProblemsBoardController extends ChangeNotifier {
         problem.id,
         AddProblemMessageRequestDto(
           requestId: _nextRequestId('desktop-problem-message'),
-          authorId: 'supervisor-1',
+          authorId: actorId,
           message: message.trim(),
         ),
       );
@@ -248,7 +252,7 @@ class ProblemsBoardController extends ChangeNotifier {
         problem.id,
         TransitionProblemRequestDto(
           requestId: _nextRequestId('desktop-problem-transition'),
-          changedBy: 'supervisor-1',
+          changedBy: actorId,
           toStatus: toStatus,
         ),
       );

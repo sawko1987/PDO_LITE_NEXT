@@ -292,4 +292,31 @@ void main() {
     expect(message.authorId, 'master-1');
     expect(message.message, contains('fixture'));
   });
+
+  test('user role helpers reflect access boundaries', () {
+    expect(UserRole.planner.canManageUsers, isTrue);
+    expect(UserRole.supervisor.canManageUsers, isFalse);
+    expect(UserRole.master.canEditPlan, isFalse);
+    expect(UserRole.supervisor.canClosePlan, isTrue);
+    expect(UserRole.planner.canClosePlan, isFalse);
+    expect(UserRole.supervisor.canViewAudit, isTrue);
+  });
+
+  test('auth session expires based on utc timestamp', () {
+    final activeSession = AuthSession(
+      token: 'token-1',
+      userId: 'user-1',
+      role: UserRole.planner,
+      expiresAt: DateTime.now().toUtc().add(const Duration(hours: 1)),
+    );
+    final expiredSession = AuthSession(
+      token: 'token-2',
+      userId: 'user-2',
+      role: UserRole.master,
+      expiresAt: DateTime.now().toUtc().subtract(const Duration(minutes: 1)),
+    );
+
+    expect(activeSession.isExpired, isFalse);
+    expect(expiredSession.isExpired, isTrue);
+  });
 }

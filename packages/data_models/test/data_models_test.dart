@@ -25,11 +25,13 @@ void main() {
         ),
       ],
       meta: {'resource': 'machines'},
+      total: 3,
     );
 
     final json = dto.toJson((item) => item.toJson());
 
     expect(json['count'], 1);
+    expect(json['total'], 3);
     expect((json['items'] as List).single['code'], 'PDO-100');
     expect((json['meta'] as Map)['resource'], 'machines');
   });
@@ -520,5 +522,153 @@ void main() {
     expect(dto.structureDisplayName, 'Frame');
     expect(dto.operationName, 'Cut');
     expect(json['workshop'], 'WS-1');
+  });
+
+  test('login dto contracts parse and serialize stable payload', () {
+    const request = LoginRequestDto(login: 'planner-1', password: 'planner123');
+    final response = LoginResponseDto.fromJson({
+      'token': 'token-1',
+      'userId': 'user-1',
+      'role': 'planner',
+      'displayName': 'Planner',
+      'expiresAt': '2026-04-02T10:00:00.000Z',
+    });
+
+    expect(request.toJson()['login'], 'planner-1');
+    expect(response.token, 'token-1');
+    expect(response.role, 'planner');
+  });
+
+  test('user summary dto exposes active state and role', () {
+    final dto = UserSummaryDto.fromJson({
+      'id': 'user-1',
+      'login': 'planner-1',
+      'role': 'planner',
+      'displayName': 'Planner One',
+      'isActive': true,
+      'createdAt': '2026-04-02T08:00:00.000Z',
+    });
+
+    expect(dto.login, 'planner-1');
+    expect(dto.isActive, isTrue);
+    expect(dto.role, 'planner');
+  });
+
+  test('plan detail dto parses revisions and execution summary', () {
+    final dto = PlanDetailDto.fromJson({
+      'id': 'plan-archive-1',
+      'machineId': 'machine-1',
+      'versionId': 'ver-1',
+      'title': 'Archive plan',
+      'createdAt': '2026-04-01T08:00:00.000Z',
+      'status': 'completed',
+      'canRelease': false,
+      'itemCount': 1,
+      'revisionCount': 1,
+      'items': [
+        {
+          'id': 'item-1',
+          'structureOccurrenceId': 'occ-1',
+          'catalogItemId': 'catalog-1',
+          'displayName': 'Frame',
+          'pathKey': 'machine/frame',
+          'requestedQuantity': 2,
+          'hasRecordedExecution': true,
+          'canEdit': false,
+        },
+      ],
+      'revisions': [
+        {
+          'id': 'rev-1',
+          'planId': 'plan-archive-1',
+          'revisionNumber': 1,
+          'changedBy': 'planner-1',
+          'changedAt': '2026-04-01T09:00:00.000Z',
+          'changes': [
+            {
+              'targetId': 'item-1',
+              'field': 'requestedQuantity',
+              'beforeValue': '1',
+              'afterValue': '2',
+            },
+          ],
+        },
+      ],
+      'executionSummary': {
+        'planId': 'plan-archive-1',
+        'totalRequested': 2,
+        'totalReported': 2,
+        'completionPercent': 100,
+        'taskCount': 1,
+        'closedTaskCount': 1,
+        'problemCount': 0,
+        'wipConsumedCount': 1,
+      },
+    });
+
+    expect(dto.revisions.single.changes.single.field, 'requestedQuantity');
+    expect(dto.executionSummary?.completionPercent, 100);
+  });
+
+  test('archive and diagnostics dto contracts parse stable payloads', () {
+    final archive = PlanArchiveItemDto.fromJson({
+      'id': 'plan-1',
+      'machineId': 'machine-1',
+      'machineCode': 'PDO-100',
+      'versionId': 'ver-1',
+      'title': 'Completed plan',
+      'status': 'completed',
+      'createdAt': '2026-04-01T08:00:00.000Z',
+      'completedAt': '2026-04-01T12:00:00.000Z',
+      'itemCount': 2,
+      'totalReported': 12,
+      'completionPercent': 100,
+    });
+    final health = HealthExtendedDto.fromJson({
+      'status': 'ok',
+      'service': 'pdo_lite_next_backend',
+      'timestamp': '2026-04-02T10:00:00.000Z',
+      'databasePath': 'D:/db.sqlite3',
+      'databaseSizeBytes': 4096,
+      'totalMachines': 1,
+      'totalPlans': 3,
+      'totalTasks': 4,
+      'totalAuditEntries': 10,
+      'lastAuditAt': '2026-04-02T09:59:00.000Z',
+      'uptime': '01:15:00',
+    });
+    final stats = IdempotencyStatsDto.fromJson({
+      'totalRecords': 4,
+      'byCategory': [
+        {'category': 'plan_create', 'count': 2},
+        {'category': 'backup_create', 'count': 2},
+      ],
+    });
+
+    expect(archive.machineCode, 'PDO-100');
+    expect(health.databaseSizeBytes, 4096);
+    expect(stats.byCategory.last.category, 'backup_create');
+  });
+
+  test('backup dto contracts serialize and parse stable payload', () {
+    const createRequest = CreateBackupRequestDto(
+      requestId: 'backup-create-1',
+      createdBy: 'planner-1',
+    );
+    const restoreRequest = RestoreBackupRequestDto(
+      requestId: 'backup-restore-1',
+      backupFileName: 'backup.sqlite3',
+    );
+    final info = BackupInfoDto.fromJson({
+      'backupId': 'backup-1',
+      'fileName': 'backup.sqlite3',
+      'createdAt': '2026-04-02T10:00:00.000Z',
+      'sizeBytes': 2048,
+      'status': 'ready',
+    });
+
+    expect(createRequest.toJson()['createdBy'], 'planner-1');
+    expect(restoreRequest.toJson()['backupFileName'], 'backup.sqlite3');
+    expect(info.sizeBytes, 2048);
   });
 }

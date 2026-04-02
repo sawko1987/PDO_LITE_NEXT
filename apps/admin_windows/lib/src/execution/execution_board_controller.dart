@@ -6,9 +6,13 @@ import '../import/admin_backend_client.dart';
 enum ExecutionTaskFilter { all, active, completed }
 
 class ExecutionBoardController extends ChangeNotifier {
-  ExecutionBoardController({required this.client});
+  ExecutionBoardController({
+    required this.client,
+    this.defaultReportAuthor = 'supervisor-1',
+  }) : _reportAuthor = defaultReportAuthor;
 
   final AdminBackendClient client;
+  final String defaultReportAuthor;
 
   final List<TaskSummaryDto> _tasks = [];
   final List<WipEntryDto> _wipEntries = [];
@@ -20,7 +24,7 @@ class ExecutionBoardController extends ChangeNotifier {
   TaskDetailDto? _selectedTask;
   ProblemDetailDto? _selectedProblem;
   ExecutionTaskFilter _filter = ExecutionTaskFilter.all;
-  String _reportAuthor = 'supervisor-1';
+  String _reportAuthor;
   String _reportOutcome = 'completed';
   String _reportQuantity = '';
   String _reportReason = '';
@@ -395,7 +399,7 @@ class ExecutionBoardController extends ChangeNotifier {
     bool notify = true,
   }) {
     if (clearAuthor) {
-      _reportAuthor = '';
+      _reportAuthor = defaultReportAuthor;
     }
     _reportOutcome = 'completed';
     _reportQuantity = '';

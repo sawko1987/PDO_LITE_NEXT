@@ -12,7 +12,9 @@ class StructureOccurrenceDetailDto {
     this.workshop,
   });
 
-  factory StructureOccurrenceDetailDto.fromDomain(StructureOccurrence occurrence) {
+  factory StructureOccurrenceDetailDto.fromDomain(
+    StructureOccurrence occurrence,
+  ) {
     return StructureOccurrenceDetailDto(
       id: occurrence.id,
       versionId: occurrence.versionId,

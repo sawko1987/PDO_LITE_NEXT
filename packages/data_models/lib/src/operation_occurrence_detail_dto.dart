@@ -10,7 +10,9 @@ class OperationOccurrenceDetailDto {
     this.workshop,
   });
 
-  factory OperationOccurrenceDetailDto.fromDomain(OperationOccurrence occurrence) {
+  factory OperationOccurrenceDetailDto.fromDomain(
+    OperationOccurrence occurrence,
+  ) {
     return OperationOccurrenceDetailDto(
       id: occurrence.id,
       versionId: occurrence.versionId,

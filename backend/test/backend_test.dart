@@ -2,13 +2,15 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:backend/backend.dart';
+import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 import 'package:test/test.dart';
 
 void main() {
   test('health endpoint returns ok', () async {
     final handler = buildHandler();
-    final response = await handler(
+    final response = await _invoke(
+      handler,
       Request('GET', Uri.parse('http://localhost/health')),
     );
     final body =
@@ -20,7 +22,8 @@ void main() {
 
   test('machines endpoint returns contract list response', () async {
     final handler = buildHandler();
-    final response = await handler(
+    final response = await _invoke(
+      handler,
       Request('GET', Uri.parse('http://localhost/v1/machines')),
     );
     final body =
@@ -34,7 +37,8 @@ void main() {
 
   test('machine versions endpoint returns immutable flag', () async {
     final handler = buildHandler();
-    final response = await handler(
+    final response = await _invoke(
+      handler,
       Request(
         'GET',
         Uri.parse('http://localhost/v1/machines/machine-1/versions'),
@@ -52,7 +56,8 @@ void main() {
     'planning source endpoint returns occurrences for selected version',
     () async {
       final handler = buildHandler();
-      final response = await handler(
+      final response = await _invoke(
+        handler,
         Request(
           'GET',
           Uri.parse(
@@ -74,7 +79,8 @@ void main() {
     'machine version detail endpoint returns nested editable payload',
     () async {
       final handler = buildHandler();
-      final response = await handler(
+      final response = await _invoke(
+        handler,
         Request(
           'GET',
           Uri.parse(
@@ -99,7 +105,8 @@ void main() {
   test('draft structure endpoints create update delete and publish version', () async {
     final handler = buildHandler();
 
-    final draftResponse = await handler(
+    final draftResponse = await _invoke(
+      handler,
       _jsonRequest(
         'POST',
         'http://localhost/v1/machines/machine-1/versions/ver-2026-03/draft',
@@ -117,7 +124,8 @@ void main() {
     expect(draftBody['status'], 'draft');
     expect(draftBody['isImmutable'], isFalse);
 
-    final createStructureResponse = await handler(
+    final createStructureResponse = await _invoke(
+      handler,
       _jsonRequest(
         'POST',
         'http://localhost/v1/machines/machine-1/versions/$draftVersionId/structure-occurrences',
@@ -142,7 +150,8 @@ void main() {
     expect(createStructureResponse.statusCode, 201);
     expect(createdOccurrence['workshop'], 'WS-4');
 
-    final updateStructureResponse = await handler(
+    final updateStructureResponse = await _invoke(
+      handler,
       _jsonRequest(
         'POST',
         'http://localhost/v1/machines/machine-1/versions/$draftVersionId/structure-occurrences/$createdOccurrenceId/update',
@@ -166,7 +175,8 @@ void main() {
     expect(updatedOccurrence['displayName'], 'Clamp Updated');
     expect(updatedOccurrence['quantityPerMachine'], 3);
 
-    final createOperationResponse = await handler(
+    final createOperationResponse = await _invoke(
+      handler,
       _jsonRequest(
         'POST',
         'http://localhost/v1/machines/machine-1/versions/$draftVersionId/operation-occurrences',
@@ -191,7 +201,8 @@ void main() {
     expect(createOperationResponse.statusCode, 201);
     expect(createdOperation['structureOccurrenceId'], createdOccurrenceId);
 
-    final deleteOperationResponse = await handler(
+    final deleteOperationResponse = await _invoke(
+      handler,
       _jsonRequest(
         'POST',
         'http://localhost/v1/machines/machine-1/versions/$draftVersionId/operation-occurrences/$createdOperationId/delete',
@@ -209,7 +220,8 @@ void main() {
       isEmpty,
     );
 
-    final deleteStructureResponse = await handler(
+    final deleteStructureResponse = await _invoke(
+      handler,
       _jsonRequest(
         'POST',
         'http://localhost/v1/machines/machine-1/versions/$draftVersionId/structure-occurrences/$createdOccurrenceId/delete',
@@ -227,7 +239,8 @@ void main() {
       isEmpty,
     );
 
-    final publishResponse = await handler(
+    final publishResponse = await _invoke(
+      handler,
       _jsonRequest(
         'POST',
         'http://localhost/v1/machines/machine-1/versions/$draftVersionId/publish',
@@ -242,7 +255,8 @@ void main() {
     expect(publishBody['status'], 'published');
     expect(publishBody['isImmutable'], isTrue);
 
-    final machinesResponse = await handler(
+    final machinesResponse = await _invoke(
+      handler,
       Request('GET', Uri.parse('http://localhost/v1/machines')),
     );
     final machinesBody =
@@ -255,7 +269,8 @@ void main() {
 
   test('unknown machine returns error envelope', () async {
     final handler = buildHandler();
-    final response = await handler(
+    final response = await _invoke(
+      handler,
       Request(
         'GET',
         Uri.parse('http://localhost/v1/machines/missing/versions'),
@@ -273,7 +288,8 @@ void main() {
 
   test('task reports endpoint returns execution history', () async {
     final handler = buildHandler();
-    final response = await handler(
+    final response = await _invoke(
+      handler,
       Request('GET', Uri.parse('http://localhost/v1/tasks/task-1/reports')),
     );
     final body =
@@ -287,36 +303,39 @@ void main() {
 
   test('reports summary endpoint returns aggregate counters', () async {
     final handler = buildHandler();
-    final response = await handler(
+    final response = await _invoke(
+      handler,
       Request('GET', Uri.parse('http://localhost/v1/reports/summary')),
     );
     final body =
         jsonDecode(await response.readAsString()) as Map<String, dynamic>;
 
     expect(response.statusCode, 200);
-    expect(body['totalPlans'], 1);
+    expect(body['totalPlans'], 3);
     expect(body['releasedPlans'], 1);
-    expect(body['totalTasks'], 2);
+    expect(body['completedPlans'], 1);
+    expect(body['totalTasks'], 3);
     expect(body['activeTasks'], 2);
     expect(body['totalProblems'], 1);
     expect(body['openProblems'], 1);
     expect(body['totalWipEntries'], 1);
     expect(body['blockingWipEntries'], 1);
-    expect(body['totalExecutionReports'], 1);
+    expect(body['totalExecutionReports'], 2);
   });
 
   test(
     'plan-fact report endpoint returns requested and reported quantities',
     () async {
       final handler = buildHandler();
-      final response = await handler(
+      final response = await _invoke(
+        handler,
         Request('GET', Uri.parse('http://localhost/v1/reports/plan-fact')),
       );
       final body =
           jsonDecode(await response.readAsString()) as Map<String, dynamic>;
 
       expect(response.statusCode, 200);
-      expect(body['count'], 2);
+      expect(body['count'], 4);
       final first = (body['items'] as List).first as Map<String, dynamic>;
       expect(first['requestedQuantity'], 12);
       expect(first['reportedQuantity'], 6);
@@ -327,7 +346,8 @@ void main() {
 
   test('shift report endpoint returns reports for selected day', () async {
     final handler = buildHandler();
-    final response = await handler(
+    final response = await _invoke(
+      handler,
       Request(
         'GET',
         Uri.parse('http://localhost/v1/reports/shift?date=2026-03-28'),
@@ -346,7 +366,8 @@ void main() {
 
   test('problem report endpoint supports status filter', () async {
     final handler = buildHandler();
-    final response = await handler(
+    final response = await _invoke(
+      handler,
       Request(
         'GET',
         Uri.parse('http://localhost/v1/reports/problems?status=inProgress'),
@@ -365,7 +386,8 @@ void main() {
     'tasks endpoint supports assignee filter and returns execution context',
     () async {
       final handler = buildHandler();
-      final response = await handler(
+      final response = await _invoke(
+        handler,
         Request(
           'GET',
           Uri.parse('http://localhost/v1/tasks?assigneeId=master-1'),
@@ -391,7 +413,8 @@ void main() {
     'tasks endpoint status filter still works for enriched task summaries',
     () async {
       final handler = buildHandler();
-      final response = await handler(
+      final response = await _invoke(
+        handler,
         Request('GET', Uri.parse('http://localhost/v1/tasks?status=pending')),
       );
       final body =
@@ -405,7 +428,8 @@ void main() {
 
   test('task detail endpoint returns planning context and progress', () async {
     final handler = buildHandler();
-    final response = await handler(
+    final response = await _invoke(
+      handler,
       Request('GET', Uri.parse('http://localhost/v1/tasks/task-1')),
     );
     final body =
@@ -420,7 +444,8 @@ void main() {
 
   test('create execution report updates task progress', () async {
     final handler = buildHandler();
-    final response = await handler(
+    final response = await _invoke(
+      handler,
       _jsonRequest('POST', 'http://localhost/v1/tasks/task-1/reports', {
         'requestId': 'report-task-1',
         'reportedBy': 'master-1',
@@ -432,7 +457,8 @@ void main() {
     final body =
         jsonDecode(await response.readAsString()) as Map<String, dynamic>;
 
-    final detailResponse = await handler(
+    final detailResponse = await _invoke(
+      handler,
       Request('GET', Uri.parse('http://localhost/v1/tasks/task-1')),
     );
     final detailBody =
@@ -449,7 +475,8 @@ void main() {
     'create execution report completes task when required quantity is met',
     () async {
       final handler = buildHandler();
-      final response = await handler(
+      final response = await _invoke(
+        handler,
         _jsonRequest('POST', 'http://localhost/v1/tasks/task-1/reports', {
           'requestId': 'report-task-complete',
           'reportedBy': 'master-1',
@@ -471,7 +498,8 @@ void main() {
     'create execution report is idempotent for repeated requestId and payload',
     () async {
       final handler = buildHandler();
-      final first = await handler(
+      final first = await _invoke(
+        handler,
         _jsonRequest('POST', 'http://localhost/v1/tasks/task-1/reports', {
           'requestId': 'report-task-idempotent',
           'reportedBy': 'master-1',
@@ -480,7 +508,8 @@ void main() {
           'reason': 'Paused for inspection.',
         }),
       );
-      final second = await handler(
+      final second = await _invoke(
+        handler,
         _jsonRequest('POST', 'http://localhost/v1/tasks/task-1/reports', {
           'requestId': 'report-task-idempotent',
           'reportedBy': 'master-1',
@@ -508,7 +537,8 @@ void main() {
     'create execution report rejects same requestId with different payload',
     () async {
       final handler = buildHandler();
-      final first = await handler(
+      final first = await _invoke(
+        handler,
         _jsonRequest('POST', 'http://localhost/v1/tasks/task-1/reports', {
           'requestId': 'report-task-replay',
           'reportedBy': 'master-1',
@@ -519,7 +549,8 @@ void main() {
       );
       expect(first.statusCode, 201);
 
-      final replay = await handler(
+      final replay = await _invoke(
+        handler,
         _jsonRequest('POST', 'http://localhost/v1/tasks/task-1/reports', {
           'requestId': 'report-task-replay',
           'reportedBy': 'master-1',
@@ -543,7 +574,8 @@ void main() {
     'create execution report accepts overrun and creates WIP entry',
     () async {
       final handler = buildHandler();
-      final response = await handler(
+      final response = await _invoke(
+        handler,
         _jsonRequest('POST', 'http://localhost/v1/tasks/task-1/reports', {
           'requestId': 'report-task-overflow',
           'reportedBy': 'master-1',
@@ -555,7 +587,8 @@ void main() {
       final body =
           jsonDecode(await response.readAsString()) as Map<String, dynamic>;
 
-      final wipResponse = await handler(
+      final wipResponse = await _invoke(
+        handler,
         Request('GET', Uri.parse('http://localhost/v1/wip')),
       );
       final wipBody =
@@ -587,7 +620,8 @@ void main() {
     'create execution report accepts not completed with zero quantity',
     () async {
       final handler = buildHandler();
-      final response = await handler(
+      final response = await _invoke(
+        handler,
         _jsonRequest('POST', 'http://localhost/v1/tasks/task-1/reports', {
           'requestId': 'report-task-not-completed',
           'reportedBy': 'master-1',
@@ -611,7 +645,8 @@ void main() {
     'create execution report rejects outcome and quantity mismatch',
     () async {
       final handler = buildHandler();
-      final response = await handler(
+      final response = await _invoke(
+        handler,
         _jsonRequest('POST', 'http://localhost/v1/tasks/task-1/reports', {
           'requestId': 'report-task-invalid-outcome',
           'reportedBy': 'master-1',
@@ -632,7 +667,8 @@ void main() {
 
   test('create execution report rejects closed task', () async {
     final handler = buildHandler();
-    await handler(
+    await _invoke(
+      handler,
       _jsonRequest('POST', 'http://localhost/v1/tasks/task-1/reports', {
         'requestId': 'report-task-close',
         'reportedBy': 'master-1',
@@ -641,7 +677,8 @@ void main() {
       }),
     );
 
-    final response = await handler(
+    final response = await _invoke(
+      handler,
       _jsonRequest('POST', 'http://localhost/v1/tasks/task-1/reports', {
         'requestId': 'report-task-after-close',
         'reportedBy': 'master-1',
@@ -662,7 +699,8 @@ void main() {
 
   test('problems endpoint supports taskId filter', () async {
     final handler = buildHandler();
-    final response = await handler(
+    final response = await _invoke(
+      handler,
       Request('GET', Uri.parse('http://localhost/v1/problems?taskId=task-1')),
     );
     final body =
@@ -675,7 +713,8 @@ void main() {
 
   test('problem detail endpoint returns thread messages', () async {
     final handler = buildHandler();
-    final response = await handler(
+    final response = await _invoke(
+      handler,
       Request('GET', Uri.parse('http://localhost/v1/problems/problem-1')),
     );
     final body =
@@ -689,7 +728,8 @@ void main() {
 
   test('create problem creates open thread with first message', () async {
     final handler = buildHandler();
-    final response = await handler(
+    final response = await _invoke(
+      handler,
       _jsonRequest('POST', 'http://localhost/v1/tasks/task-1/problems', {
         'requestId': 'problem-create-1',
         'createdBy': 'master-1',
@@ -715,7 +755,8 @@ void main() {
     'create problem is idempotent for repeated requestId and payload',
     () async {
       final handler = buildHandler();
-      final first = await handler(
+      final first = await _invoke(
+        handler,
         _jsonRequest('POST', 'http://localhost/v1/tasks/task-1/problems', {
           'requestId': 'problem-create-idempotent',
           'createdBy': 'master-1',
@@ -724,7 +765,8 @@ void main() {
           'description': 'Drawing pack is incomplete.',
         }),
       );
-      final second = await handler(
+      final second = await _invoke(
+        handler,
         _jsonRequest('POST', 'http://localhost/v1/tasks/task-1/problems', {
           'requestId': 'problem-create-idempotent',
           'createdBy': 'master-1',
@@ -747,7 +789,8 @@ void main() {
 
   test('create problem rejects unsupported type', () async {
     final handler = buildHandler();
-    final response = await handler(
+    final response = await _invoke(
+      handler,
       _jsonRequest('POST', 'http://localhost/v1/tasks/task-1/problems', {
         'requestId': 'problem-create-invalid-type',
         'createdBy': 'master-1',
@@ -770,7 +813,8 @@ void main() {
     'problem message and transition update lifecycle and block new messages after close',
     () async {
       final handler = buildHandler();
-      final createResponse = await handler(
+      final createResponse = await _invoke(
+        handler,
         _jsonRequest('POST', 'http://localhost/v1/tasks/task-1/problems', {
           'requestId': 'problem-create-thread',
           'createdBy': 'master-1',
@@ -784,7 +828,8 @@ void main() {
               as Map<String, dynamic>;
       final problemId = createBody['id'] as String;
 
-      final messageResponse = await handler(
+      final messageResponse = await _invoke(
+        handler,
         _jsonRequest(
           'POST',
           'http://localhost/v1/problems/$problemId/messages',
@@ -799,7 +844,8 @@ void main() {
           jsonDecode(await messageResponse.readAsString())
               as Map<String, dynamic>;
 
-      final transitionResponse = await handler(
+      final transitionResponse = await _invoke(
+        handler,
         _jsonRequest(
           'POST',
           'http://localhost/v1/problems/$problemId/transition',
@@ -814,7 +860,8 @@ void main() {
           jsonDecode(await transitionResponse.readAsString())
               as Map<String, dynamic>;
 
-      final blockedMessageResponse = await handler(
+      final blockedMessageResponse = await _invoke(
+        handler,
         _jsonRequest(
           'POST',
           'http://localhost/v1/problems/$problemId/messages',
@@ -850,7 +897,8 @@ void main() {
     'problem transition is idempotent and rejects replay with different payload',
     () async {
       final handler = buildHandler();
-      final createResponse = await handler(
+      final createResponse = await _invoke(
+        handler,
         _jsonRequest('POST', 'http://localhost/v1/tasks/task-1/problems', {
           'requestId': 'problem-create-transition-idempotent',
           'createdBy': 'master-1',
@@ -864,7 +912,8 @@ void main() {
               as Map<String, dynamic>;
       final problemId = createBody['id'] as String;
 
-      final first = await handler(
+      final first = await _invoke(
+        handler,
         _jsonRequest(
           'POST',
           'http://localhost/v1/problems/$problemId/transition',
@@ -875,7 +924,8 @@ void main() {
           },
         ),
       );
-      final second = await handler(
+      final second = await _invoke(
+        handler,
         _jsonRequest(
           'POST',
           'http://localhost/v1/problems/$problemId/transition',
@@ -886,7 +936,8 @@ void main() {
           },
         ),
       );
-      final replay = await handler(
+      final replay = await _invoke(
+        handler,
         _jsonRequest(
           'POST',
           'http://localhost/v1/problems/$problemId/transition',
@@ -918,7 +969,8 @@ void main() {
 
   test('create plan returns draft plan detail', () async {
     final handler = buildHandler();
-    final response = await handler(
+    final response = await _invoke(
+      handler,
       _jsonRequest('POST', 'http://localhost/v1/plans', {
         'requestId': 'create-plan-1',
         'machineId': 'machine-1',
@@ -942,7 +994,8 @@ void main() {
 
   test('get plan detail returns nested items', () async {
     final handler = buildHandler();
-    final createResponse = await handler(
+    final createResponse = await _invoke(
+      handler,
       _jsonRequest('POST', 'http://localhost/v1/plans', {
         'requestId': 'create-plan-detail',
         'machineId': 'machine-1',
@@ -957,7 +1010,8 @@ void main() {
         jsonDecode(await createResponse.readAsString()) as Map<String, dynamic>;
     final planId = createBody['id'] as String;
 
-    final response = await handler(
+    final response = await _invoke(
+      handler,
       Request('GET', Uri.parse('http://localhost/v1/plans/$planId')),
     );
     final body =
@@ -972,7 +1026,8 @@ void main() {
     'create plan is idempotent for repeated requestId and payload',
     () async {
       final handler = buildHandler();
-      final first = await handler(
+      final first = await _invoke(
+        handler,
         _jsonRequest('POST', 'http://localhost/v1/plans', {
           'requestId': 'create-plan-idempotent',
           'machineId': 'machine-1',
@@ -983,7 +1038,8 @@ void main() {
           ],
         }),
       );
-      final second = await handler(
+      final second = await _invoke(
+        handler,
         _jsonRequest('POST', 'http://localhost/v1/plans', {
           'requestId': 'create-plan-idempotent',
           'machineId': 'machine-1',
@@ -1007,7 +1063,8 @@ void main() {
 
   test('create plan rejects duplicate structure occurrences', () async {
     final handler = buildHandler();
-    final response = await handler(
+    final response = await _invoke(
+      handler,
       _jsonRequest('POST', 'http://localhost/v1/plans', {
         'requestId': 'create-plan-duplicate',
         'machineId': 'machine-1',
@@ -1031,7 +1088,8 @@ void main() {
 
   test('create plan rejects same requestId with different payload', () async {
     final handler = buildHandler();
-    final first = await handler(
+    final first = await _invoke(
+      handler,
       _jsonRequest('POST', 'http://localhost/v1/plans', {
         'requestId': 'create-plan-replay',
         'machineId': 'machine-1',
@@ -1044,7 +1102,8 @@ void main() {
     );
     expect(first.statusCode, 201);
 
-    final replay = await handler(
+    final replay = await _invoke(
+      handler,
       _jsonRequest('POST', 'http://localhost/v1/plans', {
         'requestId': 'create-plan-replay',
         'machineId': 'machine-1',
@@ -1067,7 +1126,8 @@ void main() {
 
   test('release plan creates tasks from operation occurrences', () async {
     final handler = buildHandler();
-    final createResponse = await handler(
+    final createResponse = await _invoke(
+      handler,
       _jsonRequest('POST', 'http://localhost/v1/plans', {
         'requestId': 'create-plan-release',
         'machineId': 'machine-1',
@@ -1082,7 +1142,8 @@ void main() {
         jsonDecode(await createResponse.readAsString()) as Map<String, dynamic>;
     final planId = createBody['id'] as String;
 
-    final releaseResponse = await handler(
+    final releaseResponse = await _invoke(
+      handler,
       _jsonRequest('POST', 'http://localhost/v1/plans/$planId/release', {
         'requestId': 'release-plan-1',
         'releasedBy': 'planner-1',
@@ -1092,13 +1153,15 @@ void main() {
         jsonDecode(await releaseResponse.readAsString())
             as Map<String, dynamic>;
 
-    final detailResponse = await handler(
+    final detailResponse = await _invoke(
+      handler,
       Request('GET', Uri.parse('http://localhost/v1/plans/$planId')),
     );
     final detailBody =
         jsonDecode(await detailResponse.readAsString()) as Map<String, dynamic>;
 
-    final tasksResponse = await handler(
+    final tasksResponse = await _invoke(
+      handler,
       Request('GET', Uri.parse('http://localhost/v1/tasks')),
     );
     final tasksBody =
@@ -1108,14 +1171,15 @@ void main() {
     expect(releaseBody['status'], 'released');
     expect(releaseBody['generatedTaskCount'], 2);
     expect(detailBody['status'], 'released');
-    expect(tasksBody['count'], 4);
+    expect(tasksBody['count'], 5);
   });
 
   test(
     'release plan is idempotent for repeated requestId and payload',
     () async {
       final handler = buildHandler();
-      final createResponse = await handler(
+      final createResponse = await _invoke(
+        handler,
         _jsonRequest('POST', 'http://localhost/v1/plans', {
           'requestId': 'create-plan-release-idempotent',
           'machineId': 'machine-1',
@@ -1131,13 +1195,15 @@ void main() {
               as Map<String, dynamic>;
       final planId = createBody['id'] as String;
 
-      final first = await handler(
+      final first = await _invoke(
+        handler,
         _jsonRequest('POST', 'http://localhost/v1/plans/$planId/release', {
           'requestId': 'release-plan-idempotent',
           'releasedBy': 'planner-1',
         }),
       );
-      final second = await handler(
+      final second = await _invoke(
+        handler,
         _jsonRequest('POST', 'http://localhost/v1/plans/$planId/release', {
           'requestId': 'release-plan-idempotent',
           'releasedBy': 'planner-1',
@@ -1156,7 +1222,8 @@ void main() {
 
   test('release plan rejects lifecycle conflicts', () async {
     final handler = buildHandler();
-    final response = await handler(
+    final response = await _invoke(
+      handler,
       _jsonRequest('POST', 'http://localhost/v1/plans/plan-1/release', {
         'requestId': 'release-existing-plan',
         'releasedBy': 'planner-1',
@@ -1174,7 +1241,8 @@ void main() {
 
   test('completion-check returns blockers for released plan', () async {
     final handler = buildHandler();
-    final response = await handler(
+    final response = await _invoke(
+      handler,
       Request(
         'GET',
         Uri.parse('http://localhost/v1/plans/plan-1/completion-check'),
@@ -1196,7 +1264,8 @@ void main() {
 
   test('complete rejects plan when blockers exist', () async {
     final handler = buildHandler();
-    final response = await handler(
+    final response = await _invoke(
+      handler,
       _jsonRequest('POST', 'http://localhost/v1/plans/plan-1/complete', {
         'requestId': 'complete-plan-blocked',
         'completedBy': 'supervisor-1',
@@ -1221,7 +1290,8 @@ void main() {
     'complete transitions released plan to completed when blockers clear',
     () async {
       final handler = buildHandler();
-      final createResponse = await handler(
+      final createResponse = await _invoke(
+        handler,
         _jsonRequest('POST', 'http://localhost/v1/plans', {
           'requestId': 'create-plan-complete',
           'machineId': 'machine-1',
@@ -1237,7 +1307,8 @@ void main() {
               as Map<String, dynamic>;
       final planId = createBody['id'] as String;
 
-      final releaseResponse = await handler(
+      final releaseResponse = await _invoke(
+        handler,
         _jsonRequest('POST', 'http://localhost/v1/plans/$planId/release', {
           'requestId': 'release-plan-complete',
           'releasedBy': 'planner-1',
@@ -1245,7 +1316,8 @@ void main() {
       );
       expect(releaseResponse.statusCode, 200);
 
-      final tasksResponse = await handler(
+      final tasksResponse = await _invoke(
+        handler,
         Request('GET', Uri.parse('http://localhost/v1/tasks?status=pending')),
       );
       final tasksBody =
@@ -1256,7 +1328,8 @@ void main() {
           .firstWhere((item) => item['planItemId'] != 'plan-item-2');
       final taskId = newTask['id'] as String;
 
-      final reportResponse = await handler(
+      final reportResponse = await _invoke(
+        handler,
         _jsonRequest('POST', 'http://localhost/v1/tasks/$taskId/reports', {
           'requestId': 'report-plan-complete',
           'reportedBy': 'master-1',
@@ -1266,7 +1339,8 @@ void main() {
       );
       expect(reportResponse.statusCode, 201);
 
-      final checkResponse = await handler(
+      final checkResponse = await _invoke(
+        handler,
         Request(
           'GET',
           Uri.parse('http://localhost/v1/plans/$planId/completion-check'),
@@ -1279,7 +1353,8 @@ void main() {
       expect(checkBody['canComplete'], isTrue);
       expect(checkBody['blockers'], isEmpty);
 
-      final completeResponse = await handler(
+      final completeResponse = await _invoke(
+        handler,
         _jsonRequest('POST', 'http://localhost/v1/plans/$planId/complete', {
           'requestId': 'complete-plan-success',
           'completedBy': 'supervisor-1',
@@ -1291,7 +1366,8 @@ void main() {
       expect(completeResponse.statusCode, 200);
       expect(completeBody['status'], 'completed');
 
-      final detailResponse = await handler(
+      final detailResponse = await _invoke(
+        handler,
         Request('GET', Uri.parse('http://localhost/v1/plans/$planId')),
       );
       final detailBody =
@@ -1306,7 +1382,22 @@ void main() {
     'complete is idempotent and rejects replay with different payload',
     () async {
       final handler = buildHandler();
-      final createResponse = await handler(
+      final createUserResponse = await _invoke(
+        handler,
+        _jsonRequest('POST', 'http://localhost/v1/users', {
+          'requestId': 'create-supervisor-2',
+          'login': 'supervisor-2',
+          'password': 'supervisor234',
+          'role': 'supervisor',
+          'displayName': 'Supervisor Two',
+        }),
+        login: 'planner-1',
+        password: 'planner123',
+      );
+      expect(createUserResponse.statusCode, 201);
+
+      final createResponse = await _invoke(
+        handler,
         _jsonRequest('POST', 'http://localhost/v1/plans', {
           'requestId': 'create-plan-complete-idempotent',
           'machineId': 'machine-1',
@@ -1322,7 +1413,8 @@ void main() {
               as Map<String, dynamic>;
       final planId = createBody['id'] as String;
 
-      final releaseResponse = await handler(
+      final releaseResponse = await _invoke(
+        handler,
         _jsonRequest('POST', 'http://localhost/v1/plans/$planId/release', {
           'requestId': 'release-plan-complete-idempotent',
           'releasedBy': 'planner-1',
@@ -1330,7 +1422,8 @@ void main() {
       );
       expect(releaseResponse.statusCode, 200);
 
-      final tasksResponse = await handler(
+      final tasksResponse = await _invoke(
+        handler,
         Request('GET', Uri.parse('http://localhost/v1/tasks?status=pending')),
       );
       final tasksBody =
@@ -1341,7 +1434,8 @@ void main() {
           .firstWhere((item) => item['planItemId'] != 'plan-item-2');
       final taskId = newTask['id'] as String;
 
-      final reportResponse = await handler(
+      final reportResponse = await _invoke(
+        handler,
         _jsonRequest('POST', 'http://localhost/v1/tasks/$taskId/reports', {
           'requestId': 'report-plan-complete-idempotent',
           'reportedBy': 'master-1',
@@ -1351,23 +1445,28 @@ void main() {
       );
       expect(reportResponse.statusCode, 201);
 
-      final first = await handler(
+      final first = await _invoke(
+        handler,
         _jsonRequest('POST', 'http://localhost/v1/plans/$planId/complete', {
           'requestId': 'complete-plan-idempotent',
           'completedBy': 'supervisor-1',
         }),
       );
-      final second = await handler(
+      final second = await _invoke(
+        handler,
         _jsonRequest('POST', 'http://localhost/v1/plans/$planId/complete', {
           'requestId': 'complete-plan-idempotent',
           'completedBy': 'supervisor-1',
         }),
       );
-      final replay = await handler(
+      final replay = await _invoke(
+        handler,
         _jsonRequest('POST', 'http://localhost/v1/plans/$planId/complete', {
           'requestId': 'complete-plan-idempotent',
           'completedBy': 'supervisor-2',
         }),
+        login: 'supervisor-2',
+        password: 'supervisor234',
       );
 
       final firstBody =
@@ -1390,7 +1489,8 @@ void main() {
 
   test('preview session endpoint creates import session from xlsx', () async {
     final handler = buildHandler();
-    final response = await handler(
+    final response = await _invoke(
+      handler,
       _jsonRequest('POST', 'http://localhost/v1/import-sessions/preview', {
         'requestId': 'preview-1',
         'fileName': 'valid_import.xlsx',
@@ -1414,7 +1514,8 @@ void main() {
 
   test('get import session returns previously created preview', () async {
     final handler = buildHandler();
-    final previewResponse = await handler(
+    final previewResponse = await _invoke(
+      handler,
       _jsonRequest('POST', 'http://localhost/v1/import-sessions/preview', {
         'requestId': 'preview-2',
         'fileName': 'valid_import.mxl',
@@ -1428,7 +1529,8 @@ void main() {
             as Map<String, dynamic>;
     final sessionId = previewBody['sessionId'] as String;
 
-    final getResponse = await handler(
+    final getResponse = await _invoke(
+      handler,
       Request(
         'GET',
         Uri.parse('http://localhost/v1/import-sessions/$sessionId'),
@@ -1446,7 +1548,8 @@ void main() {
     'confirm create_machine adds machine visible in machines endpoint',
     () async {
       final handler = buildHandler();
-      final previewResponse = await handler(
+      final previewResponse = await _invoke(
+        handler,
         _jsonRequest('POST', 'http://localhost/v1/import-sessions/preview', {
           'requestId': 'preview-create-machine',
           'fileName': 'valid_import.mxl',
@@ -1460,7 +1563,8 @@ void main() {
               as Map<String, dynamic>;
       final sessionId = previewBody['sessionId'] as String;
 
-      final confirmResponse = await handler(
+      final confirmResponse = await _invoke(
+        handler,
         _jsonRequest(
           'POST',
           'http://localhost/v1/import-sessions/$sessionId/confirm',
@@ -1475,7 +1579,8 @@ void main() {
       expect(confirmBody['mode'], 'create_machine');
       expect(confirmBody['machineId'], 'machine-2');
 
-      final machinesResponse = await handler(
+      final machinesResponse = await _invoke(
+        handler,
         Request('GET', Uri.parse('http://localhost/v1/machines')),
       );
       final machinesBody =
@@ -1495,7 +1600,8 @@ void main() {
     'confirm create_version adds published version to existing machine',
     () async {
       final handler = buildHandler();
-      final previewResponse = await handler(
+      final previewResponse = await _invoke(
+        handler,
         _jsonRequest('POST', 'http://localhost/v1/import-sessions/preview', {
           'requestId': 'preview-create-version',
           'fileName': 'valid_import.xlsx',
@@ -1509,7 +1615,8 @@ void main() {
               as Map<String, dynamic>;
       final sessionId = previewBody['sessionId'] as String;
 
-      final confirmResponse = await handler(
+      final confirmResponse = await _invoke(
+        handler,
         _jsonRequest(
           'POST',
           'http://localhost/v1/import-sessions/$sessionId/confirm',
@@ -1527,7 +1634,8 @@ void main() {
       expect(confirmBody['mode'], 'create_version');
       expect(confirmBody['machineId'], 'machine-1');
 
-      final versionsResponse = await handler(
+      final versionsResponse = await _invoke(
+        handler,
         Request(
           'GET',
           Uri.parse('http://localhost/v1/machines/machine-1/versions'),
@@ -1543,7 +1651,8 @@ void main() {
 
   test('confirm blocked preview returns 422', () async {
     final handler = buildHandler();
-    final previewResponse = await handler(
+    final previewResponse = await _invoke(
+      handler,
       _jsonRequest('POST', 'http://localhost/v1/import-sessions/preview', {
         'requestId': 'preview-conflict',
         'fileName': 'conflict_ambiguous_parent.mxl',
@@ -1557,7 +1666,8 @@ void main() {
             as Map<String, dynamic>;
     final sessionId = previewBody['sessionId'] as String;
 
-    final confirmResponse = await handler(
+    final confirmResponse = await _invoke(
+      handler,
       _jsonRequest(
         'POST',
         'http://localhost/v1/import-sessions/$sessionId/confirm',
@@ -1577,7 +1687,8 @@ void main() {
 
   test('confirm is idempotent for repeated requestId and payload', () async {
     final handler = buildHandler();
-    final previewResponse = await handler(
+    final previewResponse = await _invoke(
+      handler,
       _jsonRequest('POST', 'http://localhost/v1/import-sessions/preview', {
         'requestId': 'preview-idempotent',
         'fileName': 'valid_import.mxl',
@@ -1591,14 +1702,16 @@ void main() {
             as Map<String, dynamic>;
     final sessionId = previewBody['sessionId'] as String;
 
-    final firstConfirm = await handler(
+    final firstConfirm = await _invoke(
+      handler,
       _jsonRequest(
         'POST',
         'http://localhost/v1/import-sessions/$sessionId/confirm',
         {'requestId': 'confirm-idempotent', 'mode': 'create_machine'},
       ),
     );
-    final secondConfirm = await handler(
+    final secondConfirm = await _invoke(
+      handler,
       _jsonRequest(
         'POST',
         'http://localhost/v1/import-sessions/$sessionId/confirm',
@@ -1617,7 +1730,8 @@ void main() {
 
   test('confirm rejects same requestId with different payload', () async {
     final handler = buildHandler();
-    final previewResponse = await handler(
+    final previewResponse = await _invoke(
+      handler,
       _jsonRequest('POST', 'http://localhost/v1/import-sessions/preview', {
         'requestId': 'preview-replay',
         'fileName': 'valid_import.mxl',
@@ -1631,7 +1745,8 @@ void main() {
             as Map<String, dynamic>;
     final sessionId = previewBody['sessionId'] as String;
 
-    final firstConfirm = await handler(
+    final firstConfirm = await _invoke(
+      handler,
       _jsonRequest(
         'POST',
         'http://localhost/v1/import-sessions/$sessionId/confirm',
@@ -1644,7 +1759,8 @@ void main() {
     );
     expect(firstConfirm.statusCode, 200);
 
-    final replayedConfirm = await handler(
+    final replayedConfirm = await _invoke(
+      handler,
       _jsonRequest(
         'POST',
         'http://localhost/v1/import-sessions/$sessionId/confirm',
@@ -1661,6 +1777,424 @@ void main() {
       'import_request_replayed_with_different_payload',
     );
   });
+
+  test('auth login and logout manage access to protected routes', () async {
+    final handler = buildHandler();
+
+    final unauthorized = await handler(
+      Request('GET', Uri.parse('http://localhost/v1/machines')),
+    );
+    final unauthorizedBody =
+        jsonDecode(await unauthorized.readAsString()) as Map<String, dynamic>;
+
+    final loginResponse = await handler(
+      _jsonRequest('POST', 'http://localhost/v1/auth/login', {
+        'login': 'planner-1',
+        'password': 'planner123',
+      }),
+    );
+    final loginBody =
+        jsonDecode(await loginResponse.readAsString()) as Map<String, dynamic>;
+    final token = loginBody['token'] as String;
+
+    final authorized = await _invokeWithToken(
+      handler,
+      Request('GET', Uri.parse('http://localhost/v1/machines')),
+      token,
+    );
+    final logoutResponse = await _invokeWithToken(
+      handler,
+      Request('POST', Uri.parse('http://localhost/v1/auth/logout')),
+      token,
+    );
+    final afterLogout = await _invokeWithToken(
+      handler,
+      Request('GET', Uri.parse('http://localhost/v1/machines')),
+      token,
+    );
+
+    expect(unauthorized.statusCode, 401);
+    expect(
+      (unauthorizedBody['error'] as Map<String, dynamic>)['code'],
+      'unauthorized',
+    );
+    expect(loginResponse.statusCode, 200);
+    expect(loginBody['role'], 'planner');
+    expect(loginBody['displayName'], 'Planner One');
+    expect(authorized.statusCode, 200);
+    expect(logoutResponse.statusCode, 200);
+    expect(afterLogout.statusCode, 401);
+  });
+
+  test(
+    'users endpoints support create deactivate reset-password and role checks',
+    () async {
+      final handler = buildHandler();
+
+      final createResponse = await _invoke(
+        handler,
+        _jsonRequest('POST', 'http://localhost/v1/users', {
+          'requestId': 'users-create-1',
+          'login': 'master-2',
+          'password': 'master234',
+          'role': 'master',
+          'displayName': 'Master Two',
+        }),
+        login: 'planner-1',
+        password: 'planner123',
+      );
+      final createBody =
+          jsonDecode(await createResponse.readAsString())
+              as Map<String, dynamic>;
+      final userId = createBody['id'] as String;
+
+      final listResponse = await _invoke(
+        handler,
+        Request('GET', Uri.parse('http://localhost/v1/users')),
+        login: 'supervisor-1',
+        password: 'supervisor123',
+      );
+      final listBody =
+          jsonDecode(await listResponse.readAsString()) as Map<String, dynamic>;
+
+      final forbiddenList = await _invoke(
+        handler,
+        Request('GET', Uri.parse('http://localhost/v1/users')),
+        login: 'master-1',
+        password: 'master123',
+      );
+
+      final resetResponse = await _invoke(
+        handler,
+        _jsonRequest(
+          'POST',
+          'http://localhost/v1/users/$userId/reset-password',
+          {'requestId': 'users-reset-1', 'newPassword': 'master999'},
+        ),
+        login: 'planner-1',
+        password: 'planner123',
+      );
+      final resetBody =
+          jsonDecode(await resetResponse.readAsString())
+              as Map<String, dynamic>;
+
+      final loginAfterReset = await handler(
+        _jsonRequest('POST', 'http://localhost/v1/auth/login', {
+          'login': 'master-2',
+          'password': 'master999',
+        }),
+      );
+
+      final deactivateResponse = await _invoke(
+        handler,
+        _jsonRequest('POST', 'http://localhost/v1/users/$userId/deactivate', {
+          'requestId': 'users-deactivate-1',
+        }),
+        login: 'planner-1',
+        password: 'planner123',
+      );
+      final deactivateBody =
+          jsonDecode(await deactivateResponse.readAsString())
+              as Map<String, dynamic>;
+
+      final disabledLogin = await handler(
+        _jsonRequest('POST', 'http://localhost/v1/auth/login', {
+          'login': 'master-2',
+          'password': 'master999',
+        }),
+      );
+      final disabledLoginBody =
+          jsonDecode(await disabledLogin.readAsString())
+              as Map<String, dynamic>;
+
+      expect(createResponse.statusCode, 201);
+      expect(createBody['login'], 'master-2');
+      expect(createBody['role'], 'master');
+      expect(listResponse.statusCode, 200);
+      expect(listBody['count'], 4);
+      expect(
+        (listBody['items'] as List).any((item) => item['login'] == 'master-2'),
+        isTrue,
+      );
+      expect(forbiddenList.statusCode, 403);
+      expect(resetResponse.statusCode, 200);
+      expect(resetBody['isActive'], isTrue);
+      expect(loginAfterReset.statusCode, 200);
+      expect(deactivateResponse.statusCode, 200);
+      expect(deactivateBody['isActive'], isFalse);
+      expect(disabledLogin.statusCode, 403);
+      expect(
+        (disabledLoginBody['error'] as Map<String, dynamic>)['code'],
+        'account_disabled',
+      );
+    },
+  );
+
+  test(
+    'archive endpoints return filtered plans with detail and execution summary',
+    () async {
+      final handler = buildHandler();
+
+      final archiveResponse = await _invoke(
+        handler,
+        Request(
+          'GET',
+          Uri.parse(
+            'http://localhost/v1/archive/plans?status=completed&fromDate=2026-03-27&toDate=2026-03-28',
+          ),
+        ),
+      );
+      final archiveBody =
+          jsonDecode(await archiveResponse.readAsString())
+              as Map<String, dynamic>;
+
+      final detailResponse = await _invoke(
+        handler,
+        Request('GET', Uri.parse('http://localhost/v1/archive/plans/plan-2')),
+      );
+      final detailBody =
+          jsonDecode(await detailResponse.readAsString())
+              as Map<String, dynamic>;
+
+      final summaryResponse = await _invoke(
+        handler,
+        Request(
+          'GET',
+          Uri.parse(
+            'http://localhost/v1/archive/plans/plan-2/execution-summary',
+          ),
+        ),
+      );
+      final summaryBody =
+          jsonDecode(await summaryResponse.readAsString())
+              as Map<String, dynamic>;
+
+      expect(archiveResponse.statusCode, 200);
+      expect(archiveBody['count'], 1);
+      expect((archiveBody['items'] as List).single['id'], 'plan-2');
+      expect((archiveBody['items'] as List).single['completionPercent'], 100);
+      expect(detailResponse.statusCode, 200);
+      expect(detailBody['status'], 'completed');
+      expect(detailBody['revisionCount'], 0);
+      expect(detailBody['executionSummary'], isNotNull);
+      expect(summaryResponse.statusCode, 200);
+      expect(summaryBody['planId'], 'plan-2');
+      expect(summaryBody['closedTaskCount'], 1);
+      expect(summaryBody['completionPercent'], 100);
+    },
+  );
+
+  test(
+    'audit and diagnostics endpoints return filtered operational data',
+    () async {
+      final handler = _buildFileBackedHandler();
+
+      final auditResponse = await _invoke(
+        handler,
+        Request(
+          'GET',
+          Uri.parse(
+            'http://localhost/v1/audit?entityType=plan&action=archived&limit=1&offset=0',
+          ),
+        ),
+      );
+      final auditBody =
+          jsonDecode(await auditResponse.readAsString())
+              as Map<String, dynamic>;
+
+      final healthResponse = await _invoke(
+        handler,
+        Request(
+          'GET',
+          Uri.parse('http://localhost/v1/diagnostics/health-extended'),
+        ),
+      );
+      final healthBody =
+          jsonDecode(await healthResponse.readAsString())
+              as Map<String, dynamic>;
+
+      final createBackupResponse = await _invoke(
+        handler,
+        _jsonRequest('POST', 'http://localhost/v1/backup/create', {
+          'requestId': 'diagnostics-backup-1',
+          'createdBy': 'planner-1',
+        }),
+        login: 'planner-1',
+        password: 'planner123',
+      );
+      expect(createBackupResponse.statusCode, 201);
+
+      final idempotencyResponse = await _invoke(
+        handler,
+        Request(
+          'GET',
+          Uri.parse('http://localhost/v1/diagnostics/idempotency-stats'),
+        ),
+        login: 'planner-1',
+        password: 'planner123',
+      );
+      final idempotencyBody =
+          jsonDecode(await idempotencyResponse.readAsString())
+              as Map<String, dynamic>;
+
+      expect(auditResponse.statusCode, 200);
+      expect(auditBody['count'], 1);
+      expect(auditBody['total'], 1);
+      expect((auditBody['items'] as List).single['action'], 'archived');
+      expect(healthResponse.statusCode, 200);
+      expect(healthBody['status'], 'ok');
+      expect(healthBody['totalPlans'], 3);
+      expect(healthBody['totalAuditEntries'], greaterThanOrEqualTo(3));
+      expect((healthBody['databasePath'] as String), isNotEmpty);
+      expect(idempotencyResponse.statusCode, 200);
+      expect(idempotencyBody['totalRecords'], greaterThanOrEqualTo(1));
+      expect(
+        (idempotencyBody['byCategory'] as List).any(
+          (item) => item['category'] == 'backup_create',
+        ),
+        isTrue,
+      );
+    },
+  );
+
+  test('backup create list and restore revert mutable state', () async {
+    final handler = _buildFileBackedHandler();
+
+    final createBackupResponse = await _invoke(
+      handler,
+      _jsonRequest('POST', 'http://localhost/v1/backup/create', {
+        'requestId': 'backup-create-1',
+        'createdBy': 'planner-1',
+      }),
+      login: 'planner-1',
+      password: 'planner123',
+    );
+    final createBackupBody =
+        jsonDecode(await createBackupResponse.readAsString())
+            as Map<String, dynamic>;
+    final backupFileName = createBackupBody['fileName'] as String;
+
+    final createUserResponse = await _invoke(
+      handler,
+      _jsonRequest('POST', 'http://localhost/v1/users', {
+        'requestId': 'backup-user-create-1',
+        'login': 'restorable-user',
+        'password': 'restore123',
+        'role': 'master',
+        'displayName': 'Restorable User',
+      }),
+      login: 'planner-1',
+      password: 'planner123',
+    );
+    expect(createUserResponse.statusCode, 201);
+
+    final restoreResponse = await _invoke(
+      handler,
+      _jsonRequest('POST', 'http://localhost/v1/backup/restore', {
+        'requestId': 'backup-restore-1',
+        'backupFileName': backupFileName,
+      }),
+      login: 'planner-1',
+      password: 'planner123',
+    );
+    final restoreBody =
+        jsonDecode(await restoreResponse.readAsString())
+            as Map<String, dynamic>;
+
+    final usersResponse = await _invoke(
+      handler,
+      Request('GET', Uri.parse('http://localhost/v1/users')),
+      login: 'planner-1',
+      password: 'planner123',
+    );
+    final usersBody =
+        jsonDecode(await usersResponse.readAsString()) as Map<String, dynamic>;
+
+    final backupsResponse = await _invoke(
+      handler,
+      Request('GET', Uri.parse('http://localhost/v1/backup/list')),
+      login: 'planner-1',
+      password: 'planner123',
+    );
+    final backupsBody =
+        jsonDecode(await backupsResponse.readAsString())
+            as Map<String, dynamic>;
+
+    expect(createBackupResponse.statusCode, 201);
+    expect(createBackupBody['status'], 'ready');
+    expect(restoreResponse.statusCode, 200);
+    expect(restoreBody['status'], 'restored');
+    expect(
+      (usersBody['items'] as List).any(
+        (item) => item['login'] == 'restorable-user',
+      ),
+      isFalse,
+    );
+    expect(backupsResponse.statusCode, 200);
+    expect(
+      (backupsBody['items'] as List).any(
+        (item) => item['fileName'] == backupFileName,
+      ),
+      isTrue,
+    );
+    expect(
+      (backupsBody['items'] as List).any(
+        (item) =>
+            (item['fileName'] as String).startsWith('auto_before_restore_'),
+      ),
+      isTrue,
+    );
+  });
+}
+
+Future<Response> _invoke(
+  Handler handler,
+  Request request, {
+  String login = 'supervisor-1',
+  String password = 'supervisor123',
+}) async {
+  if (!request.url.path.startsWith('/v1') &&
+      !request.url.path.startsWith('v1')) {
+    return handler(request);
+  }
+  if (request.url.path == '/v1/auth/login' ||
+      request.url.path == 'v1/auth/login') {
+    return handler(request);
+  }
+  final token = await _loginAndGetToken(
+    handler,
+    login: login,
+    password: password,
+  );
+  return _invokeWithToken(handler, request, token);
+}
+
+Future<String> _loginAndGetToken(
+  Handler handler, {
+  required String login,
+  required String password,
+}) async {
+  final loginResponse = await handler(
+    _jsonRequest('POST', 'http://localhost/v1/auth/login', {
+      'login': login,
+      'password': password,
+    }),
+  );
+  final loginBody =
+      jsonDecode(await loginResponse.readAsString()) as Map<String, dynamic>;
+  return loginBody['token'] as String;
+}
+
+Future<Response> _invokeWithToken(
+  Handler handler,
+  Request request,
+  String token,
+) async {
+  return handler(
+    request.change(
+      headers: {...request.headers, 'authorization': 'Bearer $token'},
+    ),
+  );
 }
 
 Request _jsonRequest(String method, String url, Map<String, Object?> body) {
@@ -1676,4 +2210,14 @@ String _readFixture(String fileName) {
   return File(
     '../packages/import_engine/test/fixtures/$fileName',
   ).readAsStringSync();
+}
+
+Handler _buildFileBackedHandler() {
+  final tempDirectory = Directory.systemTemp.createTempSync(
+    'pdo_lite_next_backend_test_',
+  );
+  return buildHandler(
+    databasePath: p.join(tempDirectory.path, 'pdo_lite_next.sqlite3'),
+    packageRoot: Directory.current.path,
+  );
 }

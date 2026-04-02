@@ -5,16 +5,14 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_router/shelf_router.dart';
 
+import 'src/api/auth_middleware.dart';
 import 'src/api/system_routes.dart';
 import 'src/api/v1_routes.dart';
 import 'src/import/import_session_service.dart';
 import 'src/persistence/sqlite_contract_store_snapshot_repository.dart';
 import 'src/store/demo_contract_store.dart';
 
-Handler buildHandler({
-  String databasePath = ':memory:',
-  String? packageRoot,
-}) {
+Handler buildHandler({String databasePath = ':memory:', String? packageRoot}) {
   final router = Router();
   final store = DemoContractStore(
     snapshotRepository: SqliteContractStoreSnapshotRepository(
@@ -23,11 +21,18 @@ Handler buildHandler({
     ),
   );
   final importSessionService = ImportSessionService(store);
+  final serviceStartedAt = DateTime.now().toUtc();
 
   router.mount('/', buildSystemRouter().call);
-  router.mount('/v1/', buildV1Router(store, importSessionService).call);
+  router.mount(
+    '/v1/',
+    buildV1Router(store, importSessionService, serviceStartedAt).call,
+  );
 
-  return const Pipeline().addMiddleware(logRequests()).addHandler(router.call);
+  return Pipeline()
+      .addMiddleware(logRequests())
+      .addMiddleware(authMiddleware(store))
+      .addHandler(router.call);
 }
 
 Future<void> serve({int port = 8080}) async {
@@ -35,7 +40,10 @@ Future<void> serve({int port = 8080}) async {
       Platform.environment['PDO_LITE_DB_PATH'] ??
       p.join(Directory.current.path, 'data', 'pdo_lite_next.sqlite3');
   final server = await shelf_io.serve(
-    buildHandler(databasePath: databasePath, packageRoot: Directory.current.path),
+    buildHandler(
+      databasePath: databasePath,
+      packageRoot: Directory.current.path,
+    ),
     '127.0.0.1',
     port,
   );

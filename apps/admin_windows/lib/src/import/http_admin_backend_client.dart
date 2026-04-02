@@ -13,6 +13,27 @@ class HttpAdminBackendClient implements AdminBackendClient {
 
   final Uri _baseUri;
   final http.Client _httpClient;
+  String? _authToken;
+
+  @override
+  Future<LoginResponseDto> login(LoginRequestDto request) async {
+    final json = await _postJsonObject('/v1/auth/login', request.toJson());
+    final response = LoginResponseDto.fromJson(json);
+    _authToken = response.token;
+    return response;
+  }
+
+  @override
+  Future<void> logout() async {
+    if (_authToken == null) {
+      return;
+    }
+    try {
+      await _postJsonObject('/v1/auth/logout', const <String, Object?>{});
+    } finally {
+      _authToken = null;
+    }
+  }
 
   @override
   Future<ApiListResponseDto<MachineSummaryDto>> listMachines() async {
@@ -177,6 +198,46 @@ class HttpAdminBackendClient implements AdminBackendClient {
   }
 
   @override
+  Future<ApiListResponseDto<PlanArchiveItemDto>> listArchivePlans({
+    String? machineId,
+    String? fromDate,
+    String? toDate,
+    String? status,
+  }) async {
+    final queryParameters = <String, String>{
+      if (machineId != null && machineId.isNotEmpty) 'machineId': machineId,
+      if (fromDate != null && fromDate.isNotEmpty) 'fromDate': fromDate,
+      if (toDate != null && toDate.isNotEmpty) 'toDate': toDate,
+      if (status != null && status.isNotEmpty) 'status': status,
+    };
+    final uri = Uri(
+      path: '/v1/archive/plans',
+      queryParameters: queryParameters.isEmpty ? null : queryParameters,
+    );
+    final json = await _getJsonObject(uri.toString());
+    return ApiListResponseDto<PlanArchiveItemDto>.fromJson(
+      json,
+      PlanArchiveItemDto.fromJson,
+    );
+  }
+
+  @override
+  Future<PlanDetailDto> getArchivePlan(String planId) async {
+    final json = await _getJsonObject('/v1/archive/plans/$planId');
+    return PlanDetailDto.fromJson(json);
+  }
+
+  @override
+  Future<PlanExecutionSummaryDto> getArchivePlanExecutionSummary(
+    String planId,
+  ) async {
+    final json = await _getJsonObject(
+      '/v1/archive/plans/$planId/execution-summary',
+    );
+    return PlanExecutionSummaryDto.fromJson(json);
+  }
+
+  @override
   Future<PlanDetailDto> getPlan(String planId) async {
     final json = await _getJsonObject('/v1/plans/$planId');
     return PlanDetailDto.fromJson(json);
@@ -280,6 +341,77 @@ class HttpAdminBackendClient implements AdminBackendClient {
   }
 
   @override
+  Future<ApiListResponseDto<UserSummaryDto>> listUsers() async {
+    final json = await _getJsonObject('/v1/users');
+    return ApiListResponseDto<UserSummaryDto>.fromJson(
+      json,
+      UserSummaryDto.fromJson,
+    );
+  }
+
+  @override
+  Future<UserSummaryDto> createUser(CreateUserRequestDto request) async {
+    final json = await _postJsonObject('/v1/users', request.toJson());
+    return UserSummaryDto.fromJson(json);
+  }
+
+  @override
+  Future<UserSummaryDto> deactivateUser(
+    String userId,
+    RequestIdDto request,
+  ) async {
+    final json = await _postJsonObject(
+      '/v1/users/$userId/deactivate',
+      request.toJson(),
+    );
+    return UserSummaryDto.fromJson(json);
+  }
+
+  @override
+  Future<UserSummaryDto> resetUserPassword(
+    String userId,
+    ResetPasswordRequestDto request,
+  ) async {
+    final json = await _postJsonObject(
+      '/v1/users/$userId/reset-password',
+      request.toJson(),
+    );
+    return UserSummaryDto.fromJson(json);
+  }
+
+  @override
+  Future<ApiListResponseDto<AuditEntryDto>> listAuditEntries({
+    String? entityType,
+    String? entityId,
+    String? action,
+    String? changedBy,
+    String? fromDate,
+    String? toDate,
+    int? limit,
+    int? offset,
+  }) async {
+    final queryParameters = <String, String>{
+      if (entityType != null && entityType.isNotEmpty) 'entityType': entityType,
+      if (entityId != null && entityId.isNotEmpty) 'entityId': entityId,
+      if (action != null && action.isNotEmpty) 'action': action,
+      if (changedBy != null && changedBy.isNotEmpty) 'changedBy': changedBy,
+      if (fromDate != null && fromDate.isNotEmpty) 'fromDate': fromDate,
+      if (toDate != null && toDate.isNotEmpty) 'toDate': toDate,
+      if (limit != null) 'limit': '$limit',
+      if (offset != null) 'offset': '$offset',
+    };
+    final uri = Uri(
+      path: '/v1/audit',
+      queryParameters: queryParameters.isEmpty ? null : queryParameters,
+    );
+    final json = await _getJsonObject(uri.toString());
+    return ApiListResponseDto<AuditEntryDto>.fromJson(
+      json,
+      AuditEntryDto.fromJson,
+    );
+  }
+
+  @override
   Future<ApiListResponseDto<PlanFactReportItemDto>> getPlanFactReport({
     String? machineId,
     String? versionId,
@@ -369,6 +501,18 @@ class HttpAdminBackendClient implements AdminBackendClient {
   }
 
   @override
+  Future<HealthExtendedDto> getHealthExtended() async {
+    final json = await _getJsonObject('/v1/diagnostics/health-extended');
+    return HealthExtendedDto.fromJson(json);
+  }
+
+  @override
+  Future<IdempotencyStatsDto> getIdempotencyStats() async {
+    final json = await _getJsonObject('/v1/diagnostics/idempotency-stats');
+    return IdempotencyStatsDto.fromJson(json);
+  }
+
+  @override
   Future<ProblemDetailDto> getProblem(String problemId) async {
     final json = await _getJsonObject('/v1/problems/$problemId');
     return ProblemDetailDto.fromJson(json);
@@ -417,6 +561,29 @@ class HttpAdminBackendClient implements AdminBackendClient {
   }
 
   @override
+  Future<BackupInfoDto> createBackup(CreateBackupRequestDto request) async {
+    final json = await _postJsonObject('/v1/backup/create', request.toJson());
+    return BackupInfoDto.fromJson(json);
+  }
+
+  @override
+  Future<ApiListResponseDto<BackupInfoDto>> listBackups() async {
+    final json = await _getJsonObject('/v1/backup/list');
+    return ApiListResponseDto<BackupInfoDto>.fromJson(
+      json,
+      BackupInfoDto.fromJson,
+    );
+  }
+
+  @override
+  Future<RestoreBackupResponseDto> restoreBackup(
+    RestoreBackupRequestDto request,
+  ) async {
+    final json = await _postJsonObject('/v1/backup/restore', request.toJson());
+    return RestoreBackupResponseDto.fromJson(json);
+  }
+
+  @override
   Future<ImportSessionSummaryDto> createImportPreview(
     CreateImportPreviewRequestDto request,
   ) async {
@@ -452,7 +619,10 @@ class HttpAdminBackendClient implements AdminBackendClient {
 
   Future<Map<String, Object?>> _getJsonObject(String path) async {
     try {
-      final response = await _httpClient.get(_baseUri.resolve(path));
+      final response = await _httpClient.get(
+        _baseUri.resolve(path),
+        headers: _buildHeaders(),
+      );
       return _decodeResponseObject(response);
     } on SocketException catch (error) {
       throw AdminBackendException(
@@ -472,7 +642,7 @@ class HttpAdminBackendClient implements AdminBackendClient {
     try {
       final response = await _httpClient.post(
         _baseUri.resolve(path),
-        headers: const {'content-type': 'application/json'},
+        headers: _buildHeaders(includeJsonContentType: true),
         body: jsonEncode(body),
       );
       return _decodeResponseObject(response);
@@ -505,5 +675,12 @@ class HttpAdminBackendClient implements AdminBackendClient {
       ApiErrorDto.fromJson(body),
       statusCode: response.statusCode,
     );
+  }
+
+  Map<String, String> _buildHeaders({bool includeJsonContentType = false}) {
+    return {
+      if (includeJsonContentType) 'content-type': 'application/json',
+      if (_authToken != null) 'authorization': 'Bearer $_authToken',
+    };
   }
 }

@@ -18,12 +18,16 @@ class SqliteContractStoreSnapshotRepository
   final String _databasePath;
   final String? _packageRoot;
 
+  @override
+  String get databasePath => _databasePath;
+
   static const List<String> _tableResetOrder = [
     'catalog_items',
     'machines',
     'machine_versions',
     'structure_occurrences',
     'operation_occurrences',
+    'users',
     'plans',
     'plan_items',
     'plan_revisions',
@@ -64,6 +68,78 @@ class SqliteContractStoreSnapshotRepository
     }
   }
 
+  @override
+  int getDatabaseSizeBytes() {
+    if (_databasePath == ':memory:') {
+      return 0;
+    }
+    final file = File(_databasePath);
+    return file.existsSync() ? file.lengthSync() : 0;
+  }
+
+  @override
+  BackupFileRecord createBackup({required String backupFileName}) {
+    if (_databasePath == ':memory:') {
+      throw const FileSystemException(
+        'Backups require a file-backed database.',
+      );
+    }
+    final source = File(_databasePath);
+    if (!source.existsSync()) {
+      throw FileSystemException('Database file was not found.', _databasePath);
+    }
+    final target = File(p.join(_backupDirectory.path, backupFileName));
+    target.parent.createSync(recursive: true);
+    source.copySync(target.path);
+    final stat = target.statSync();
+    return BackupFileRecord(
+      backupId: p.basenameWithoutExtension(target.path),
+      fileName: p.basename(target.path),
+      createdAt: stat.modified.toUtc(),
+      sizeBytes: stat.size,
+      status: 'ready',
+    );
+  }
+
+  @override
+  List<BackupFileRecord> listBackups() {
+    if (_databasePath == ':memory:' || !_backupDirectory.existsSync()) {
+      return const [];
+    }
+
+    return _backupDirectory
+        .listSync()
+        .whereType<File>()
+        .where((file) => p.extension(file.path).toLowerCase() == '.sqlite3')
+        .map((file) {
+          final stat = file.statSync();
+          return BackupFileRecord(
+            backupId: p.basenameWithoutExtension(file.path),
+            fileName: p.basename(file.path),
+            createdAt: stat.modified.toUtc(),
+            sizeBytes: stat.size,
+            status: 'ready',
+          );
+        })
+        .toList(growable: false)
+      ..sort((left, right) => right.createdAt.compareTo(left.createdAt));
+  }
+
+  @override
+  RestoreBackupResult restoreBackup({required String backupFileName}) {
+    if (_databasePath == ':memory:') {
+      throw const FileSystemException(
+        'Restore requires a file-backed database.',
+      );
+    }
+    final source = File(p.join(_backupDirectory.path, backupFileName));
+    if (!source.existsSync()) {
+      throw FileSystemException('Backup file was not found.', source.path);
+    }
+    source.copySync(_databasePath);
+    return RestoreBackupResult(restoredAt: DateTime.now().toUtc());
+  }
+
   Database _openDatabase() {
     if (_databasePath != ':memory:') {
       final file = File(_databasePath);
@@ -76,39 +152,56 @@ class SqliteContractStoreSnapshotRepository
 
   void _runMigrations(Database database) {
     final packageRoot = _resolvePackageRoot();
-    final migrationFile = File(
-      p.join(
-        packageRoot,
-        'lib',
-        'src',
-        'persistence',
-        'migrations',
-        '001_initial.sql',
-      ),
-    );
-    final sql = migrationFile.readAsStringSync();
     final tableExists = database.select(
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'schema_migrations'",
     );
     if (tableExists.isEmpty) {
+      final bootstrap = File(
+        p.join(
+          packageRoot,
+          'lib',
+          'src',
+          'persistence',
+          'migrations',
+          '001_initial.sql',
+        ),
+      ).readAsStringSync();
+      database.execute(bootstrap);
+    }
+
+    final migrations = ['001_initial', '002_auth_archive_backup'];
+    for (final version in migrations) {
+      final applied = database.select(
+        'SELECT version FROM schema_migrations WHERE version = ?',
+        [version],
+      );
+      if (applied.isNotEmpty) {
+        continue;
+      }
+
+      final sql = File(
+        p.join(
+          packageRoot,
+          'lib',
+          'src',
+          'persistence',
+          'migrations',
+          '$version.sql',
+        ),
+      ).readAsStringSync();
       database.execute(sql);
       database.execute(
         'INSERT INTO schema_migrations(version, applied_at) VALUES(?, ?)',
-        ['001_initial', DateTime.now().toUtc().toIso8601String()],
-      );
-      return;
-    }
-    final applied = database.select(
-      'SELECT version FROM schema_migrations WHERE version = ?',
-      ['001_initial'],
-    );
-    if (applied.isEmpty) {
-      database.execute(sql);
-      database.execute(
-        'INSERT INTO schema_migrations(version, applied_at) VALUES(?, ?)',
-        ['001_initial', DateTime.now().toUtc().toIso8601String()],
+        [version, DateTime.now().toUtc().toIso8601String()],
       );
     }
+  }
+
+  Directory get _backupDirectory {
+    if (_databasePath == ':memory:') {
+      return Directory(p.join(Directory.current.path, 'backups'));
+    }
+    return Directory(p.join(File(_databasePath).parent.path, 'backups'));
   }
 
   String _resolvePackageRoot() {
@@ -154,6 +247,7 @@ class SqliteContractStoreSnapshotRepository
       _insertVersions(database, snapshot.versions);
       _insertStructureOccurrences(database, snapshot.structureOccurrences);
       _insertOperationOccurrences(database, snapshot.operationOccurrences);
+      _insertUsers(database, snapshot.users);
       _insertPlans(database, snapshot.plans);
       _insertTasks(database, snapshot.tasks);
       _insertReports(database, snapshot.reportsByTask);
@@ -190,6 +284,10 @@ class SqliteContractStoreSnapshotRepository
     final operationOccurrences = database
         .select('SELECT * FROM operation_occurrences ORDER BY id')
         .map(_operationOccurrenceFromRow)
+        .toList(growable: false);
+    final users = database
+        .select('SELECT * FROM users ORDER BY created_at, id')
+        .map(_userFromRow)
         .toList(growable: false);
     final plans = _loadPlans(database);
     final tasks = database
@@ -245,6 +343,7 @@ class SqliteContractStoreSnapshotRepository
       versions: versions,
       structureOccurrences: structureOccurrences,
       operationOccurrences: operationOccurrences,
+      users: users,
       plans: plans,
       tasks: tasks,
       reportsByTask: reportsByTask.map(
@@ -268,6 +367,7 @@ class SqliteContractStoreSnapshotRepository
       problemSequence: sequences['problem'] ?? 0,
       problemMessageSequence: sequences['problem_message'] ?? 0,
       auditSequence: sequences['audit'] ?? 0,
+      userSequence: sequences['user'] ?? 0,
     );
   }
 
@@ -286,7 +386,11 @@ class SqliteContractStoreSnapshotRepository
         requestedQuantity: (row['requested_quantity'] as num).toDouble(),
         hasRecordedExecution: (row['has_recorded_execution'] as int) == 1,
       );
-      itemsByPlan.update(planId, (items) => [...items, item], ifAbsent: () => [item]);
+      itemsByPlan.update(
+        planId,
+        (items) => [...items, item],
+        ifAbsent: () => [item],
+      );
     }
 
     final changesByRevision = <String, List<PlanFieldChange>>{};
@@ -338,10 +442,15 @@ class SqliteContractStoreSnapshotRepository
             title: row['title'] as String,
             createdAt: DateTime.parse(row['created_at'] as String),
             status: _planStatusFromName(row['status'] as String),
-            items: List.unmodifiable(itemsByPlan[row['id'] as String] ?? const []),
+            items: List.unmodifiable(
+              itemsByPlan[row['id'] as String] ?? const [],
+            ),
             revisions: List.unmodifiable(
               revisionsByPlan[row['id'] as String] ?? const [],
             ),
+            closedAt: (row['closed_at'] as String?) == null
+                ? null
+                : DateTime.parse(row['closed_at'] as String),
           ),
         )
         .toList(growable: false);
@@ -368,7 +477,9 @@ class SqliteContractStoreSnapshotRepository
     _insertAll(
       db,
       'INSERT INTO machines(id, code, name, active_version_id) VALUES(?, ?, ?, ?)',
-      items.map((item) => [item.id, item.code, item.name, item.activeVersionId]),
+      items.map(
+        (item) => [item.id, item.code, item.name, item.activeVersionId],
+      ),
     );
   }
 
@@ -388,7 +499,10 @@ class SqliteContractStoreSnapshotRepository
     );
   }
 
-  void _insertStructureOccurrences(Database db, List<StructureOccurrence> items) {
+  void _insertStructureOccurrences(
+    Database db,
+    List<StructureOccurrence> items,
+  ) {
     _insertAll(
       db,
       'INSERT INTO structure_occurrences(id, version_id, catalog_item_id, path_key, display_name, quantity_per_machine, parent_occurrence_id, workshop, inherited_workshop, source_position_number, source_owner_name) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -410,7 +524,10 @@ class SqliteContractStoreSnapshotRepository
     );
   }
 
-  void _insertOperationOccurrences(Database db, List<OperationOccurrence> items) {
+  void _insertOperationOccurrences(
+    Database db,
+    List<OperationOccurrence> items,
+  ) {
     _insertAll(
       db,
       'INSERT INTO operation_occurrences(id, version_id, structure_occurrence_id, name, quantity_per_machine, workshop, inherited_workshop, source_position_number, source_quantity) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -430,10 +547,28 @@ class SqliteContractStoreSnapshotRepository
     );
   }
 
+  void _insertUsers(Database db, List<User> items) {
+    _insertAll(
+      db,
+      'INSERT INTO users(id, login, password_hash, role, display_name, is_active, created_at) VALUES(?, ?, ?, ?, ?, ?, ?)',
+      items.map(
+        (item) => [
+          item.id,
+          item.login,
+          item.passwordHash,
+          item.role.name,
+          item.displayName,
+          item.isActive ? 1 : 0,
+          item.createdAt.toIso8601String(),
+        ],
+      ),
+    );
+  }
+
   void _insertPlans(Database db, List<Plan> plans) {
     _insertAll(
       db,
-      'INSERT INTO plans(id, machine_id, version_id, title, created_at, status) VALUES(?, ?, ?, ?, ?, ?)',
+      'INSERT INTO plans(id, machine_id, version_id, title, created_at, status, closed_at) VALUES(?, ?, ?, ?, ?, ?, ?)',
       plans.map(
         (plan) => [
           plan.id,
@@ -442,6 +577,7 @@ class SqliteContractStoreSnapshotRepository
           plan.title,
           plan.createdAt.toIso8601String(),
           plan.status.name,
+          plan.closedAt?.toIso8601String(),
         ],
       ),
     );
@@ -517,7 +653,10 @@ class SqliteContractStoreSnapshotRepository
     );
   }
 
-  void _insertReports(Database db, Map<String, List<ExecutionReport>> reportsByTask) {
+  void _insertReports(
+    Database db,
+    Map<String, List<ExecutionReport>> reportsByTask,
+  ) {
     _insertAll(
       db,
       'INSERT INTO execution_reports(id, task_id, reported_by, reported_at, reported_quantity, outcome, reason, accepted_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?)',
@@ -652,15 +791,12 @@ class SqliteContractStoreSnapshotRepository
         'problem': snapshot.problemSequence,
         'problem_message': snapshot.problemMessageSequence,
         'audit': snapshot.auditSequence,
+        'user': snapshot.userSequence,
       }.entries.map((entry) => [entry.key, entry.value]),
     );
   }
 
-  void _insertAll(
-    Database database,
-    String sql,
-    Iterable<List<Object?>> rows,
-  ) {
+  void _insertAll(Database database, String sql, Iterable<List<Object?>> rows) {
     final statement = database.prepare(sql);
     try {
       for (final row in rows) {
@@ -695,30 +831,45 @@ class SqliteContractStoreSnapshotRepository
     status: _machineVersionStatusFromName(row['status'] as String),
   );
 
-  StructureOccurrence _structureOccurrenceFromRow(Row row) => StructureOccurrence(
-    id: row['id'] as String,
-    versionId: row['version_id'] as String,
-    catalogItemId: row['catalog_item_id'] as String,
-    pathKey: row['path_key'] as String,
-    displayName: row['display_name'] as String,
-    quantityPerMachine: (row['quantity_per_machine'] as num).toDouble(),
-    parentOccurrenceId: row['parent_occurrence_id'] as String?,
-    workshop: row['workshop'] as String?,
-    inheritedWorkshop: (row['inherited_workshop'] as int) == 1,
-    sourcePositionNumber: row['source_position_number'] as String?,
-    sourceOwnerName: row['source_owner_name'] as String?,
-  );
+  StructureOccurrence _structureOccurrenceFromRow(Row row) =>
+      StructureOccurrence(
+        id: row['id'] as String,
+        versionId: row['version_id'] as String,
+        catalogItemId: row['catalog_item_id'] as String,
+        pathKey: row['path_key'] as String,
+        displayName: row['display_name'] as String,
+        quantityPerMachine: (row['quantity_per_machine'] as num).toDouble(),
+        parentOccurrenceId: row['parent_occurrence_id'] as String?,
+        workshop: row['workshop'] as String?,
+        inheritedWorkshop: (row['inherited_workshop'] as int) == 1,
+        sourcePositionNumber: row['source_position_number'] as String?,
+        sourceOwnerName: row['source_owner_name'] as String?,
+      );
 
-  OperationOccurrence _operationOccurrenceFromRow(Row row) => OperationOccurrence(
+  OperationOccurrence _operationOccurrenceFromRow(Row row) =>
+      OperationOccurrence(
+        id: row['id'] as String,
+        versionId: row['version_id'] as String,
+        structureOccurrenceId: row['structure_occurrence_id'] as String,
+        name: row['name'] as String,
+        quantityPerMachine: (row['quantity_per_machine'] as num).toDouble(),
+        workshop: row['workshop'] as String?,
+        inheritedWorkshop: (row['inherited_workshop'] as int) == 1,
+        sourcePositionNumber: row['source_position_number'] as String?,
+        sourceQuantity: (row['source_quantity'] as num?)?.toDouble(),
+      );
+
+  User _userFromRow(Row row) => User(
     id: row['id'] as String,
-    versionId: row['version_id'] as String,
-    structureOccurrenceId: row['structure_occurrence_id'] as String,
-    name: row['name'] as String,
-    quantityPerMachine: (row['quantity_per_machine'] as num).toDouble(),
-    workshop: row['workshop'] as String?,
-    inheritedWorkshop: (row['inherited_workshop'] as int) == 1,
-    sourcePositionNumber: row['source_position_number'] as String?,
-    sourceQuantity: (row['source_quantity'] as num?)?.toDouble(),
+    login: row['login'] as String,
+    passwordHash: row['password_hash'] as String,
+    role: UserRole.values.firstWhere(
+      (role) => role.name == row['role'] as String,
+      orElse: () => UserRole.master,
+    ),
+    displayName: row['display_name'] as String,
+    isActive: (row['is_active'] as int) == 1,
+    createdAt: DateTime.parse(row['created_at'] as String),
   );
 
   ProductionTask _taskFromRow(Row row) => ProductionTask(

@@ -1,6 +1,8 @@
 import 'package:domain/domain.dart';
 
 import 'plan_detail_item_dto.dart';
+import 'plan_execution_summary_dto.dart';
+import 'plan_revision_dto.dart';
 
 class PlanDetailDto {
   const PlanDetailDto({
@@ -14,6 +16,8 @@ class PlanDetailDto {
     required this.itemCount,
     required this.revisionCount,
     required this.items,
+    this.revisions = const [],
+    this.executionSummary,
   });
 
   factory PlanDetailDto.fromDomain(
@@ -31,11 +35,15 @@ class PlanDetailDto {
       itemCount: plan.items.length,
       revisionCount: plan.revisions.length,
       items: items,
+      revisions: plan.revisions
+          .map(PlanRevisionDto.fromDomain)
+          .toList(growable: false),
     );
   }
 
   factory PlanDetailDto.fromJson(Map<String, Object?> json) {
     final rawItems = json['items'] as List<Object?>? ?? const [];
+    final rawRevisions = json['revisions'] as List<Object?>? ?? const [];
     return PlanDetailDto(
       id: json['id'] as String? ?? '',
       machineId: json['machineId'] as String? ?? '',
@@ -56,6 +64,18 @@ class PlanDetailDto {
             ),
           )
           .toList(growable: false),
+      revisions: rawRevisions
+          .map(
+            (item) => PlanRevisionDto.fromJson(
+              (item as Map<Object?, Object?>).cast(),
+            ),
+          )
+          .toList(growable: false),
+      executionSummary: json['executionSummary'] is Map<Object?, Object?>
+          ? PlanExecutionSummaryDto.fromJson(
+              (json['executionSummary'] as Map<Object?, Object?>).cast(),
+            )
+          : null,
     );
   }
 
@@ -69,6 +89,8 @@ class PlanDetailDto {
   final int itemCount;
   final int revisionCount;
   final List<PlanDetailItemDto> items;
+  final List<PlanRevisionDto> revisions;
+  final PlanExecutionSummaryDto? executionSummary;
 
   Map<String, Object?> toJson() => {
     'id': id,
@@ -81,5 +103,8 @@ class PlanDetailDto {
     'itemCount': itemCount,
     'revisionCount': revisionCount,
     'items': items.map((item) => item.toJson()).toList(growable: false),
+    'revisions': revisions.map((item) => item.toJson()).toList(growable: false),
+    if (executionSummary != null)
+      'executionSummary': executionSummary!.toJson(),
   };
 }

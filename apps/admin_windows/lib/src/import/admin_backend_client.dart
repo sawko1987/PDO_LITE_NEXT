@@ -1,6 +1,10 @@
 import 'package:data_models/data_models.dart';
 
 abstract interface class AdminBackendClient {
+  Future<LoginResponseDto> login(LoginRequestDto request);
+
+  Future<void> logout();
+
   Future<ApiListResponseDto<MachineSummaryDto>> listMachines();
 
   Future<ApiListResponseDto<MachineVersionSummaryDto>> listMachineVersions(
@@ -71,6 +75,17 @@ abstract interface class AdminBackendClient {
 
   Future<ApiListResponseDto<PlanSummaryDto>> listPlans();
 
+  Future<ApiListResponseDto<PlanArchiveItemDto>> listArchivePlans({
+    String? machineId,
+    String? fromDate,
+    String? toDate,
+    String? status,
+  });
+
+  Future<PlanDetailDto> getArchivePlan(String planId);
+
+  Future<PlanExecutionSummaryDto> getArchivePlanExecutionSummary(String planId);
+
   Future<PlanDetailDto> getPlan(String planId);
 
   Future<PlanCompletionDecisionDto> getPlanCompletionDecision(String planId);
@@ -103,6 +118,28 @@ abstract interface class AdminBackendClient {
     String? status,
   });
 
+  Future<ApiListResponseDto<UserSummaryDto>> listUsers();
+
+  Future<UserSummaryDto> createUser(CreateUserRequestDto request);
+
+  Future<UserSummaryDto> deactivateUser(String userId, RequestIdDto request);
+
+  Future<UserSummaryDto> resetUserPassword(
+    String userId,
+    ResetPasswordRequestDto request,
+  );
+
+  Future<ApiListResponseDto<AuditEntryDto>> listAuditEntries({
+    String? entityType,
+    String? entityId,
+    String? action,
+    String? changedBy,
+    String? fromDate,
+    String? toDate,
+    int? limit,
+    int? offset,
+  });
+
   Future<ApiListResponseDto<PlanFactReportItemDto>> getPlanFactReport({
     String? machineId,
     String? versionId,
@@ -127,6 +164,10 @@ abstract interface class AdminBackendClient {
 
   Future<ReportSummaryDto> getReportSummary({String? machineId});
 
+  Future<HealthExtendedDto> getHealthExtended();
+
+  Future<IdempotencyStatsDto> getIdempotencyStats();
+
   Future<ProblemDetailDto> getProblem(String problemId);
 
   Future<ProblemDetailDto> createProblem(
@@ -145,6 +186,14 @@ abstract interface class AdminBackendClient {
   );
 
   Future<ApiListResponseDto<WipEntryDto>> listWipEntries();
+
+  Future<BackupInfoDto> createBackup(CreateBackupRequestDto request);
+
+  Future<ApiListResponseDto<BackupInfoDto>> listBackups();
+
+  Future<RestoreBackupResponseDto> restoreBackup(
+    RestoreBackupRequestDto request,
+  );
 
   Future<ImportSessionSummaryDto> createImportPreview(
     CreateImportPreviewRequestDto request,

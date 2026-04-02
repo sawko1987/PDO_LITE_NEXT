@@ -1,4 +1,5 @@
 export 'src/audit_entry.dart';
+export 'src/auth_session.dart';
 export 'src/catalog_item.dart';
 export 'src/catalog_item_kind.dart';
 export 'src/completion_policy.dart';
@@ -19,6 +20,7 @@ export 'src/problem_type.dart';
 export 'src/structure_occurrence.dart';
 export 'src/task.dart';
 export 'src/task_status.dart';
+export 'src/user.dart';
 export 'src/user_role.dart';
 export 'src/wip_entry.dart';
 export 'src/wip_entry_status.dart';

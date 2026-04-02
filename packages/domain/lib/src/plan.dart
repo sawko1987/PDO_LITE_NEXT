@@ -12,6 +12,7 @@ class Plan {
     required this.items,
     this.status = PlanStatus.draft,
     this.revisions = const [],
+    this.closedAt,
   });
 
   final String id;
@@ -22,6 +23,7 @@ class Plan {
   final List<PlanItem> items;
   final PlanStatus status;
   final List<PlanRevision> revisions;
+  final DateTime? closedAt;
 
   bool get hasItems => items.isNotEmpty;
   bool get isReleased => status == PlanStatus.released;

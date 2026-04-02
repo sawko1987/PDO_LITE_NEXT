@@ -5,6 +5,7 @@ import 'package:admin_windows/src/execution/execution_board_controller.dart';
 import 'package:admin_windows/src/execution/execution_workspace.dart';
 import 'package:admin_windows/src/import/admin_backend_client.dart';
 import 'package:admin_windows/src/import/import_flow_controller.dart';
+import 'package:admin_windows/src/import/import_workspace.dart';
 import 'package:admin_windows/src/machines/machines_registry_controller.dart';
 import 'package:admin_windows/src/machines/machines_workspace.dart';
 import 'package:admin_windows/src/plans/plan_board_controller.dart';
@@ -38,6 +39,7 @@ void main() {
         machinesController: machinesController,
         planController: planController,
         executionController: executionController,
+        client: client,
       ),
     );
     await tester.pumpAndSettle();
@@ -66,26 +68,23 @@ void main() {
       ],
     );
     final controller = ImportFlowController(client: client);
-    final machinesController = MachinesRegistryController(client: client);
-    final planController = PlanBoardController(client: client);
-    final executionController = ExecutionBoardController(client: client);
     controller.setSelectedFile(
       fileName: 'conflict.mxl',
       bytes: Uint8List.fromList([1, 2, 3]),
     );
     await controller.createPreview();
+    await controller.bootstrap();
 
     await tester.pumpWidget(
-      AdminWindowsApp(
-        controller: controller,
-        machinesController: machinesController,
-        planController: planController,
-        executionController: executionController,
+      MaterialApp(
+        home: Scaffold(
+          body: ImportWorkspace(
+            controller: controller,
+            onPickFile: () async {},
+          ),
+        ),
       ),
     );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Import'));
     await tester.pumpAndSettle();
 
     expect(find.text('Conflicts'), findsOneWidget);
@@ -274,10 +273,10 @@ void main() {
         home: Scaffold(
           body: MachinesWorkspace(
             controller: machinesController,
-            onOpenInPlans: (_, __) async {},
-            onOpenInStructure: (_, __) async {},
-            onCreateEditableDraftInStructure: (_, __) async {},
-            onCreateNewVersionInImport: (_) async {},
+            onOpenInPlans: (machineId, versionId) async {},
+            onOpenInStructure: (machineId, versionId) async {},
+            onCreateEditableDraftInStructure: (machineId, versionId) async {},
+            onCreateNewVersionInImport: (machineId) async {},
           ),
         ),
       ),
@@ -332,8 +331,8 @@ void main() {
                 openedPlanMachineId = machineId;
                 openedPlanVersionId = versionId;
               },
-              onOpenInStructure: (_, __) async {},
-              onCreateEditableDraftInStructure: (_, __) async {},
+              onOpenInStructure: (machineId, versionId) async {},
+              onCreateEditableDraftInStructure: (machineId, versionId) async {},
               onCreateNewVersionInImport: (machineId) async {
                 importMachineId = machineId;
               },

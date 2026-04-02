@@ -344,13 +344,6 @@ class ReportsBoardController extends ChangeNotifier {
   List<String> get machineLabels => _machines
       .map((machine) => '${machine.code} - ${machine.name}')
       .toList(growable: false);
-
-  @override
-  void dispose() {
-    client.dispose();
-    super.dispose();
-  }
-
   String? _normalizeFilter(String? value) {
     final trimmed = value?.trim() ?? '';
     return trimmed.isEmpty ? null : trimmed;

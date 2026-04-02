@@ -4,9 +4,17 @@ import 'package:flutter/foundation.dart';
 import '../import/admin_backend_client.dart';
 
 class PlanBoardController extends ChangeNotifier {
-  PlanBoardController({required this.client});
+  PlanBoardController({
+    required this.client,
+    this.releasedBy = 'planner-1',
+    this.completedBy = 'supervisor-1',
+    this.canCompletePlans = true,
+  });
 
   final AdminBackendClient client;
+  final String releasedBy;
+  final String completedBy;
+  final bool canCompletePlans;
 
   final List<MachineSummaryDto> _machines = [];
   final List<MachineVersionSummaryDto> _versions = [];
@@ -485,7 +493,7 @@ class PlanBoardController extends ChangeNotifier {
         plan.id,
         ReleasePlanRequestDto(
           requestId: _nextRequestId('release-plan'),
-          releasedBy: 'planner-1',
+          releasedBy: releasedBy,
         ),
       );
       _activePlan = await client.getPlan(plan.id);
@@ -523,6 +531,11 @@ class PlanBoardController extends ChangeNotifier {
   }
 
   Future<void> completeActivePlan() async {
+    if (!canCompletePlans) {
+      _errorMessage = 'Only supervisor role can confirm plan completion.';
+      notifyListeners();
+      return;
+    }
     final plan = _activePlan;
     if (plan == null || plan.status != 'released') {
       _errorMessage = 'Selected plan cannot be completed.';
@@ -545,7 +558,7 @@ class PlanBoardController extends ChangeNotifier {
         plan.id,
         CompletePlanRequestDto(
           requestId: _nextRequestId('complete-plan'),
-          completedBy: 'supervisor-1',
+          completedBy: completedBy,
         ),
       );
       _activePlan = await client.getPlan(plan.id);
@@ -601,12 +614,6 @@ class PlanBoardController extends ChangeNotifier {
       _isWipLoading = false;
       notifyListeners();
     }
-  }
-
-  @override
-  void dispose() {
-    client.dispose();
-    super.dispose();
   }
 
   String _nextRequestId(String prefix) {
@@ -814,9 +821,9 @@ class _MutablePlanningTreeNode {
     required this.id,
     required this.label,
     required this.pathKey,
-    required Set<String> occurrenceIds,
+    required this.occurrenceIds,
     this.occurrence,
-  }) : occurrenceIds = occurrenceIds;
+  });
 
   final String id;
   final String label;

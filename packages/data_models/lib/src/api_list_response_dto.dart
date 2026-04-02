@@ -2,6 +2,7 @@ class ApiListResponseDto<T> {
   const ApiListResponseDto({
     required this.items,
     this.meta = const <String, Object?>{},
+    this.total,
   });
 
   factory ApiListResponseDto.fromJson(
@@ -16,17 +17,20 @@ class ApiListResponseDto<T> {
           .map((item) => decodeItem((item as Map<Object?, Object?>).cast()))
           .toList(growable: false),
       meta: rawMeta.cast(),
+      total: json['total'] as int?,
     );
   }
 
   final List<T> items;
   final Map<String, Object?> meta;
+  final int? total;
 
   Map<String, Object?> toJson(
     Map<String, Object?> Function(T item) encodeItem,
   ) => {
     'items': items.map(encodeItem).toList(growable: false),
     'count': items.length,
+    if (total != null) 'total': total,
     'meta': meta,
   };
 }

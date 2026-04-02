@@ -7,6 +7,7 @@ environment:
   sdk: ^3.10.8
 
 dependencies:
+  crypto: ^3.0.6
   data_models:
     path: ../packages/data_models
   domain:

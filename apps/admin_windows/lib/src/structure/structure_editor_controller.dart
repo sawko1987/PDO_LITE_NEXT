@@ -4,9 +4,10 @@ import 'package:flutter/foundation.dart';
 import '../import/admin_backend_client.dart';
 
 class StructureEditorController extends ChangeNotifier {
-  StructureEditorController({required this.client});
+  StructureEditorController({required this.client, this.actorId = 'planner-1'});
 
   final AdminBackendClient client;
+  final String actorId;
 
   final List<MachineSummaryDto> _machines = [];
   final List<MachineVersionSummaryDto> _versions = [];
@@ -191,7 +192,7 @@ class StructureEditorController extends ChangeNotifier {
         versionId,
         CreateDraftMachineVersionRequestDto(
           requestId: _nextRequestId('structure-draft'),
-          createdBy: 'planner-1',
+          createdBy: actorId,
         ),
       );
       _successMessage = 'Editable draft ${detail.label} created.';
@@ -436,7 +437,7 @@ class StructureEditorController extends ChangeNotifier {
         versionId,
         PublishMachineVersionRequestDto(
           requestId: _nextRequestId('structure-publish'),
-          publishedBy: 'planner-1',
+          publishedBy: actorId,
         ),
       );
       _successMessage = 'Version ${published.label} published and activated.';
