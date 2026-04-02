@@ -2,17 +2,129 @@ import 'dart:math';
 
 import 'package:domain/domain.dart';
 
+import '../persistence/contract_store_snapshot_repository.dart';
+import 'contract_store_snapshot.dart';
+
 class DemoContractStore {
-  DemoContractStore()
-    : _machines = [
-        const Machine(
+  DemoContractStore({ContractStoreSnapshotRepository? snapshotRepository})
+    : _snapshotRepository = snapshotRepository {
+    final snapshot =
+        snapshotRepository?.loadOrSeed(_buildSeedSnapshot()) ??
+        _buildSeedSnapshot();
+    _catalogItems = List<CatalogItem>.from(snapshot.catalogItems);
+    _machines = List<Machine>.from(snapshot.machines);
+    _versions = List<MachineVersion>.from(snapshot.versions);
+    _structureOccurrences = List<StructureOccurrence>.from(
+      snapshot.structureOccurrences,
+    );
+    _operationOccurrences = List<OperationOccurrence>.from(
+      snapshot.operationOccurrences,
+    );
+    _plans = List<Plan>.from(snapshot.plans);
+    _tasks = List<ProductionTask>.from(snapshot.tasks);
+    _reportsByTask = snapshot.reportsByTask.map(
+      (key, value) => MapEntry(key, List<ExecutionReport>.from(value)),
+    );
+    _problems = List<Problem>.from(snapshot.problems);
+    _problemMessagesByProblem = snapshot.problemMessagesByProblem.map(
+      (key, value) => MapEntry(key, List<ProblemMessage>.from(value)),
+    );
+    _wipEntries = List<WipEntry>.from(snapshot.wipEntries);
+    _auditEntries = List<AuditEntry>.from(snapshot.auditEntries);
+    _machineSequence = snapshot.machineSequence;
+    _versionSequence = snapshot.versionSequence;
+    _structureSequence = snapshot.structureSequence;
+    _operationSequence = snapshot.operationSequence;
+    _planSequence = snapshot.planSequence;
+    _planItemSequence = snapshot.planItemSequence;
+    _taskSequence = snapshot.taskSequence;
+    _reportSequence = snapshot.reportSequence;
+    _problemSequence = snapshot.problemSequence;
+    _problemMessageSequence = snapshot.problemMessageSequence;
+    _auditSequence = snapshot.auditSequence;
+    _restoreIdempotency(snapshot.idempotencyRecords);
+  }
+
+  final ContractStoreSnapshotRepository? _snapshotRepository;
+  late final List<CatalogItem> _catalogItems;
+  late final List<Machine> _machines;
+  late final List<MachineVersion> _versions;
+  late final List<StructureOccurrence> _structureOccurrences;
+  late final List<OperationOccurrence> _operationOccurrences;
+  late final List<Plan> _plans;
+  late final List<ProductionTask> _tasks;
+  late final Map<String, List<ExecutionReport>> _reportsByTask;
+  late final List<Problem> _problems;
+  late final Map<String, List<ProblemMessage>> _problemMessagesByProblem;
+  late final List<WipEntry> _wipEntries;
+  late final List<AuditEntry> _auditEntries;
+  final Map<String, _StoredPlanCommand> _planByCreateRequestId = {};
+  final Map<String, _StoredReleaseCommand> _releaseByRequestId = {};
+  final Map<String, _StoredCompleteCommand> _completionByRequestId = {};
+  final Map<String, _StoredExecutionReportCommand> _reportByRequestId = {};
+  final Map<String, _StoredProblemCommand> _problemByCreateRequestId = {};
+  final Map<String, _StoredProblemMessageCommand> _problemMessageByRequestId =
+      {};
+  final Map<String, _StoredProblemTransitionCommand>
+  _problemTransitionByRequestId = {};
+  final Map<String, _StoredMachineVersionCommand> _draftVersionByRequestId = {};
+  final Map<String, _StoredMachineVersionCommand> _publishVersionByRequestId =
+      {};
+  final Map<String, _StoredMachineVersionCommand> _structureCreateByRequestId =
+      {};
+  final Map<String, _StoredMachineVersionCommand> _structureUpdateByRequestId =
+      {};
+  final Map<String, _StoredMachineVersionCommand> _structureDeleteByRequestId =
+      {};
+  final Map<String, _StoredMachineVersionCommand> _operationCreateByRequestId =
+      {};
+  final Map<String, _StoredMachineVersionCommand> _operationUpdateByRequestId =
+      {};
+  final Map<String, _StoredMachineVersionCommand> _operationDeleteByRequestId =
+      {};
+  late int _machineSequence;
+  late int _versionSequence;
+  late int _structureSequence;
+  late int _operationSequence;
+  late int _planSequence;
+  late int _planItemSequence;
+  late int _taskSequence;
+  late int _reportSequence;
+  late int _problemSequence;
+  late int _problemMessageSequence;
+  late int _auditSequence;
+
+  static ContractStoreSnapshot _buildSeedSnapshot() {
+    return ContractStoreSnapshot(
+      catalogItems: const [
+        CatalogItem(
+          id: 'catalog-1',
+          code: 'FRAME',
+          name: 'Frame',
+          kind: CatalogItemKind.detail,
+        ),
+        CatalogItem(
+          id: 'catalog-2',
+          code: 'BODY-PANEL',
+          name: 'Body Panel',
+          kind: CatalogItemKind.detail,
+        ),
+        CatalogItem(
+          id: 'catalog-3',
+          code: 'DRAFT-KIT',
+          name: 'Draft Kit',
+          kind: CatalogItemKind.detail,
+        ),
+      ],
+      machines: const [
+        Machine(
           id: 'machine-1',
           code: 'PDO-100',
           name: 'PDO 100',
           activeVersionId: 'ver-2026-03',
         ),
       ],
-      _versions = [
+      versions: [
         MachineVersion(
           id: 'ver-2026-03',
           machineId: 'machine-1',
@@ -28,8 +140,8 @@ class DemoContractStore {
           status: MachineVersionStatus.draft,
         ),
       ],
-      _structureOccurrences = [
-        const StructureOccurrence(
+      structureOccurrences: const [
+        StructureOccurrence(
           id: 'occ-1',
           versionId: 'ver-2026-03',
           catalogItemId: 'catalog-1',
@@ -38,7 +150,7 @@ class DemoContractStore {
           quantityPerMachine: 1,
           workshop: 'WS-1',
         ),
-        const StructureOccurrence(
+        StructureOccurrence(
           id: 'occ-2',
           versionId: 'ver-2026-03',
           catalogItemId: 'catalog-2',
@@ -48,7 +160,7 @@ class DemoContractStore {
           parentOccurrenceId: 'occ-1',
           workshop: 'WS-2',
         ),
-        const StructureOccurrence(
+        StructureOccurrence(
           id: 'occ-3',
           versionId: 'ver-2026-04-draft',
           catalogItemId: 'catalog-3',
@@ -58,8 +170,8 @@ class DemoContractStore {
           workshop: 'WS-3',
         ),
       ],
-      _operationOccurrences = [
-        const OperationOccurrence(
+      operationOccurrences: const [
+        OperationOccurrence(
           id: 'op-1',
           versionId: 'ver-2026-03',
           structureOccurrenceId: 'occ-1',
@@ -67,7 +179,7 @@ class DemoContractStore {
           quantityPerMachine: 1,
           workshop: 'WS-1',
         ),
-        const OperationOccurrence(
+        OperationOccurrence(
           id: 'op-2',
           versionId: 'ver-2026-03',
           structureOccurrenceId: 'occ-2',
@@ -75,7 +187,7 @@ class DemoContractStore {
           quantityPerMachine: 1,
           workshop: 'WS-2',
         ),
-        const OperationOccurrence(
+        OperationOccurrence(
           id: 'op-3',
           versionId: 'ver-2026-03',
           structureOccurrenceId: 'occ-2',
@@ -83,7 +195,7 @@ class DemoContractStore {
           quantityPerMachine: 1,
           workshop: 'WS-2',
         ),
-        const OperationOccurrence(
+        OperationOccurrence(
           id: 'op-4',
           versionId: 'ver-2026-04-draft',
           structureOccurrenceId: 'occ-3',
@@ -92,7 +204,7 @@ class DemoContractStore {
           workshop: 'WS-3',
         ),
       ],
-      _plans = [
+      plans: [
         Plan(
           id: 'plan-1',
           machineId: 'machine-1',
@@ -142,8 +254,8 @@ class DemoContractStore {
           ],
         ),
       ],
-      _tasks = [
-        const ProductionTask(
+      tasks: const [
+        ProductionTask(
           id: 'task-1',
           planItemId: 'plan-item-1',
           operationOccurrenceId: 'op-1',
@@ -151,7 +263,7 @@ class DemoContractStore {
           assigneeId: 'master-1',
           status: TaskStatus.inProgress,
         ),
-        const ProductionTask(
+        ProductionTask(
           id: 'task-2',
           planItemId: 'plan-item-2',
           operationOccurrenceId: 'op-2',
@@ -160,7 +272,7 @@ class DemoContractStore {
           status: TaskStatus.pending,
         ),
       ],
-      _reportsByTask = {
+      reportsByTask: {
         'task-1': [
           ExecutionReport(
             id: 'report-1',
@@ -174,7 +286,7 @@ class DemoContractStore {
         ],
         'task-2': const [],
       },
-      _problems = [
+      problems: [
         Problem(
           id: 'problem-1',
           machineId: 'machine-1',
@@ -185,7 +297,7 @@ class DemoContractStore {
           status: ProblemStatus.inProgress,
         ),
       ],
-      _problemMessagesByProblem = {
+      problemMessagesByProblem: {
         'problem-1': [
           ProblemMessage(
             id: 'problem-message-1',
@@ -196,7 +308,7 @@ class DemoContractStore {
           ),
         ],
       },
-      _wipEntries = [
+      wipEntries: [
         WipEntry(
           id: 'wip-1',
           machineId: 'machine-1',
@@ -210,7 +322,7 @@ class DemoContractStore {
           status: WipEntryStatus.open,
         ),
       ],
-      _auditEntries = [
+      auditEntries: [
         AuditEntry(
           id: 'audit-1',
           entityType: 'plan',
@@ -223,64 +335,311 @@ class DemoContractStore {
           afterValue: '12',
         ),
       ],
-      _machineSequence = 1,
-      _versionSequence = 2,
-      _structureSequence = 3,
-      _operationSequence = 4,
-      _planSequence = 1,
-      _planItemSequence = 2,
-      _taskSequence = 2,
-      _reportSequence = 1,
-      _problemSequence = 1,
-      _problemMessageSequence = 1,
-      _auditSequence = 1;
+      idempotencyRecords: const [],
+      machineSequence: 1,
+      versionSequence: 2,
+      structureSequence: 3,
+      operationSequence: 4,
+      planSequence: 1,
+      planItemSequence: 2,
+      taskSequence: 2,
+      reportSequence: 1,
+      problemSequence: 1,
+      problemMessageSequence: 1,
+      auditSequence: 1,
+    );
+  }
 
-  final List<Machine> _machines;
-  final List<MachineVersion> _versions;
-  final List<StructureOccurrence> _structureOccurrences;
-  final List<OperationOccurrence> _operationOccurrences;
-  final List<Plan> _plans;
-  final List<ProductionTask> _tasks;
-  final Map<String, List<ExecutionReport>> _reportsByTask;
-  final List<Problem> _problems;
-  final Map<String, List<ProblemMessage>> _problemMessagesByProblem;
-  final List<WipEntry> _wipEntries;
-  final List<AuditEntry> _auditEntries;
-  final Map<String, _StoredPlanCommand> _planByCreateRequestId = {};
-  final Map<String, _StoredReleaseCommand> _releaseByRequestId = {};
-  final Map<String, _StoredCompleteCommand> _completionByRequestId = {};
-  final Map<String, _StoredExecutionReportCommand> _reportByRequestId = {};
-  final Map<String, _StoredProblemCommand> _problemByCreateRequestId = {};
-  final Map<String, _StoredProblemMessageCommand> _problemMessageByRequestId =
-      {};
-  final Map<String, _StoredProblemTransitionCommand>
-  _problemTransitionByRequestId = {};
-  final Map<String, _StoredMachineVersionCommand> _draftVersionByRequestId = {};
-  final Map<String, _StoredMachineVersionCommand> _publishVersionByRequestId =
-      {};
-  final Map<String, _StoredMachineVersionCommand> _structureCreateByRequestId =
-      {};
-  final Map<String, _StoredMachineVersionCommand> _structureUpdateByRequestId =
-      {};
-  final Map<String, _StoredMachineVersionCommand> _structureDeleteByRequestId =
-      {};
-  final Map<String, _StoredMachineVersionCommand> _operationCreateByRequestId =
-      {};
-  final Map<String, _StoredMachineVersionCommand> _operationUpdateByRequestId =
-      {};
-  final Map<String, _StoredMachineVersionCommand> _operationDeleteByRequestId =
-      {};
-  int _machineSequence;
-  int _versionSequence;
-  int _structureSequence;
-  int _operationSequence;
-  int _planSequence;
-  int _planItemSequence;
-  int _taskSequence;
-  int _reportSequence;
-  int _problemSequence;
-  int _problemMessageSequence;
-  int _auditSequence;
+  void _restoreIdempotency(List<IdempotencyRecord> records) {
+    for (final record in records) {
+      if (record.category == 'plan_create' && record.resourceId != null) {
+        _planByCreateRequestId[record.requestId] = _StoredPlanCommand(
+          signature: record.signature,
+          planId: record.resourceId!,
+        );
+      } else if (record.category == 'plan_release' &&
+          record.resourceId != null &&
+          record.status != null &&
+          record.generatedCount != null) {
+        _releaseByRequestId[record.requestId] = _StoredReleaseCommand(
+          signature: record.signature,
+          result: ReleasePlanResult(
+            planId: record.resourceId!,
+            status: PlanStatus.values.firstWhere(
+              (status) => status.name == record.status,
+            ),
+            generatedTaskCount: record.generatedCount!,
+          ),
+        );
+      } else if (record.category == 'plan_complete' &&
+          record.resourceId != null &&
+          record.status != null) {
+        _completionByRequestId[record.requestId] = _StoredCompleteCommand(
+          signature: record.signature,
+          result: CompletePlanResult(
+            planId: record.resourceId!,
+            status: PlanStatus.values.firstWhere(
+              (status) => status.name == record.status,
+            ),
+          ),
+        );
+      } else if (record.category == 'execution_report' &&
+          record.resourceId != null) {
+        final report = _findReport(record.resourceId!);
+        final task = getTask(report.taskId);
+        final restoredEntry = record.secondaryResourceId == null
+            ? null
+            : _wipEntries.cast<WipEntry?>().firstWhere(
+                (entry) => entry?.id == record.secondaryResourceId,
+                orElse: () => null,
+              );
+        _reportByRequestId[record.requestId] = _StoredExecutionReportCommand(
+          signature: record.signature,
+          result: CreateExecutionReportResult(
+            report: report,
+            taskStatus: task.status,
+            reportedQuantityTotal: reportedQuantityForTask(report.taskId),
+            remainingQuantity: max(
+              0.0,
+              task.requiredQuantity - reportedQuantityForTask(report.taskId),
+            ),
+            wipEffect: ExecutionReportWipEffect(
+              type: 'restored',
+              entry: restoredEntry,
+            ),
+          ),
+        );
+      } else if (record.category == 'problem_create' &&
+          record.resourceId != null) {
+        _problemByCreateRequestId[record.requestId] = _StoredProblemCommand(
+          signature: record.signature,
+          problemId: record.resourceId!,
+        );
+      } else if (record.category == 'problem_message' &&
+          record.resourceId != null &&
+          record.secondaryResourceId != null) {
+        _problemMessageByRequestId[record.requestId] =
+            _StoredProblemMessageCommand(
+              signature: record.signature,
+              problemId: record.resourceId!,
+              messageId: record.secondaryResourceId!,
+            );
+      } else if (record.category == 'problem_transition' &&
+          record.resourceId != null) {
+        _problemTransitionByRequestId[record.requestId] =
+            _StoredProblemTransitionCommand(
+              signature: record.signature,
+              problemId: record.resourceId!,
+            );
+      } else if (record.resourceId != null &&
+          record.category == 'version_draft') {
+        _draftVersionByRequestId[record.requestId] = _StoredMachineVersionCommand(
+          signature: record.signature,
+          versionId: record.resourceId!,
+        );
+      } else if (record.resourceId != null &&
+          record.category == 'version_publish') {
+        _publishVersionByRequestId[record.requestId] =
+            _StoredMachineVersionCommand(
+              signature: record.signature,
+              versionId: record.resourceId!,
+            );
+      } else if (record.resourceId != null &&
+          record.category == 'structure_create') {
+        _structureCreateByRequestId[record.requestId] =
+            _StoredMachineVersionCommand(
+              signature: record.signature,
+              versionId: record.resourceId!,
+            );
+      } else if (record.resourceId != null &&
+          record.category == 'structure_update') {
+        _structureUpdateByRequestId[record.requestId] =
+            _StoredMachineVersionCommand(
+              signature: record.signature,
+              versionId: record.resourceId!,
+            );
+      } else if (record.resourceId != null &&
+          record.category == 'structure_delete') {
+        _structureDeleteByRequestId[record.requestId] =
+            _StoredMachineVersionCommand(
+              signature: record.signature,
+              versionId: record.resourceId!,
+            );
+      } else if (record.resourceId != null &&
+          record.category == 'operation_create') {
+        _operationCreateByRequestId[record.requestId] =
+            _StoredMachineVersionCommand(
+              signature: record.signature,
+              versionId: record.resourceId!,
+            );
+      } else if (record.resourceId != null &&
+          record.category == 'operation_update') {
+        _operationUpdateByRequestId[record.requestId] =
+            _StoredMachineVersionCommand(
+              signature: record.signature,
+              versionId: record.resourceId!,
+            );
+      } else if (record.resourceId != null &&
+          record.category == 'operation_delete') {
+        _operationDeleteByRequestId[record.requestId] =
+            _StoredMachineVersionCommand(
+              signature: record.signature,
+              versionId: record.resourceId!,
+            );
+      }
+    }
+  }
+
+  ExecutionReport _findReport(String reportId) {
+    for (final reports in _reportsByTask.values) {
+      for (final report in reports) {
+        if (report.id == reportId) {
+          return report;
+        }
+      }
+    }
+    throw const DemoStoreNotFound(
+      'execution_report_not_found',
+      'Execution report was not found.',
+    );
+  }
+
+  void _persist() {
+    _snapshotRepository?.save(
+      ContractStoreSnapshot(
+        catalogItems: List.unmodifiable(_catalogItems),
+        machines: List.unmodifiable(_machines),
+        versions: List.unmodifiable(_versions),
+        structureOccurrences: List.unmodifiable(_structureOccurrences),
+        operationOccurrences: List.unmodifiable(_operationOccurrences),
+        plans: List.unmodifiable(_plans),
+        tasks: List.unmodifiable(_tasks),
+        reportsByTask: _reportsByTask.map(
+          (key, value) => MapEntry(key, List.unmodifiable(value)),
+        ),
+        problems: List.unmodifiable(_problems),
+        problemMessagesByProblem: _problemMessagesByProblem.map(
+          (key, value) => MapEntry(key, List.unmodifiable(value)),
+        ),
+        wipEntries: List.unmodifiable(_wipEntries),
+        auditEntries: List.unmodifiable(_auditEntries),
+        idempotencyRecords: _buildIdempotencyRecords(),
+        machineSequence: _machineSequence,
+        versionSequence: _versionSequence,
+        structureSequence: _structureSequence,
+        operationSequence: _operationSequence,
+        planSequence: _planSequence,
+        planItemSequence: _planItemSequence,
+        taskSequence: _taskSequence,
+        reportSequence: _reportSequence,
+        problemSequence: _problemSequence,
+        problemMessageSequence: _problemMessageSequence,
+        auditSequence: _auditSequence,
+      ),
+    );
+  }
+
+  List<IdempotencyRecord> _buildIdempotencyRecords() {
+    final records = <IdempotencyRecord>[];
+    _planByCreateRequestId.forEach((requestId, stored) {
+      records.add(
+        IdempotencyRecord(
+          requestId: requestId,
+          category: 'plan_create',
+          signature: stored.signature,
+          resourceId: stored.planId,
+        ),
+      );
+    });
+    _releaseByRequestId.forEach((requestId, stored) {
+      records.add(
+        IdempotencyRecord(
+          requestId: requestId,
+          category: 'plan_release',
+          signature: stored.signature,
+          resourceId: stored.result.planId,
+          status: stored.result.status.name,
+          generatedCount: stored.result.generatedTaskCount,
+        ),
+      );
+    });
+    _completionByRequestId.forEach((requestId, stored) {
+      records.add(
+        IdempotencyRecord(
+          requestId: requestId,
+          category: 'plan_complete',
+          signature: stored.signature,
+          resourceId: stored.result.planId,
+          status: stored.result.status.name,
+        ),
+      );
+    });
+    _reportByRequestId.forEach((requestId, stored) {
+      records.add(
+        IdempotencyRecord(
+          requestId: requestId,
+          category: 'execution_report',
+          signature: stored.signature,
+          resourceId: stored.result.report.id,
+          secondaryResourceId: stored.result.wipEffect.entry?.id,
+        ),
+      );
+    });
+    _problemByCreateRequestId.forEach((requestId, stored) {
+      records.add(
+        IdempotencyRecord(
+          requestId: requestId,
+          category: 'problem_create',
+          signature: stored.signature,
+          resourceId: stored.problemId,
+        ),
+      );
+    });
+    _problemMessageByRequestId.forEach((requestId, stored) {
+      records.add(
+        IdempotencyRecord(
+          requestId: requestId,
+          category: 'problem_message',
+          signature: stored.signature,
+          resourceId: stored.problemId,
+          secondaryResourceId: stored.messageId,
+        ),
+      );
+    });
+    _problemTransitionByRequestId.forEach((requestId, stored) {
+      records.add(
+        IdempotencyRecord(
+          requestId: requestId,
+          category: 'problem_transition',
+          signature: stored.signature,
+          resourceId: stored.problemId,
+        ),
+      );
+    });
+    final versionMaps = {
+      'version_draft': _draftVersionByRequestId,
+      'version_publish': _publishVersionByRequestId,
+      'structure_create': _structureCreateByRequestId,
+      'structure_update': _structureUpdateByRequestId,
+      'structure_delete': _structureDeleteByRequestId,
+      'operation_create': _operationCreateByRequestId,
+      'operation_update': _operationUpdateByRequestId,
+      'operation_delete': _operationDeleteByRequestId,
+    };
+    for (final entry in versionMaps.entries) {
+      entry.value.forEach((requestId, stored) {
+        records.add(
+          IdempotencyRecord(
+            requestId: requestId,
+            category: entry.key,
+            signature: stored.signature,
+            resourceId: stored.versionId,
+          ),
+        );
+      });
+    }
+    return records;
+  }
 
   List<Machine> listMachines() => List.unmodifiable(_machines);
 
@@ -429,6 +788,7 @@ class DemoContractStore {
       beforeValue: '',
       afterValue: draftVersion.status.name,
     );
+    _persist();
     return draftVersion;
   }
 
@@ -445,7 +805,7 @@ class DemoContractStore {
   }
 
   CompletionDecision getPlanCompletionDecision(String planId) {
-    final plan = getPlan(planId);
+    getPlan(planId);
     final planTasks = _listTasksForPlan(planId);
     final planTaskIds = planTasks.map((task) => task.id).toSet();
     final planProblems = _problems
@@ -554,6 +914,7 @@ class DemoContractStore {
       beforeValue: existingOccurrence.displayName,
       afterValue: command.displayName.trim(),
     );
+    _persist();
     return version;
   }
 
@@ -617,6 +978,7 @@ class DemoContractStore {
       beforeValue: '',
       afterValue: occurrence.displayName,
     );
+    _persist();
     return version;
   }
 
@@ -674,6 +1036,7 @@ class DemoContractStore {
       beforeValue: target.displayName,
       afterValue: '',
     );
+    _persist();
     return version;
   }
 
@@ -732,6 +1095,7 @@ class DemoContractStore {
       beforeValue: '',
       afterValue: operation.name,
     );
+    _persist();
     return version;
   }
 
@@ -789,6 +1153,7 @@ class DemoContractStore {
       beforeValue: existingOperation.name,
       afterValue: command.name.trim(),
     );
+    _persist();
     return version;
   }
 
@@ -834,6 +1199,7 @@ class DemoContractStore {
       beforeValue: operation.name,
       afterValue: '',
     );
+    _persist();
     return version;
   }
 
@@ -907,6 +1273,7 @@ class DemoContractStore {
       beforeValue: version.status.name,
       afterValue: published.status.name,
     );
+    _persist();
     return published;
   }
 
@@ -1003,6 +1370,7 @@ class DemoContractStore {
       signature: requestSignature,
       planId: plan.id,
     );
+    _persist();
     return plan;
   }
 
@@ -1089,6 +1457,7 @@ class DemoContractStore {
       signature: requestSignature,
       result: result,
     );
+    _persist();
     return result;
   }
 
@@ -1166,6 +1535,7 @@ class DemoContractStore {
       signature: requestSignature,
       result: result,
     );
+    _persist();
     return result;
   }
 
@@ -1320,6 +1690,7 @@ class DemoContractStore {
       signature: requestSignature,
       result: result,
     );
+    _persist();
     return result;
   }
 
@@ -1413,6 +1784,7 @@ class DemoContractStore {
       beforeValue: '',
       afterValue: firstMessage.message,
     );
+    _persist();
     return problem;
   }
 
@@ -1469,6 +1841,7 @@ class DemoContractStore {
       beforeValue: '',
       afterValue: message.message,
     );
+    _persist();
     return message;
   }
 
@@ -1532,6 +1905,7 @@ class DemoContractStore {
       beforeValue: problem.status.name,
       afterValue: updatedProblem.status.name,
     );
+    _persist();
     return updatedProblem;
   }
 
@@ -1552,6 +1926,9 @@ class DemoContractStore {
     required String machineName,
     required String versionLabel,
     required DateTime createdAt,
+    List<CatalogItem> catalogItems = const [],
+    List<StructureOccurrence> structureOccurrences = const [],
+    List<OperationOccurrence> operationOccurrences = const [],
   }) {
     final machineId = 'machine-${++_machineSequence}';
     final versionId = 'ver-import-${++_versionSequence}';
@@ -1572,6 +1949,13 @@ class DemoContractStore {
       status: MachineVersionStatus.published,
     );
     _versions.add(version);
+    _importPreviewIntoVersion(
+      versionId: versionId,
+      catalogItems: catalogItems,
+      structureOccurrences: structureOccurrences,
+      operationOccurrences: operationOccurrences,
+    );
+    _persist();
     return version;
   }
 
@@ -1579,6 +1963,9 @@ class DemoContractStore {
     required String targetMachineId,
     required String versionLabel,
     required DateTime createdAt,
+    List<CatalogItem> catalogItems = const [],
+    List<StructureOccurrence> structureOccurrences = const [],
+    List<OperationOccurrence> operationOccurrences = const [],
   }) {
     final machineIndex = _machines.indexWhere(
       (machine) => machine.id == targetMachineId,
@@ -1606,7 +1993,94 @@ class DemoContractStore {
       name: machine.name,
       activeVersionId: versionId,
     );
+    _importPreviewIntoVersion(
+      versionId: versionId,
+      catalogItems: catalogItems,
+      structureOccurrences: structureOccurrences,
+      operationOccurrences: operationOccurrences,
+    );
+    _persist();
     return version;
+  }
+
+  void _importPreviewIntoVersion({
+    required String versionId,
+    required List<CatalogItem> catalogItems,
+    required List<StructureOccurrence> structureOccurrences,
+    required List<OperationOccurrence> operationOccurrences,
+  }) {
+    final catalogIdMap = <String, String>{};
+    for (final catalogItem in catalogItems) {
+      final existingIndex = _catalogItems.indexWhere(
+        (item) => item.code == catalogItem.code,
+      );
+      if (existingIndex != -1) {
+        final existing = _catalogItems[existingIndex];
+        _catalogItems[existingIndex] = CatalogItem(
+          id: existing.id,
+          code: existing.code,
+          name: catalogItem.name,
+          kind: catalogItem.kind,
+          description: catalogItem.description,
+          isActive: true,
+        );
+        catalogIdMap[catalogItem.id] = existing.id;
+        continue;
+      }
+
+      final imported = CatalogItem(
+        id: 'catalog-import-${_catalogItems.length + 1}',
+        code: catalogItem.code,
+        name: catalogItem.name,
+        kind: catalogItem.kind,
+        description: catalogItem.description,
+      );
+      _catalogItems.add(imported);
+      catalogIdMap[catalogItem.id] = imported.id;
+    }
+
+    final occurrenceIdMap = <String, String>{};
+    for (final occurrence in structureOccurrences) {
+      final newId = 'occ-${++_structureSequence}';
+      occurrenceIdMap[occurrence.id] = newId;
+      _structureOccurrences.add(
+        StructureOccurrence(
+          id: newId,
+          versionId: versionId,
+          catalogItemId:
+              catalogIdMap[occurrence.catalogItemId] ?? occurrence.catalogItemId,
+          pathKey: occurrence.pathKey,
+          displayName: occurrence.displayName,
+          quantityPerMachine: occurrence.quantityPerMachine,
+          parentOccurrenceId: occurrence.parentOccurrenceId == null
+              ? null
+              : occurrenceIdMap[occurrence.parentOccurrenceId!],
+          workshop: occurrence.workshop,
+          inheritedWorkshop: occurrence.inheritedWorkshop,
+          sourcePositionNumber: occurrence.sourcePositionNumber,
+          sourceOwnerName: occurrence.sourceOwnerName,
+        ),
+      );
+    }
+
+    for (final operation in operationOccurrences) {
+      _operationOccurrences.add(
+        OperationOccurrence(
+          id: 'op-${++_operationSequence}',
+          versionId: versionId,
+          structureOccurrenceId:
+              occurrenceIdMap[operation.structureOccurrenceId] ??
+              operation.structureOccurrenceId,
+          name: operation.name,
+          quantityPerMachine: operation.quantityPerMachine,
+          workshop: operation.workshop,
+          inheritedWorkshop: operation.inheritedWorkshop,
+          sourcePositionNumber: operation.sourcePositionNumber,
+          sourceQuantity: operation.sourceQuantity,
+        ),
+      );
+    }
+    _rebuildVersionPaths(versionId);
   }
 
   MachineVersion _getVersion(String machineId, String versionId) {

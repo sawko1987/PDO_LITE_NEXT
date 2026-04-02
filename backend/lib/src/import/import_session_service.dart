@@ -179,6 +179,9 @@ class ImportSessionService {
       machineName: machineName,
       versionLabel: versionLabel,
       createdAt: createdAt,
+      catalogItems: preview.preview.catalogItems,
+      structureOccurrences: preview.preview.structureOccurrences,
+      operationOccurrences: preview.preview.operationOccurrences,
     );
 
     return ConfirmImportResultDto(
@@ -219,6 +222,9 @@ class ImportSessionService {
       targetMachineId: targetMachineId,
       versionLabel: versionLabel,
       createdAt: DateTime.now().toUtc(),
+      catalogItems: session.previewResult.preview.catalogItems,
+      structureOccurrences: session.previewResult.preview.structureOccurrences,
+      operationOccurrences: session.previewResult.preview.operationOccurrences,
     );
     return ConfirmImportResultDto(
       sessionId: session.sessionId,
