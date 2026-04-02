@@ -724,6 +724,142 @@ Router buildV1Router(
         return _invalidJsonResponse();
       }
     })
+    ..get('/reports/plan-fact', (Request request) {
+      try {
+        final machineId = request.url.queryParameters['machineId'];
+        final versionId = request.url.queryParameters['versionId'];
+        final planId = request.url.queryParameters['planId'];
+        final fromDate = _parseOptionalIsoDateTime(
+          request.url.queryParameters['fromDate'],
+        );
+        final toDate = _parseOptionalIsoDateTime(
+          request.url.queryParameters['toDate'],
+        );
+        final items = store
+            .listPlanFactReports(
+              machineId: machineId,
+              versionId: versionId,
+              planId: planId,
+              fromDate: fromDate,
+              toDate: toDate,
+            )
+            .map(_toPlanFactReportItemDto)
+            .toList(growable: false);
+        final dto = ApiListResponseDto(
+          items: items,
+          meta: {
+            'source': 'local_contract_seed',
+            'resource': 'plan_fact_reports',
+            if (machineId != null) 'machineId': machineId,
+            if (versionId != null) 'versionId': versionId,
+            if (planId != null) 'planId': planId,
+            if (request.url.queryParameters['fromDate'] != null)
+              'fromDate': request.url.queryParameters['fromDate'],
+            if (request.url.queryParameters['toDate'] != null)
+              'toDate': request.url.queryParameters['toDate'],
+          },
+        );
+        return jsonResponse(dto.toJson((item) => item.toJson()));
+      } on FormatException {
+        return _invalidJsonResponse();
+      }
+    })
+    ..get('/reports/shift', (Request request) {
+      try {
+        final dateRaw = request.url.queryParameters['date'];
+        if (dateRaw == null || dateRaw.isEmpty) {
+          return _invalidJsonResponse();
+        }
+        final date = _parseQueryDate(dateRaw);
+        final machineId = request.url.queryParameters['machineId'];
+        final assigneeId = request.url.queryParameters['assigneeId'];
+        final items = store
+            .listShiftReports(
+              date: date,
+              machineId: machineId,
+              assigneeId: assigneeId,
+            )
+            .map(_toShiftReportItemDto)
+            .toList(growable: false);
+        final dto = ApiListResponseDto(
+          items: items,
+          meta: {
+            'source': 'local_contract_seed',
+            'resource': 'shift_reports',
+            'date': dateRaw,
+            if (machineId != null) 'machineId': machineId,
+            if (assigneeId != null) 'assigneeId': assigneeId,
+          },
+        );
+        return jsonResponse(dto.toJson((item) => item.toJson()));
+      } on FormatException {
+        return _invalidJsonResponse();
+      }
+    })
+    ..get('/reports/problems', (Request request) {
+      try {
+        final machineId = request.url.queryParameters['machineId'];
+        final status = request.url.queryParameters['status'];
+        final type = request.url.queryParameters['type'];
+        final fromDate = _parseOptionalIsoDateTime(
+          request.url.queryParameters['fromDate'],
+        );
+        final toDate = _parseOptionalIsoDateTime(
+          request.url.queryParameters['toDate'],
+        );
+        final items = store
+            .listProblemReports(
+              machineId: machineId,
+              status: status,
+              type: type,
+              fromDate: fromDate,
+              toDate: toDate,
+            )
+            .map(_toProblemReportItemDto)
+            .toList(growable: false);
+        final dto = ApiListResponseDto(
+          items: items,
+          meta: {
+            'source': 'local_contract_seed',
+            'resource': 'problem_reports',
+            if (machineId != null) 'machineId': machineId,
+            if (status != null) 'status': status,
+            if (type != null) 'type': type,
+            if (request.url.queryParameters['fromDate'] != null)
+              'fromDate': request.url.queryParameters['fromDate'],
+            if (request.url.queryParameters['toDate'] != null)
+              'toDate': request.url.queryParameters['toDate'],
+          },
+        );
+        return jsonResponse(dto.toJson((item) => item.toJson()));
+      } on FormatException {
+        return _invalidJsonResponse();
+      }
+    })
+    ..get('/reports/summary', (Request request) {
+      try {
+        final machineId = request.url.queryParameters['machineId'];
+        final summary = store.getReportSummary(machineId: machineId);
+        final dto = ReportSummaryDto(
+          totalPlans: summary.totalPlans,
+          draftPlans: summary.draftPlans,
+          releasedPlans: summary.releasedPlans,
+          completedPlans: summary.completedPlans,
+          totalTasks: summary.totalTasks,
+          activeTasks: summary.activeTasks,
+          completedTasks: summary.completedTasks,
+          totalProblems: summary.totalProblems,
+          openProblems: summary.openProblems,
+          closedProblems: summary.closedProblems,
+          totalWipEntries: summary.totalWipEntries,
+          blockingWipEntries: summary.blockingWipEntries,
+          totalExecutionReports: summary.totalExecutionReports,
+        );
+        return jsonResponse(dto.toJson());
+      } on FormatException {
+        return _invalidJsonResponse();
+      }
+    })
     ..get('/tasks', (Request request) {
       final assigneeId = request.url.queryParameters['assigneeId'];
       final status = request.url.queryParameters['status'];
@@ -1036,6 +1172,28 @@ Future<Map<String, Object?>> _readJsonBody(Request request) async {
   return decoded;
 }
 
+DateTime? _parseOptionalIsoDateTime(String? value) {
+  if (value == null || value.isEmpty) {
+    return null;
+  }
+  final parsed = DateTime.tryParse(value);
+  if (parsed == null) {
+    throw const FormatException('Invalid ISO 8601 date.');
+  }
+  return parsed.toUtc();
+}
+
+DateTime _parseQueryDate(String value) {
+  if (!RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(value)) {
+    throw const FormatException('Invalid YYYY-MM-DD date.');
+  }
+  return DateTime.utc(
+    int.parse(value.substring(0, 4)),
+    int.parse(value.substring(5, 7)),
+    int.parse(value.substring(8, 10)),
+  );
+}
+
 Response _invalidJsonResponse() {
   return jsonResponse(
     const ApiErrorDto(
@@ -1066,6 +1224,70 @@ Response _storeErrorResponse(
   return jsonResponse(
     ApiErrorDto(code: code, message: message, details: details).toJson(),
     statusCode: statusCode,
+  );
+}
+
+PlanFactReportItemDto _toPlanFactReportItemDto(PlanFactReportItem item) {
+  return PlanFactReportItemDto(
+    structureOccurrenceId: item.structureOccurrenceId,
+    displayName: item.displayName,
+    pathKey: item.pathKey,
+    workshop: item.workshop,
+    planId: item.planId,
+    planTitle: item.planTitle,
+    requestedQuantity: item.requestedQuantity,
+    reportedQuantity: item.reportedQuantity,
+    remainingQuantity: item.remainingQuantity,
+    completionPercent: item.completionPercent,
+    taskCount: item.taskCount,
+    closedTaskCount: item.closedTaskCount,
+    operationName: item.operationName,
+  );
+}
+
+ShiftReportItemDto _toShiftReportItemDto(ShiftReportItem item) {
+  return ShiftReportItemDto(
+    taskId: item.taskId,
+    assigneeId: item.assigneeId,
+    structureDisplayName: item.structureDisplayName,
+    operationName: item.operationName,
+    workshop: item.workshop,
+    requiredQuantity: item.requiredQuantity,
+    reportedQuantity: item.reportedQuantity,
+    remainingQuantity: item.remainingQuantity,
+    status: item.status,
+    isClosed: item.isClosed,
+    reports: item.reports
+        .map(
+          (report) => ExecutionReportDto(
+            id: '',
+            taskId: item.taskId,
+            reportedBy: report.reportedBy,
+            reportedAt: report.reportedAt,
+            reportedQuantity: report.reportedQuantity,
+            outcome: report.outcome,
+            reason: report.reason,
+            isAccepted: true,
+          ),
+        )
+        .toList(growable: false),
+  );
+}
+
+ProblemReportItemDto _toProblemReportItemDto(ProblemReportItem item) {
+  return ProblemReportItemDto(
+    problemId: item.problemId,
+    title: item.title,
+    type: item.type,
+    status: item.status,
+    isOpen: item.isOpen,
+    machineId: item.machineId,
+    taskId: item.taskId,
+    createdAt: item.createdAt,
+    closedAt: item.closedAt,
+    messageCount: item.messageCount,
+    structureDisplayName: item.structureDisplayName,
+    operationName: item.operationName,
   );
 }
 

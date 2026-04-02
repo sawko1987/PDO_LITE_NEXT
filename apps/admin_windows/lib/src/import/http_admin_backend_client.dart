@@ -280,6 +280,95 @@ class HttpAdminBackendClient implements AdminBackendClient {
   }
 
   @override
+  Future<ApiListResponseDto<PlanFactReportItemDto>> getPlanFactReport({
+    String? machineId,
+    String? versionId,
+    String? planId,
+    String? fromDate,
+    String? toDate,
+  }) async {
+    final queryParameters = <String, String>{
+      if (machineId != null && machineId.isNotEmpty) 'machineId': machineId,
+      if (versionId != null && versionId.isNotEmpty) 'versionId': versionId,
+      if (planId != null && planId.isNotEmpty) 'planId': planId,
+      if (fromDate != null && fromDate.isNotEmpty) 'fromDate': fromDate,
+      if (toDate != null && toDate.isNotEmpty) 'toDate': toDate,
+    };
+    final uri = Uri(
+      path: '/v1/reports/plan-fact',
+      queryParameters: queryParameters.isEmpty ? null : queryParameters,
+    );
+    final json = await _getJsonObject(uri.toString());
+    return ApiListResponseDto<PlanFactReportItemDto>.fromJson(
+      json,
+      PlanFactReportItemDto.fromJson,
+    );
+  }
+
+  @override
+  Future<ApiListResponseDto<ShiftReportItemDto>> getShiftReport({
+    required String date,
+    String? machineId,
+    String? assigneeId,
+  }) async {
+    final queryParameters = <String, String>{'date': date};
+    if (machineId != null && machineId.isNotEmpty) {
+      queryParameters['machineId'] = machineId;
+    }
+    if (assigneeId != null && assigneeId.isNotEmpty) {
+      queryParameters['assigneeId'] = assigneeId;
+    }
+    final uri = Uri(
+      path: '/v1/reports/shift',
+      queryParameters: queryParameters,
+    );
+    final json = await _getJsonObject(uri.toString());
+    return ApiListResponseDto<ShiftReportItemDto>.fromJson(
+      json,
+      ShiftReportItemDto.fromJson,
+    );
+  }
+
+  @override
+  Future<ApiListResponseDto<ProblemReportItemDto>> getProblemReport({
+    String? machineId,
+    String? status,
+    String? type,
+    String? fromDate,
+    String? toDate,
+  }) async {
+    final queryParameters = <String, String>{
+      if (machineId != null && machineId.isNotEmpty) 'machineId': machineId,
+      if (status != null && status.isNotEmpty) 'status': status,
+      if (type != null && type.isNotEmpty) 'type': type,
+      if (fromDate != null && fromDate.isNotEmpty) 'fromDate': fromDate,
+      if (toDate != null && toDate.isNotEmpty) 'toDate': toDate,
+    };
+    final uri = Uri(
+      path: '/v1/reports/problems',
+      queryParameters: queryParameters.isEmpty ? null : queryParameters,
+    );
+    final json = await _getJsonObject(uri.toString());
+    return ApiListResponseDto<ProblemReportItemDto>.fromJson(
+      json,
+      ProblemReportItemDto.fromJson,
+    );
+  }
+
+  @override
+  Future<ReportSummaryDto> getReportSummary({String? machineId}) async {
+    final queryParameters = <String, String>{
+      if (machineId != null && machineId.isNotEmpty) 'machineId': machineId,
+    };
+    final uri = Uri(
+      path: '/v1/reports/summary',
+      queryParameters: queryParameters.isEmpty ? null : queryParameters,
+    );
+    final json = await _getJsonObject(uri.toString());
+    return ReportSummaryDto.fromJson(json);
+  }
+
+  @override
   Future<ProblemDetailDto> getProblem(String problemId) async {
     final json = await _getJsonObject('/v1/problems/$problemId');
     return ProblemDetailDto.fromJson(json);

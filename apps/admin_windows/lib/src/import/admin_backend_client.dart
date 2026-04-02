@@ -103,6 +103,30 @@ abstract interface class AdminBackendClient {
     String? status,
   });
 
+  Future<ApiListResponseDto<PlanFactReportItemDto>> getPlanFactReport({
+    String? machineId,
+    String? versionId,
+    String? planId,
+    String? fromDate,
+    String? toDate,
+  });
+
+  Future<ApiListResponseDto<ShiftReportItemDto>> getShiftReport({
+    required String date,
+    String? machineId,
+    String? assigneeId,
+  });
+
+  Future<ApiListResponseDto<ProblemReportItemDto>> getProblemReport({
+    String? machineId,
+    String? status,
+    String? type,
+    String? fromDate,
+    String? toDate,
+  });
+
+  Future<ReportSummaryDto> getReportSummary({String? machineId});
+
   Future<ProblemDetailDto> getProblem(String problemId);
 
   Future<ProblemDetailDto> createProblem(

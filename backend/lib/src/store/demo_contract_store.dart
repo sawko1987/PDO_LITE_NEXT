@@ -433,10 +433,11 @@ class DemoContractStore {
             );
       } else if (record.resourceId != null &&
           record.category == 'version_draft') {
-        _draftVersionByRequestId[record.requestId] = _StoredMachineVersionCommand(
-          signature: record.signature,
-          versionId: record.resourceId!,
-        );
+        _draftVersionByRequestId[record.requestId] =
+            _StoredMachineVersionCommand(
+              signature: record.signature,
+              versionId: record.resourceId!,
+            );
       } else if (record.resourceId != null &&
           record.category == 'version_publish') {
         _publishVersionByRequestId[record.requestId] =
@@ -854,6 +855,260 @@ class DemoContractStore {
         'Plan item was not found.',
       ),
     );
+  }
+
+  List<PlanFactReportItem> listPlanFactReports({
+    String? machineId,
+    String? versionId,
+    String? planId,
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) {
+    final plans = _plans.where((plan) {
+      if (machineId != null &&
+          machineId.isNotEmpty &&
+          plan.machineId != machineId) {
+        return false;
+      }
+      if (versionId != null &&
+          versionId.isNotEmpty &&
+          plan.versionId != versionId) {
+        return false;
+      }
+      if (planId != null && planId.isNotEmpty && plan.id != planId) {
+        return false;
+      }
+      if (fromDate != null && plan.createdAt.isBefore(fromDate)) {
+        return false;
+      }
+      if (toDate != null && plan.createdAt.isAfter(toDate)) {
+        return false;
+      }
+      return true;
+    });
+
+    final rows = <PlanFactReportItem>[];
+    for (final plan in plans) {
+      for (final item in plan.items) {
+        final tasks = _tasksForPlanItem(item.id);
+        final reportedQuantity = tasks.fold<double>(
+          0,
+          (sum, task) => sum + reportedQuantityForTask(task.id),
+        );
+        final taskCount = tasks.length;
+        final closedTaskCount = tasks.where((task) => task.isClosed).length;
+        final remainingQuantity = max(
+          0.0,
+          item.requestedQuantity - reportedQuantity,
+        ).toDouble();
+        final completionPercent = item.requestedQuantity <= 0
+            ? 0.0
+            : min(100.0, (reportedQuantity / item.requestedQuantity) * 100)
+                .toDouble();
+        final operationName = tasks.isEmpty
+            ? ''
+            : getOperationOccurrence(tasks.first.operationOccurrenceId).name;
+        final structureOccurrence = getStructureOccurrence(
+          item.structureOccurrenceId,
+        );
+        rows.add(
+          PlanFactReportItem(
+            structureOccurrenceId: structureOccurrence.id,
+            displayName: structureOccurrence.displayName,
+            pathKey: structureOccurrence.pathKey,
+            workshop:
+                structureOccurrence.workshop ??
+                (tasks.isEmpty
+                    ? ''
+                    : (getOperationOccurrence(
+                            tasks.first.operationOccurrenceId,
+                          ).workshop ??
+                          '')),
+            planId: plan.id,
+            planTitle: plan.title,
+            requestedQuantity: item.requestedQuantity,
+            reportedQuantity: reportedQuantity,
+            remainingQuantity: remainingQuantity,
+            completionPercent: completionPercent,
+            taskCount: taskCount,
+            closedTaskCount: closedTaskCount,
+            operationName: operationName,
+          ),
+        );
+      }
+    }
+
+    return rows;
+  }
+
+  List<ShiftReportItem> listShiftReports({
+    required DateTime date,
+    String? machineId,
+    String? assigneeId,
+  }) {
+    final targetDate = DateTime.utc(date.year, date.month, date.day);
+    final rows = <ShiftReportItem>[];
+    for (final task in _tasks.where((task) {
+      if (assigneeId != null &&
+          assigneeId.isNotEmpty &&
+          task.assigneeId != assigneeId) {
+        return false;
+      }
+      if (machineId != null &&
+          machineId.isNotEmpty &&
+          _planForTask(task.id).machineId != machineId) {
+        return false;
+      }
+      return true;
+    })) {
+      final reports = listReports(task.id)
+          .where(
+            (report) =>
+                report.reportedAt.year == targetDate.year &&
+                report.reportedAt.month == targetDate.month &&
+                report.reportedAt.day == targetDate.day,
+          )
+          .toList(growable: false);
+      if (reports.isEmpty) {
+        continue;
+      }
+
+      final operation = getOperationOccurrence(task.operationOccurrenceId);
+      final occurrence = getStructureOccurrence(
+        operation.structureOccurrenceId,
+      );
+      final reportedQuantity = reportedQuantityForTask(task.id);
+      final remainingQuantity = max(
+        0.0,
+        task.requiredQuantity - reportedQuantity,
+      ).toDouble();
+      rows.add(
+        ShiftReportItem(
+          taskId: task.id,
+          assigneeId: task.assigneeId,
+          structureDisplayName: occurrence.displayName,
+          operationName: operation.name,
+          workshop: operation.workshop ?? occurrence.workshop ?? '',
+          requiredQuantity: task.requiredQuantity,
+          reportedQuantity: reportedQuantity,
+          remainingQuantity: remainingQuantity,
+          status: task.status.name,
+          isClosed: task.isClosed,
+          reports: reports
+              .map(
+                (report) => ShiftReportExecution(
+                  reportedAt: report.reportedAt,
+                  reportedBy: report.reportedBy,
+                  outcome: report.outcome.name,
+                  reportedQuantity: report.reportedQuantity,
+                  reason: report.reason,
+                ),
+              )
+              .toList(growable: false),
+        ),
+      );
+    }
+
+    return rows;
+  }
+
+  List<ProblemReportItem> listProblemReports({
+    String? machineId,
+    String? status,
+    String? type,
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) {
+    return _problems
+        .where((problem) {
+          if (machineId != null &&
+              machineId.isNotEmpty &&
+              problem.machineId != machineId) {
+            return false;
+          }
+          if (status != null &&
+              status.isNotEmpty &&
+              problem.status.name != status) {
+            return false;
+          }
+          if (type != null &&
+              type.isNotEmpty &&
+              _problemTypeToApi(problem.type) != type) {
+            return false;
+          }
+          if (fromDate != null && problem.createdAt.isBefore(fromDate)) {
+            return false;
+          }
+          if (toDate != null && problem.createdAt.isAfter(toDate)) {
+            return false;
+          }
+          return true;
+        })
+        .map((problem) {
+          final task = problem.taskId == null ? null : getTask(problem.taskId!);
+          final operation = task == null
+              ? null
+              : getOperationOccurrence(task.operationOccurrenceId);
+          final occurrence = operation == null
+              ? null
+              : getStructureOccurrence(operation.structureOccurrenceId);
+          return ProblemReportItem(
+            problemId: problem.id,
+            title: problem.title ?? '',
+            type: _problemTypeToApi(problem.type),
+            status: problem.status.name,
+            isOpen: problem.isOpen,
+            machineId: problem.machineId,
+            taskId: problem.taskId,
+            createdAt: problem.createdAt,
+            closedAt: _problemClosedAt(problem.id),
+            messageCount: problemMessageCount(problem.id),
+            structureDisplayName: occurrence?.displayName ?? '',
+            operationName: operation?.name ?? '',
+          );
+        })
+        .toList(growable: false);
+  }
+
+  ReportSummary getReportSummary({String? machineId}) {
+    final plans = _plansForMachine(machineId);
+    final tasks = _tasksForMachine(machineId);
+    final problems = _problemsForMachine(machineId);
+    final wipEntries = _wipEntriesForMachine(machineId);
+    final reports = _reportsForMachine(machineId);
+    return ReportSummary(
+      totalPlans: plans.length,
+      draftPlans: plans.where((plan) => plan.status == PlanStatus.draft).length,
+      releasedPlans: plans
+          .where((plan) => plan.status == PlanStatus.released)
+          .length,
+      completedPlans: plans
+          .where((plan) => plan.status == PlanStatus.completed)
+          .length,
+      totalTasks: tasks.length,
+      activeTasks: tasks.where((task) => !task.isClosed).length,
+      completedTasks: tasks.where((task) => task.isClosed).length,
+      totalProblems: problems.length,
+      openProblems: problems.where((problem) => problem.isOpen).length,
+      closedProblems: problems.where((problem) => !problem.isOpen).length,
+      totalWipEntries: wipEntries.length,
+      blockingWipEntries: wipEntries
+          .where((entry) => entry.blocksCompletion)
+          .length,
+      totalExecutionReports: reports.length,
+    );
+  }
+
+  String _problemTypeToApi(ProblemType type) {
+    return switch (type) {
+      ProblemType.equipment => 'equipment',
+      ProblemType.materials => 'materials',
+      ProblemType.documentation => 'documentation',
+      ProblemType.planningError => 'planning_error',
+      ProblemType.technologyError => 'technology_error',
+      ProblemType.blockedByOtherWorkshop => 'blocked_by_other_workshop',
+      ProblemType.other => 'other',
+    };
   }
 
   MachineVersion updateStructureOccurrence(
@@ -1921,6 +2176,97 @@ class DemoContractStore {
     return getPlanByItemId(task.planItemId).id;
   }
 
+  Plan _planForTask(String taskId) {
+    final task = getTask(taskId);
+    return getPlanByItemId(task.planItemId);
+  }
+
+  List<ProductionTask> _tasksForPlanItem(String planItemId) {
+    return List.unmodifiable(
+      _tasks.where((task) => task.planItemId == planItemId),
+    );
+  }
+
+  List<Plan> _plansForMachine(String? machineId) {
+    return List.unmodifiable(
+      _plans.where((plan) {
+        if (machineId != null &&
+            machineId.isNotEmpty &&
+            plan.machineId != machineId) {
+          return false;
+        }
+        return true;
+      }),
+    );
+  }
+
+  List<ProductionTask> _tasksForMachine(String? machineId) {
+    return List.unmodifiable(
+      _tasks.where((task) {
+        final plan = getPlanByItemId(task.planItemId);
+        if (machineId != null &&
+            machineId.isNotEmpty &&
+            plan.machineId != machineId) {
+          return false;
+        }
+        return true;
+      }),
+    );
+  }
+
+  List<Problem> _problemsForMachine(String? machineId) {
+    return List.unmodifiable(
+      _problems.where((problem) {
+        if (machineId != null &&
+            machineId.isNotEmpty &&
+            problem.machineId != machineId) {
+          return false;
+        }
+        return true;
+      }),
+    );
+  }
+
+  List<WipEntry> _wipEntriesForMachine(String? machineId) {
+    return List.unmodifiable(
+      _wipEntries.where((entry) {
+        if (machineId != null &&
+            machineId.isNotEmpty &&
+            entry.machineId != machineId) {
+          return false;
+        }
+        return true;
+      }),
+    );
+  }
+
+  List<ExecutionReport> _reportsForMachine(String? machineId) {
+    final reports = <ExecutionReport>[];
+    for (final task in _tasksForMachine(machineId)) {
+      reports.addAll(listReports(task.id));
+    }
+    return List.unmodifiable(reports);
+  }
+
+  DateTime? _problemClosedAt(String problemId) {
+    final closedEntries = _auditEntries
+        .where(
+          (entry) =>
+              entry.entityType == 'problem' &&
+              entry.entityId == problemId &&
+              entry.field == 'status' &&
+              entry.afterValue == ProblemStatus.closed.name,
+        )
+        .toList(growable: false);
+    if (closedEntries.isEmpty) {
+      return null;
+    }
+    closedEntries.sort(
+      (left, right) => left.changedAt.compareTo(right.changedAt),
+    );
+    return closedEntries.last.changedAt;
+  }
+
   MachineVersion addImportedMachine({
     required String machineCode,
     required String machineName,
@@ -2048,7 +2394,8 @@ class DemoContractStore {
           id: newId,
           versionId: versionId,
           catalogItemId:
-              catalogIdMap[occurrence.catalogItemId] ?? occurrence.catalogItemId,
+              catalogIdMap[occurrence.catalogItemId] ??
+              occurrence.catalogItemId,
           pathKey: occurrence.pathKey,
           displayName: occurrence.displayName,
           quantityPerMachine: occurrence.quantityPerMachine,
@@ -3022,6 +3369,144 @@ class MachineVersionDetail {
   final bool isActiveVersion;
   final List<StructureOccurrence> structureOccurrences;
   final List<OperationOccurrence> operationOccurrences;
+}
+
+class PlanFactReportItem {
+  const PlanFactReportItem({
+    required this.structureOccurrenceId,
+    required this.displayName,
+    required this.pathKey,
+    required this.workshop,
+    required this.planId,
+    required this.planTitle,
+    required this.requestedQuantity,
+    required this.reportedQuantity,
+    required this.remainingQuantity,
+    required this.completionPercent,
+    required this.taskCount,
+    required this.closedTaskCount,
+    required this.operationName,
+  });
+
+  final String structureOccurrenceId;
+  final String displayName;
+  final String pathKey;
+  final String workshop;
+  final String planId;
+  final String planTitle;
+  final double requestedQuantity;
+  final double reportedQuantity;
+  final double remainingQuantity;
+  final double completionPercent;
+  final int taskCount;
+  final int closedTaskCount;
+  final String operationName;
+}
+
+class ShiftReportExecution {
+  const ShiftReportExecution({
+    required this.reportedAt,
+    required this.reportedBy,
+    required this.outcome,
+    required this.reportedQuantity,
+    this.reason,
+  });
+
+  final DateTime reportedAt;
+  final String reportedBy;
+  final String outcome;
+  final double reportedQuantity;
+  final String? reason;
+}
+
+class ShiftReportItem {
+  const ShiftReportItem({
+    required this.taskId,
+    required this.assigneeId,
+    required this.structureDisplayName,
+    required this.operationName,
+    required this.workshop,
+    required this.requiredQuantity,
+    required this.reportedQuantity,
+    required this.remainingQuantity,
+    required this.status,
+    required this.isClosed,
+    required this.reports,
+  });
+
+  final String taskId;
+  final String? assigneeId;
+  final String structureDisplayName;
+  final String operationName;
+  final String workshop;
+  final double requiredQuantity;
+  final double reportedQuantity;
+  final double remainingQuantity;
+  final String status;
+  final bool isClosed;
+  final List<ShiftReportExecution> reports;
+}
+
+class ProblemReportItem {
+  const ProblemReportItem({
+    required this.problemId,
+    required this.title,
+    required this.type,
+    required this.status,
+    required this.isOpen,
+    required this.machineId,
+    required this.createdAt,
+    required this.messageCount,
+    required this.structureDisplayName,
+    required this.operationName,
+    this.taskId,
+    this.closedAt,
+  });
+
+  final String problemId;
+  final String title;
+  final String type;
+  final String status;
+  final bool isOpen;
+  final String machineId;
+  final String? taskId;
+  final DateTime createdAt;
+  final DateTime? closedAt;
+  final int messageCount;
+  final String structureDisplayName;
+  final String operationName;
+}
+
+class ReportSummary {
+  const ReportSummary({
+    required this.totalPlans,
+    required this.draftPlans,
+    required this.releasedPlans,
+    required this.completedPlans,
+    required this.totalTasks,
+    required this.activeTasks,
+    required this.completedTasks,
+    required this.totalProblems,
+    required this.openProblems,
+    required this.closedProblems,
+    required this.totalWipEntries,
+    required this.blockingWipEntries,
+    required this.totalExecutionReports,
+  });
+
+  final int totalPlans;
+  final int draftPlans;
+  final int releasedPlans;
+  final int completedPlans;
+  final int totalTasks;
+  final int activeTasks;
+  final int completedTasks;
+  final int totalProblems;
+  final int openProblems;
+  final int closedProblems;
+  final int totalWipEntries;
+  final int blockingWipEntries;
+  final int totalExecutionReports;
 }
 
 class DemoStoreNotFound implements Exception {

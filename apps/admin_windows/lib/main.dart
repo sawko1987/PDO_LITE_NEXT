@@ -14,6 +14,8 @@ import 'src/plans/plan_board_controller.dart';
 import 'src/plans/plan_workspace.dart';
 import 'src/problems/problems_board_controller.dart';
 import 'src/problems/problems_workspace.dart';
+import 'src/reports/reports_board_controller.dart';
+import 'src/reports/reports_workspace.dart';
 import 'src/structure/structure_editor_controller.dart';
 import 'src/structure/structure_workspace.dart';
 import 'src/wip/wip_board_controller.dart';
@@ -33,6 +35,7 @@ class AdminWindowsApp extends StatelessWidget {
     this.executionController,
     this.wipController,
     this.problemsController,
+    this.reportsController,
     this.client,
   });
 
@@ -43,6 +46,7 @@ class AdminWindowsApp extends StatelessWidget {
   final ExecutionBoardController? executionController;
   final WipBoardController? wipController;
   final ProblemsBoardController? problemsController;
+  final ReportsBoardController? reportsController;
   final AdminBackendClient? client;
 
   @override
@@ -74,6 +78,7 @@ class AdminHomePage extends StatefulWidget {
     this.executionController,
     this.wipController,
     this.problemsController,
+    this.reportsController,
     this.client,
   });
 
@@ -84,6 +89,7 @@ class AdminHomePage extends StatefulWidget {
   final ExecutionBoardController? executionController;
   final WipBoardController? wipController;
   final ProblemsBoardController? problemsController;
+  final ReportsBoardController? reportsController;
   final AdminBackendClient? client;
 
   @override
@@ -99,6 +105,7 @@ class _AdminHomePageState extends State<AdminHomePage>
   late final ExecutionBoardController _executionController;
   late final WipBoardController _wipController;
   late final ProblemsBoardController _problemsController;
+  late final ReportsBoardController _reportsController;
   late final bool _ownsImportController;
   late final bool _ownsMachinesController;
   late final bool _ownsStructureController;
@@ -106,6 +113,7 @@ class _AdminHomePageState extends State<AdminHomePage>
   late final bool _ownsExecutionController;
   late final bool _ownsWipController;
   late final bool _ownsProblemsController;
+  late final bool _ownsReportsController;
   late final TabController _tabController;
 
   @override
@@ -118,7 +126,8 @@ class _AdminHomePageState extends State<AdminHomePage>
     _ownsExecutionController = widget.executionController == null;
     _ownsWipController = widget.wipController == null;
     _ownsProblemsController = widget.problemsController == null;
-    _tabController = TabController(length: 7, vsync: this);
+    _ownsReportsController = widget.reportsController == null;
+    _tabController = TabController(length: 8, vsync: this);
     AdminBackendClient? backendClient;
     AdminBackendClient ensureBackendClient() {
       return backendClient ??= widget.client ?? HttpAdminBackendClient();
@@ -145,6 +154,9 @@ class _AdminHomePageState extends State<AdminHomePage>
     _problemsController =
         widget.problemsController ??
         ProblemsBoardController(client: ensureBackendClient());
+    _reportsController =
+        widget.reportsController ??
+        ReportsBoardController(client: ensureBackendClient());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _importController.bootstrap();
       _machinesController.bootstrap();
@@ -153,6 +165,7 @@ class _AdminHomePageState extends State<AdminHomePage>
       _executionController.bootstrap();
       _wipController.bootstrap();
       _problemsController.bootstrap();
+      _reportsController.bootstrap();
     });
   }
 
@@ -179,6 +192,9 @@ class _AdminHomePageState extends State<AdminHomePage>
     if (_ownsProblemsController) {
       _problemsController.dispose();
     }
+    if (_ownsReportsController) {
+      _reportsController.dispose();
+    }
     _tabController.dispose();
     super.dispose();
   }
@@ -188,9 +204,9 @@ class _AdminHomePageState extends State<AdminHomePage>
     return AppShell(
       title: 'PDO Lite Next',
       subtitle:
-          'Windows panel for import sessions, machine versions, planning, and release control.',
+          'Windows panel for import sessions, machine versions, planning, reports, and release control.',
       child: DefaultTabController(
-        length: 7,
+        length: 8,
         child: Column(
           children: [
             TabBar(
@@ -203,6 +219,7 @@ class _AdminHomePageState extends State<AdminHomePage>
                 const Tab(text: 'Execution'),
                 const Tab(text: 'WIP'),
                 const Tab(text: 'Problems'),
+                const Tab(text: 'Reports'),
               ],
             ),
             const SizedBox(height: 20),
@@ -243,6 +260,7 @@ class _AdminHomePageState extends State<AdminHomePage>
                     onOpenTask: _openTaskInExecution,
                     onOpenWip: _openWipForTask,
                   ),
+                  ReportsWorkspace(controller: _reportsController),
                 ],
               ),
             ),

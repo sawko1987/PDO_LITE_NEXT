@@ -285,6 +285,82 @@ void main() {
     expect((body['items'] as List).single['outcome'], 'partial');
   });
 
+  test('reports summary endpoint returns aggregate counters', () async {
+    final handler = buildHandler();
+    final response = await handler(
+      Request('GET', Uri.parse('http://localhost/v1/reports/summary')),
+    );
+    final body =
+        jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+
+    expect(response.statusCode, 200);
+    expect(body['totalPlans'], 1);
+    expect(body['releasedPlans'], 1);
+    expect(body['totalTasks'], 2);
+    expect(body['activeTasks'], 2);
+    expect(body['totalProblems'], 1);
+    expect(body['openProblems'], 1);
+    expect(body['totalWipEntries'], 1);
+    expect(body['blockingWipEntries'], 1);
+    expect(body['totalExecutionReports'], 1);
+  });
+
+  test(
+    'plan-fact report endpoint returns requested and reported quantities',
+    () async {
+      final handler = buildHandler();
+      final response = await handler(
+        Request('GET', Uri.parse('http://localhost/v1/reports/plan-fact')),
+      );
+      final body =
+          jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+
+      expect(response.statusCode, 200);
+      expect(body['count'], 2);
+      final first = (body['items'] as List).first as Map<String, dynamic>;
+      expect(first['requestedQuantity'], 12);
+      expect(first['reportedQuantity'], 6);
+      expect(first['remainingQuantity'], 6);
+      expect(first['completionPercent'], 50);
+    },
+  );
+
+  test('shift report endpoint returns reports for selected day', () async {
+    final handler = buildHandler();
+    final response = await handler(
+      Request(
+        'GET',
+        Uri.parse('http://localhost/v1/reports/shift?date=2026-03-28'),
+      ),
+    );
+    final body =
+        jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+
+    expect(response.statusCode, 200);
+    expect(body['count'], 1);
+    final first = (body['items'] as List).single as Map<String, dynamic>;
+    expect(first['taskId'], 'task-1');
+    expect(first['reports'], isNotEmpty);
+    expect((first['reports'] as List).single['reportedQuantity'], 6);
+  });
+
+  test('problem report endpoint supports status filter', () async {
+    final handler = buildHandler();
+    final response = await handler(
+      Request(
+        'GET',
+        Uri.parse('http://localhost/v1/reports/problems?status=inProgress'),
+      ),
+    );
+    final body =
+        jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+
+    expect(response.statusCode, 200);
+    expect(body['count'], 1);
+    expect((body['items'] as List).single['problemId'], 'problem-1');
+    expect((body['items'] as List).single['status'], 'inProgress');
+  });
+
   test(
     'tasks endpoint supports assignee filter and returns execution context',
     () async {
