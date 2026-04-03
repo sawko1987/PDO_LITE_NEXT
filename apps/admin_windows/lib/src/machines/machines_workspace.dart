@@ -31,9 +31,9 @@ class MachinesWorkspace extends StatelessWidget {
         return ListView(
           children: [
             _MachinesSectionCard(
-              title: 'Machines Registry',
+              title: 'Реестр оборудования',
               subtitle:
-                  'Read-only registry for machines, version history, and version structure preview.',
+                  'Реестр оборудования, история версий и предпросмотр структуры версий.',
               child: Wrap(
                 spacing: 12,
                 runSpacing: 12,
@@ -45,8 +45,8 @@ class MachinesWorkspace extends StatelessWidget {
                     icon: const Icon(Icons.sync_outlined),
                     label: Text(
                       controller.isMachinesLoading
-                          ? 'Refreshing...'
-                          : 'Refresh Registry',
+                          ? 'Обновление...'
+                          : 'Обновить реестр',
                     ),
                   ),
                   _InfoChip(label: '${controller.machines.length} machines'),
@@ -66,7 +66,7 @@ class MachinesWorkspace extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 16),
                 child: _Banner(
-                  title: 'Registry error',
+                  title: 'Ошибка реестра',
                   message: message,
                   color: const Color(0xFF991B1B),
                 ),
@@ -77,17 +77,17 @@ class MachinesWorkspace extends StatelessWidget {
                 builder: (context, constraints) {
                   final useColumn = constraints.maxWidth < 1080;
                   final machinePane = _MachinesSectionCard(
-                    title: 'Machines',
+                    title: 'Оборудование',
                     subtitle:
-                        'Select a machine to inspect version history and structure.',
+                        'Выберите оборудование для просмотра истории версий и структуры.',
                     child: _MachineListPane(controller: controller),
                   );
                   final detailPane = _MachinesSectionCard(
-                    title: 'Machine Detail',
+                    title: 'Детали оборудования',
                     subtitle:
-                        'Version history, active version marker, and structure preview for the selected machine.',
+                        'История версий, активная версия и предпросмотр структуры.',
                     child: selectedMachine == null
-                        ? const Text('No machine selected.')
+                        ? const Text('Оборудование не выбрано.')
                         : _MachineDetailPane(
                             controller: controller,
                             selectedMachine: selectedMachine,
@@ -137,7 +137,7 @@ class _MachineListPane extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (controller.machines.isEmpty) {
-      return const Text('No machines available yet.');
+      return const Text('Оборудование ещё не загружено.');
     }
 
     return Column(
@@ -191,10 +191,10 @@ class _MachineDetailPane extends StatelessWidget {
             _InfoChip(label: selectedMachine.code),
             _InfoChip(label: selectedMachine.name),
             _InfoChip(
-              label: 'Active: ${selectedMachine.activeVersionId ?? '-'}',
+              label: 'Активная: ${selectedMachine.activeVersionId ?? '-'}',
             ),
             _InfoChip(
-              label: '${controller.selectedMachineVersionCount} version(s)',
+              label: '${controller.selectedMachineVersionCount} версий',
             ),
           ],
         ),
@@ -210,7 +210,7 @@ class _MachineDetailPane extends StatelessWidget {
                   : () =>
                         onOpenInPlans(selectedMachine.id, selectedVersion!.id),
               icon: const Icon(Icons.playlist_add_check_outlined),
-              label: const Text('Open In Plans'),
+              label: const Text('Открыть в планах'),
             ),
             OutlinedButton.icon(
               key: const Key('openInStructureButton'),
@@ -221,7 +221,7 @@ class _MachineDetailPane extends StatelessWidget {
                       selectedVersion!.id,
                     ),
               icon: const Icon(Icons.account_tree_outlined),
-              label: const Text('Open In Structure'),
+              label: const Text('Открыть в структуре'),
             ),
             OutlinedButton.icon(
               key: const Key('createEditableDraftButton'),
@@ -232,23 +232,23 @@ class _MachineDetailPane extends StatelessWidget {
                       selectedVersion!.id,
                     ),
               icon: const Icon(Icons.copy_outlined),
-              label: const Text('Create Editable Draft'),
+              label: const Text('Создать редактируемый черновик'),
             ),
             OutlinedButton.icon(
               key: const Key('createNewVersionInImportButton'),
               onPressed: () => onCreateNewVersionInImport(selectedMachine.id),
               icon: const Icon(Icons.layers_outlined),
-              label: const Text('Create New Version In Import'),
+              label: const Text('Создать новую версию в импорте'),
             ),
           ],
         ),
         const SizedBox(height: 16),
         _PaneSurface(
-          title: 'Version History',
+          title: 'История версий',
           subtitle:
-              'Labels are shown as imported. Active version is marked directly in the list.',
+              'Метки отображаются как импортировано. Активная версия отмечена в списке.',
           child: controller.versions.isEmpty
-              ? const Text('No versions available for this machine.')
+              ? const Text('Нет версий для этого оборудования.')
               : Column(
                   key: const Key('machineVersionsPane'),
                   children: controller.versions
@@ -271,11 +271,11 @@ class _MachineDetailPane extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         _PaneSurface(
-          title: 'Version Summary',
+          title: 'Сводка версии',
           subtitle:
-              'Read-only aggregates for the selected version and structure preview below.',
+              'Агрегаты только для чтения для выбранной версии и предпросмотр структуры.',
           child: selectedVersion == null
-              ? const Text('Select a version to see summary.')
+              ? const Text('Выберите версию для просмотра сводки.')
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -283,11 +283,11 @@ class _MachineDetailPane extends StatelessWidget {
                       spacing: 10,
                       runSpacing: 10,
                       children: [
-                        _InfoChip(label: 'Label ${selectedVersion!.label}'),
-                        _InfoChip(label: 'Status ${selectedVersion!.status}'),
+                        _InfoChip(label: 'Метка ${selectedVersion!.label}'),
+                        _InfoChip(label: 'Статус ${selectedVersion!.status}'),
                         _InfoChip(
                           label:
-                              'Created ${selectedVersion!.createdAt.toIso8601String().split('T').first}',
+                              'Создана ${selectedVersion!.createdAt.toIso8601String().split('T').first}',
                         ),
                         _InfoChip(
                           label:
@@ -299,15 +299,15 @@ class _MachineDetailPane extends StatelessWidget {
                         ),
                         _InfoChip(
                           label: controller.selectedVersionIsActive
-                              ? 'Active version'
-                              : 'History version',
+                              ? 'Активная версия'
+                              : 'Историческая версия',
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
                     if (controller.planningTreeRoot == null)
                       const Text(
-                        'No planning source available for this version.',
+                        'Источник планирования для этой версии недоступен.',
                       )
                     else
                       Container(
@@ -433,7 +433,7 @@ class _MachineTile extends StatelessWidget {
               ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 6),
-            Text('Active version: ${machine.activeVersionId ?? '-'}'),
+            Text('Активная версия: ${machine.activeVersionId ?? '-'}'),
           ],
         ),
       ),
@@ -483,7 +483,7 @@ class _VersionTile extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (isActive) const _InfoChip(label: 'Active'),
+                if (isActive) const _InfoChip(label: 'Активная'),
               ],
             ),
             const SizedBox(height: 6),

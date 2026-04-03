@@ -35,7 +35,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return AppShell(
       title: 'PDO Lite Next',
       subtitle:
-          'Sign in with your workstation account to access planning, supervision, and production controls.',
+          'Войдите с помощью учётной записи для доступа к планированию, диспетчеризации и управлению производством.',
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
@@ -50,12 +50,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Sign In',
+                        'Вход в систему',
                         style: Theme.of(context).textTheme.headlineSmall,
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Use one of the seeded accounts or your pilot user credentials.',
+                        'Используйте один из тестовых аккаунтов или ваши учётные данные.',
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                       const SizedBox(height: 20),
@@ -63,7 +63,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         key: const Key('loginField'),
                         controller: _loginController,
                         decoration: const InputDecoration(
-                          labelText: 'Login',
+                          labelText: 'Логин',
                           border: OutlineInputBorder(),
                         ),
                         onChanged: (_) => widget.controller.clearError(),
@@ -74,7 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         controller: _passwordController,
                         obscureText: true,
                         decoration: const InputDecoration(
-                          labelText: 'Password',
+                          labelText: 'Пароль',
                           border: OutlineInputBorder(),
                         ),
                         onChanged: (_) => widget.controller.clearError(),
@@ -100,8 +100,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               : _submit,
                           child: Text(
                             widget.controller.isSubmitting
-                                ? 'Signing In...'
-                                : 'Sign In',
+                                ? 'Вход...'
+                                : 'Войти',
                           ),
                         ),
                       ),

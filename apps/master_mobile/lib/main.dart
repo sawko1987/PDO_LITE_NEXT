@@ -44,7 +44,7 @@ class _MasterMobileAppState extends State<MasterMobileApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'PDO Lite Next Master',
+      title: 'PDO Lite Next — Мастер',
       theme: buildPdoTheme(),
       home: MasterHomePage(controller: _controller),
     );
@@ -59,9 +59,9 @@ class MasterHomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppShell(
-      title: 'Master Flow',
+      title: 'Рабочее место мастера',
       subtitle:
-          'Mobile workspace for assigned operations, execution reports, and a local outbox queue.',
+          'Мобильное рабочее пространство для назначенных операций, отчётов о выполнении и локальной очереди отправки.',
       child: MasterWorkspace(controller: controller),
     );
   }

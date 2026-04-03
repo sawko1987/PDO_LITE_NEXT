@@ -45,13 +45,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('PDO Lite Next'), findsOneWidget);
-    expect(find.text('Machines Registry'), findsOneWidget);
-    expect(find.text('Machines'), findsWidgets);
-    expect(find.text('Structure'), findsOneWidget);
-    expect(find.text('Plans'), findsOneWidget);
-    expect(find.text('Execution'), findsOneWidget);
-    expect(find.text('WIP'), findsOneWidget);
-    expect(find.text('Problems'), findsOneWidget);
+    expect(find.text('Реестр оборудования'), findsOneWidget);
+    expect(find.text('Оборудование'), findsWidgets);
+    expect(find.text('Структура'), findsOneWidget);
+    expect(find.text('Планы'), findsOneWidget);
+    expect(find.text('Выполнение'), findsOneWidget);
+    expect(find.text('НЗП'), findsOneWidget);
+    expect(find.text('Проблемы'), findsOneWidget);
   });
 
   testWidgets('conflicts and warnings are shown and confirm stays disabled', (
@@ -87,8 +87,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Conflicts'), findsOneWidget);
-    expect(find.text('Warnings'), findsOneWidget);
+    expect(find.text('Конфликты'), findsOneWidget);
+    expect(find.text('Предупреждения'), findsOneWidget);
     expect(
       find.textContaining('Current preview cannot be confirmed'),
       findsNothing,
@@ -398,19 +398,19 @@ void main() {
       findsOneWidget,
     );
     await tester.scrollUntilVisible(
-      find.text('Problems'),
+      find.text('Проблемы'),
       300,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
-    expect(find.text('Problems'), findsOneWidget);
+    expect(find.text('Проблемы'), findsOneWidget);
     await tester.scrollUntilVisible(
-      find.text('Scoped WIP'),
+      find.text('НЗП задачи'),
       300,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
-    expect(find.text('Scoped WIP'), findsOneWidget);
+    expect(find.text('НЗП задачи'), findsOneWidget);
     expect(find.textContaining('Task: task-1'), findsWidgets);
   });
 

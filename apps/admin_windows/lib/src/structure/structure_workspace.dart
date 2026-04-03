@@ -54,9 +54,9 @@ class _StructureWorkspaceState extends State<StructureWorkspace> {
         return ListView(
           children: [
             _SectionCard(
-              title: 'Structure Editor',
+              title: 'Редактор структуры',
               subtitle:
-                  'Create editable drafts from machine versions, maintain structure nodes, manage operation lists, and publish a new active version.',
+                  'Создание черновиков из версий оборудования, управление узлами структуры и операциями, публикация новой активной версии.',
               child: Wrap(
                 spacing: 12,
                 runSpacing: 12,
@@ -68,8 +68,8 @@ class _StructureWorkspaceState extends State<StructureWorkspace> {
                     icon: const Icon(Icons.refresh_outlined),
                     label: Text(
                       widget.controller.isMachinesLoading
-                          ? 'Refreshing...'
-                          : 'Refresh Structure',
+                          ? 'Обновление...'
+                          : 'Обновить структуру',
                     ),
                   ),
                   _InfoChip(
@@ -93,7 +93,7 @@ class _StructureWorkspaceState extends State<StructureWorkspace> {
               Padding(
                 padding: const EdgeInsets.only(top: 16),
                 child: _Banner(
-                  title: 'Structure error',
+                  title: 'Ошибка структуры',
                   message: message,
                   color: const Color(0xFF991B1B),
                 ),
@@ -102,7 +102,7 @@ class _StructureWorkspaceState extends State<StructureWorkspace> {
               Padding(
                 padding: const EdgeInsets.only(top: 16),
                 child: _Banner(
-                  title: 'Structure updated',
+                  title: 'Структура обновлена',
                   message: message,
                   color: const Color(0xFF166534),
                 ),
@@ -110,16 +110,16 @@ class _StructureWorkspaceState extends State<StructureWorkspace> {
             Padding(
               padding: const EdgeInsets.only(top: 16),
               child: _SectionCard(
-                title: 'Version Context',
+                title: 'Контекст версии',
                 subtitle:
-                    'Published versions stay read-only. Create an editable draft to continue editing.',
+                    'Опубликованные версии доступны только для чтения. Создайте черновик для редактирования.',
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     DropdownButtonFormField<String>(
                       initialValue: widget.controller.selectedMachineId,
                       decoration: const InputDecoration(
-                        labelText: 'Machine',
+                        labelText: 'Оборудование',
                         border: OutlineInputBorder(),
                       ),
                       items: widget.controller.machines
@@ -139,7 +139,7 @@ class _StructureWorkspaceState extends State<StructureWorkspace> {
                       ),
                       initialValue: widget.controller.selectedVersionId,
                       decoration: const InputDecoration(
-                        labelText: 'Version',
+                        labelText: 'Версия',
                         border: OutlineInputBorder(),
                       ),
                       items: widget.controller.versions
@@ -164,13 +164,13 @@ class _StructureWorkspaceState extends State<StructureWorkspace> {
                           _InfoChip(label: detail.status),
                           _InfoChip(
                             label: detail.isActiveVersion
-                                ? 'Active version'
-                                : 'History version',
+                                ? 'Активная версия'
+                                : 'Историческая версия',
                           ),
                           _InfoChip(
                             label: detail.isImmutable
-                                ? 'Read-only'
-                                : 'Editable draft',
+                                ? 'Только чтение'
+                                : 'Редактируемый черновик',
                           ),
                         ],
                       ),
@@ -185,7 +185,7 @@ class _StructureWorkspaceState extends State<StructureWorkspace> {
                               ? null
                               : widget.controller.createDraftFromCurrentVersion,
                           icon: const Icon(Icons.copy_outlined),
-                          label: const Text('Create Editable Draft'),
+                          label: const Text('Создать редактируемый черновик'),
                         ),
                         FilledButton.icon(
                           key: const Key('publishStructureVersionButton'),
@@ -204,8 +204,8 @@ class _StructureWorkspaceState extends State<StructureWorkspace> {
                           icon: const Icon(Icons.publish_outlined),
                           label: Text(
                             widget.controller.isSaving
-                                ? 'Saving...'
-                                : 'Publish Draft',
+                                ? 'Сохранение...'
+                                : 'Опубликовать черновик',
                           ),
                         ),
                       ],
@@ -220,11 +220,11 @@ class _StructureWorkspaceState extends State<StructureWorkspace> {
                 builder: (context, constraints) {
                   final useColumn = constraints.maxWidth < 1100;
                   final treePane = _EditorPane(
-                    title: 'Structure Tree',
+                    title: 'Дерево структуры',
                     subtitle:
-                        'Select a structure row to edit it, create a child node, or manage operations.',
+                        'Выберите строку структуры для редактирования, создания дочернего узла или управления операциями.',
                     child: detail == null || widget.controller.treeRoot == null
-                        ? const Text('No version detail loaded yet.')
+                        ? const Text('Детали версии ещё не загружены.')
                         : Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -242,7 +242,7 @@ class _StructureWorkspaceState extends State<StructureWorkspace> {
                                                 _childWorkshopController.text,
                                           ),
                                 icon: const Icon(Icons.add_outlined),
-                                label: const Text('Add Root Node From Form'),
+                                label: const Text('Добавить корневой узел'),
                               ),
                               const SizedBox(height: 16),
                               Container(
@@ -275,9 +275,9 @@ class _StructureWorkspaceState extends State<StructureWorkspace> {
                           ),
                   );
                   final detailPane = _EditorPane(
-                    title: 'Selected Node',
+                    title: 'Выбранный узел',
                     subtitle:
-                        'Edit the selected draft node and maintain operations linked to it.',
+                        'Редактирование выбранного узла черновика и управление связанными операциями.',
                     child: _SelectedNodePane(
                       controller: widget.controller,
                       isDraft: isDraft,
@@ -394,10 +394,10 @@ class _SelectedNodePane extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (controller.versionDetail == null) {
-      return const Text('Select a version to start.');
+      return const Text('Выберите версию для начала.');
     }
     if (controller.selectedOccurrence == null) {
-      return const Text('Select a structure node in the tree.');
+      return const Text('Выберите узел структуры в дереве.');
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -407,7 +407,7 @@ class _SelectedNodePane extends StatelessWidget {
           controller: occurrenceNameController,
           enabled: isDraft,
           decoration: const InputDecoration(
-            labelText: 'Display name',
+            labelText: 'Название',
             border: OutlineInputBorder(),
           ),
         ),
@@ -417,7 +417,7 @@ class _SelectedNodePane extends StatelessWidget {
           controller: occurrenceQuantityController,
           enabled: isDraft,
           decoration: const InputDecoration(
-            labelText: 'Quantity per machine',
+            labelText: 'Количество на оборудование',
             border: OutlineInputBorder(),
           ),
         ),
@@ -427,7 +427,7 @@ class _SelectedNodePane extends StatelessWidget {
           controller: occurrenceWorkshopController,
           enabled: isDraft,
           decoration: const InputDecoration(
-            labelText: 'Workshop',
+            labelText: 'Цех',
             border: OutlineInputBorder(),
           ),
         ),
@@ -446,7 +446,7 @@ class _SelectedNodePane extends StatelessWidget {
                       workshop: occurrenceWorkshopController.text,
                     ),
               icon: const Icon(Icons.save_outlined),
-              label: const Text('Save Node'),
+              label: const Text('Сохранить узел'),
             ),
             OutlinedButton.icon(
               key: const Key('deleteStructureOccurrenceButton'),
@@ -454,13 +454,13 @@ class _SelectedNodePane extends StatelessWidget {
                   ? null
                   : controller.deleteSelectedOccurrence,
               icon: const Icon(Icons.delete_outline),
-              label: const Text('Delete Node'),
+              label: const Text('Удалить узел'),
             ),
           ],
         ),
         const SizedBox(height: 20),
         Text(
-          'Add Child Node',
+          'Добавить дочерний узел',
           style: Theme.of(
             context,
           ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
@@ -471,7 +471,7 @@ class _SelectedNodePane extends StatelessWidget {
           controller: childNameController,
           enabled: isDraft,
           decoration: const InputDecoration(
-            labelText: 'Child display name',
+            labelText: 'Название дочернего узла',
             border: OutlineInputBorder(),
           ),
         ),

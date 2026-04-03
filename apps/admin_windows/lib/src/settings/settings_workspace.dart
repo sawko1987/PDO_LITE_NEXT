@@ -16,9 +16,9 @@ class SettingsWorkspace extends StatelessWidget {
         return ListView(
           children: [
             _SectionCard(
-              title: 'Diagnostics',
+              title: 'Диагностика',
               subtitle:
-                  'Health, storage, idempotency, and audit metrics for the local desktop backend.',
+                  'Состояние, хранилище, идемпотентность и метрики аудита локального сервера.',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -33,8 +33,8 @@ class SettingsWorkspace extends StatelessWidget {
                         icon: const Icon(Icons.monitor_heart_outlined),
                         label: Text(
                           controller.isDiagnosticsLoading
-                              ? 'Refreshing...'
-                              : 'Refresh Diagnostics',
+                              ? 'Обновление...'
+                              : 'Обновить диагностику',
                         ),
                       ),
                       OutlinedButton.icon(
@@ -42,7 +42,7 @@ class SettingsWorkspace extends StatelessWidget {
                             ? null
                             : controller.loadBackups,
                         icon: const Icon(Icons.refresh_outlined),
-                        label: const Text('Refresh Backups'),
+                        label: const Text('Обновить резервные копии'),
                       ),
                     ],
                   ),
@@ -66,47 +66,47 @@ class SettingsWorkspace extends StatelessWidget {
                     ),
                   const SizedBox(height: 16),
                   if (controller.health == null)
-                    const Text('Diagnostics are not loaded yet.')
+                    const Text('Диагностика ещё не загружена.')
                   else
                     Wrap(
                       spacing: 12,
                       runSpacing: 12,
                       children: [
                         _MetricCard(
-                          label: 'Service',
+                          label: 'Сервис',
                           value: controller.health!.service,
                         ),
                         _MetricCard(
-                          label: 'Database Size',
+                          label: 'Размер БД',
                           value: '${controller.health!.databaseSizeBytes} B',
                         ),
                         _MetricCard(
-                          label: 'Plans',
+                          label: 'Планы',
                           value: controller.health!.totalPlans.toString(),
                         ),
                         _MetricCard(
-                          label: 'Tasks',
+                          label: 'Задачи',
                           value: controller.health!.totalTasks.toString(),
                         ),
                         _MetricCard(
-                          label: 'Audit Entries',
+                          label: 'Записи аудита',
                           value: controller.health!.totalAuditEntries
                               .toString(),
                         ),
                         _MetricCard(
-                          label: 'Uptime',
+                          label: 'Время работы',
                           value: controller.health!.uptime,
                         ),
                       ],
                     ),
                   const SizedBox(height: 16),
                   Text(
-                    'Idempotency Records',
+                    'Записи идемпотентности',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 8),
                   if (controller.idempotencyStats == null)
-                    const Text('Idempotency statistics are not loaded yet.')
+                    const Text('Статистика идемпотентности ещё не загружена.')
                   else
                     Wrap(
                       spacing: 8,
@@ -124,9 +124,9 @@ class SettingsWorkspace extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             _SectionCard(
-              title: 'Backup & Restore',
+              title: 'Резервное копирование и восстановление',
               subtitle:
-                  'Create a file-backed snapshot now or restore a previous backup after explicit confirmation.',
+                  'Создание снимка данных или восстановление из предыдущей резервной копии.',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -136,12 +136,14 @@ class SettingsWorkspace extends StatelessWidget {
                         : controller.createBackup,
                     icon: const Icon(Icons.backup_outlined),
                     label: Text(
-                      controller.isSaving ? 'Working...' : 'Create Backup Now',
+                      controller.isSaving
+                          ? 'Выполняется...'
+                          : 'Создать резервную копию',
                     ),
                   ),
                   const SizedBox(height: 16),
                   if (controller.backups.isEmpty)
-                    const Text('No backups are available yet.')
+                    const Text('Резервные копии ещё не созданы.')
                   else
                     ...controller.backups.map(
                       (backup) => ListTile(
@@ -154,7 +156,7 @@ class SettingsWorkspace extends StatelessWidget {
                           onPressed: controller.isBusy
                               ? null
                               : () => _confirmRestore(context, backup),
-                          child: const Text('Restore'),
+                          child: const Text('Восстановить'),
                         ),
                       ),
                     ),
@@ -175,18 +177,18 @@ class SettingsWorkspace extends StatelessWidget {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Restore Backup'),
+          title: const Text('Восстановление резервной копии'),
           content: Text(
-            'Restore ${backup.fileName}? Current data will be replaced, and the current state will be backed up automatically first.',
+            'Восстановить из ${backup.fileName}? Текущие данные будут заменены, текущее состояние будет автоматически сохранено.',
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
+              child: const Text('Отмена'),
             ),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Restore'),
+              child: const Text('Восстановить'),
             ),
           ],
         );

@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import 'execution_board_controller.dart';
 
 const _reportOutcomeOptions = <({String label, String value})>[
-  (label: 'Completed', value: 'completed'),
-  (label: 'Partial', value: 'partial'),
-  (label: 'Not Completed', value: 'not_completed'),
-  (label: 'Overrun', value: 'overrun'),
+  (label: 'Завершено', value: 'completed'),
+  (label: 'Частично', value: 'partial'),
+  (label: 'Не завершено', value: 'not_completed'),
+  (label: 'Перевыполнение', value: 'overrun'),
 ];
 
 class ExecutionWorkspace extends StatelessWidget {
@@ -30,9 +30,9 @@ class ExecutionWorkspace extends StatelessWidget {
         return ListView(
           children: [
             _SectionCard(
-              title: 'Execution Control',
+              title: 'Управление выполнением',
               subtitle:
-                  'Monitor released work and send manual execution reports from the desktop client.',
+                  'Мониторинг запущенных задач и отправка отчётов о выполнении.',
               child: Wrap(
                 spacing: 12,
                 runSpacing: 12,
@@ -41,7 +41,7 @@ class ExecutionWorkspace extends StatelessWidget {
                     onPressed: controller.isBusy ? null : controller.refresh,
                     icon: const Icon(Icons.refresh_outlined),
                     label: Text(
-                      controller.isLoading ? 'Refreshing...' : 'Refresh View',
+                      controller.isLoading ? 'Обновление...' : 'Обновить',
                     ),
                   ),
                   _InfoChip(label: '${controller.tasks.length} tasks total'),
@@ -59,7 +59,7 @@ class ExecutionWorkspace extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 16),
                 child: _Banner(
-                  title: 'Execution error',
+                  title: 'Ошибка выполнения',
                   message: message,
                   color: const Color(0xFF991B1B),
                 ),
@@ -67,9 +67,9 @@ class ExecutionWorkspace extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 16),
               child: _SectionCard(
-                title: 'Task Monitor',
+                title: 'Монитор задач',
                 subtitle:
-                    'Browse all released tasks, keep the current selection when possible, and inspect completion progress.',
+                    'Просмотр всех запущенных задач и отслеживание прогресса выполнения.',
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -78,21 +78,21 @@ class ExecutionWorkspace extends StatelessWidget {
                       runSpacing: 8,
                       children: [
                         _FilterChip(
-                          label: 'All',
+                          label: 'Все',
                           selected:
                               controller.filter == ExecutionTaskFilter.all,
                           onSelected: () =>
                               controller.setFilter(ExecutionTaskFilter.all),
                         ),
                         _FilterChip(
-                          label: 'Active',
+                          label: 'Активные',
                           selected:
                               controller.filter == ExecutionTaskFilter.active,
                           onSelected: () =>
                               controller.setFilter(ExecutionTaskFilter.active),
                         ),
                         _FilterChip(
-                          label: 'Completed',
+                          label: 'Завершено',
                           selected:
                               controller.filter ==
                               ExecutionTaskFilter.completed,
@@ -104,7 +104,7 @@ class ExecutionWorkspace extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
                     if (controller.visibleTasks.isEmpty)
-                      const Text('No tasks match the current filter.')
+                      const Text('Нет задач, соответствующих фильтру.')
                     else
                       Column(
                         children: controller.visibleTasks
@@ -127,11 +127,13 @@ class ExecutionWorkspace extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 16),
               child: _SectionCard(
-                title: 'Task Detail',
+                title: 'Детали задачи',
                 subtitle:
-                    'Selected task context, progress, and manual execution report form.',
+                    'Контекст выбранной задачи, прогресс и форма ручного отчёта.',
                 child: controller.selectedTask == null
-                    ? const Text('Select a task to inspect its execution data.')
+                    ? const Text(
+                        'Выберите задачу для просмотра данных выполнения.',
+                      )
                     : _ExecutionReportFormSection(
                         controller: controller,
                         task: controller.selectedTask!,
@@ -141,12 +143,14 @@ class ExecutionWorkspace extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 16),
               child: _SectionCard(
-                title: 'Execution Reports',
-                subtitle: 'Accepted execution history for the selected task.',
+                title: 'Отчёты о выполнении',
+                subtitle: 'Принятая история выполнения для выбранной задачи.',
                 child: controller.selectedTask == null
-                    ? const Text('No task selected.')
+                    ? const Text('Задача не выбрана.')
                     : controller.reports.isEmpty
-                    ? const Text('No execution reports for this task yet.')
+                    ? const Text(
+                        'Отчётов о выполнении для этой задачи ещё нет.',
+                      )
                     : Column(
                         children: controller.reports
                             .map(
@@ -156,15 +160,15 @@ class ExecutionWorkspace extends StatelessWidget {
                                   title:
                                       '${report.outcome} | ${report.reportedQuantity}',
                                   lines: [
-                                    'Report: ${report.id}',
-                                    'Reported by: ${report.reportedBy}',
-                                    'Reported at: ${_formatDateTime(report.reportedAt)}',
-                                    'Accepted: ${report.isAccepted ? 'yes' : 'no'}',
+                                    'Отчёт: ${report.id}',
+                                    'Автор отчёта: ${report.reportedBy}',
+                                    'Отправлено в: ${_formatDateTime(report.reportedAt)}',
+                                    'Принят: ${report.isAccepted ? 'да' : 'нет'}',
                                     if (report.acceptedAt != null)
-                                      'Accepted at: ${_formatDateTime(report.acceptedAt!)}',
+                                      'Принят в: ${_formatDateTime(report.acceptedAt!)}',
                                     if (report.reason != null &&
                                         report.reason!.isNotEmpty)
-                                      'Reason: ${report.reason}',
+                                      'Причина: ${report.reason}',
                                   ],
                                 ),
                               ),
@@ -176,16 +180,16 @@ class ExecutionWorkspace extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 16),
               child: _SectionCard(
-                title: 'Problems',
+                title: 'Проблемы',
                 subtitle:
-                    'Problem summaries for the selected task and the thread of the selected problem.',
+                    'Сводка проблем для выбранной задачи и переписка по выбранной проблеме.',
                 child: controller.selectedTask == null
-                    ? const Text('No task selected.')
+                    ? const Text('Задача не выбрана.')
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           if (controller.taskProblems.isEmpty)
-                            const Text('No problems linked to this task.')
+                            const Text('К этой задаче не привязано проблем.')
                           else
                             Column(
                               children: controller.taskProblems
@@ -221,7 +225,7 @@ class ExecutionWorkspace extends StatelessWidget {
                                       controller.selectedTask!.id,
                                     ),
                               icon: const Icon(Icons.open_in_new_outlined),
-                              label: const Text('Open Problems Workspace'),
+                              label: const Text('Открыть раздел проблем'),
                             ),
                           ],
                         ],
@@ -231,13 +235,13 @@ class ExecutionWorkspace extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 16),
               child: _SectionCard(
-                title: 'Scoped WIP',
+                title: 'НЗП задачи',
                 subtitle:
-                    'WIP linked to the selected task by task id or operation occurrence.',
+                    'НЗП, привязанные к выбранной задаче по идентификатору задачи или вхождению операции.',
                 child: controller.selectedTask == null
-                    ? const Text('No task selected.')
+                    ? const Text('Задача не выбрана.')
                     : controller.scopedWipEntries.isEmpty
-                    ? const Text('No scoped WIP for the selected task.')
+                    ? const Text('НЗП для выбранной задачи отсутствуют.')
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -247,11 +251,11 @@ class ExecutionWorkspace extends StatelessWidget {
                               child: _DetailTile(
                                 title: '${entry.id} | ${entry.status}',
                                 lines: [
-                                  'Operation: ${entry.operationOccurrenceId}',
-                                  'Balance: ${entry.balanceQuantity}',
-                                  'Blocks completion: ${entry.blocksCompletion ? 'yes' : 'no'}',
-                                  'Task: ${entry.taskId ?? '-'}',
-                                  'Outcome: ${entry.sourceOutcome ?? '-'}',
+                                  'Операция: ${entry.operationOccurrenceId}',
+                                  'Баланс: ${entry.balanceQuantity}',
+                                  'Блокирует завершение: ${entry.blocksCompletion ? 'да' : 'нет'}',
+                                  'Задача: ${entry.taskId ?? '-'}',
+                                  'Результат: ${entry.sourceOutcome ?? '-'}',
                                 ],
                               ),
                             ),
@@ -263,7 +267,7 @@ class ExecutionWorkspace extends StatelessWidget {
                                 ? null
                                 : () => onOpenWip(controller.selectedTask!.id),
                             icon: const Icon(Icons.open_in_new_outlined),
-                            label: const Text('Open WIP Workspace'),
+                            label: const Text('Открыть раздел НЗП'),
                           ),
                         ],
                       ),
@@ -349,21 +353,21 @@ class _ExecutionReportFormSectionState
         _DetailTile(
           title: '${task.structureDisplayName} | ${task.operationName}',
           lines: [
-            'Task: ${task.id}',
-            'Machine: ${task.machineId}',
-            'Version: ${task.versionId}',
-            'Occurrence: ${task.structureOccurrenceId}',
-            'Workshop: ${task.workshop}',
-            'Assignee: ${task.assigneeId ?? '-'}',
-            'Status: ${task.status}',
-            'Required: ${task.requiredQuantity}',
-            'Reported: ${task.reportedQuantity}',
-            'Remaining: ${task.remainingQuantity}',
+            'Задача: ${task.id}',
+            'Станок: ${task.machineId}',
+            'Версия: ${task.versionId}',
+            'Вхождение: ${task.structureOccurrenceId}',
+            'Цех: ${task.workshop}',
+            'Исполнитель: ${task.assigneeId ?? '-'}',
+            'Статус: ${task.status}',
+            'Запланировано: ${task.requiredQuantity}',
+            'Выполнено: ${task.reportedQuantity}',
+            'Осталось: ${task.remainingQuantity}',
           ],
         ),
         const SizedBox(height: 16),
         Text(
-          'Manual Execution Report',
+          'Ручной отчёт о выполнении',
           style: Theme.of(
             context,
           ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
@@ -371,8 +375,8 @@ class _ExecutionReportFormSectionState
         const SizedBox(height: 8),
         Text(
           isClosed
-              ? 'This task is already closed. Manual reporting is disabled.'
-              : 'Supervisor can enter the execution result from the desktop client.',
+              ? 'Эта задача уже закрыта. Ручной отчёт отключён.'
+              : 'Диспетчер может ввести результат выполнения из настольного клиента.',
         ),
         const SizedBox(height: 16),
         TextField(
@@ -380,8 +384,8 @@ class _ExecutionReportFormSectionState
           controller: _authorController,
           enabled: !isClosed && !isSubmitting,
           decoration: const InputDecoration(
-            labelText: 'Reported by',
-            hintText: 'Supervisor or operator id',
+            labelText: 'Автор отчёта',
+            hintText: 'Идентификатор диспетчера или оператора',
             border: OutlineInputBorder(),
           ),
         ),
@@ -409,7 +413,7 @@ class _ExecutionReportFormSectionState
           enabled: !isClosed && !isSubmitting,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: const InputDecoration(
-            labelText: 'Reported quantity',
+            labelText: 'Количество',
             border: OutlineInputBorder(),
           ),
         ),
@@ -421,14 +425,14 @@ class _ExecutionReportFormSectionState
           minLines: 1,
           maxLines: 2,
           decoration: const InputDecoration(
-            labelText: 'Reason / comment',
+            labelText: 'Причина / комментарий',
             border: OutlineInputBorder(),
           ),
         ),
         if (controller.submissionMessage case final message?) ...[
           const SizedBox(height: 12),
           _Banner(
-            title: 'Execution sent',
+            title: 'Отчёт отправлен',
             message: message,
             color: const Color(0xFF166534),
           ),
@@ -440,7 +444,9 @@ class _ExecutionReportFormSectionState
               ? null
               : controller.submitSelectedTaskReport,
           icon: const Icon(Icons.send_outlined),
-          label: Text(isSubmitting ? 'Sending...' : 'Send execution report'),
+          label: Text(
+            isSubmitting ? 'Отправка...' : 'Отправить отчёт о выполнении',
+          ),
         ),
       ],
     );
@@ -471,15 +477,15 @@ class _ProblemThreadSection extends StatelessWidget {
         _DetailTile(
           title: '${problem.title ?? problem.id} | ${problem.status}',
           lines: [
-            'Type: ${problem.type}',
-            'Created: ${_formatDateTime(problem.createdAt)}',
-            'Task: ${problem.taskId ?? '-'}',
-            'Machine: ${problem.machineId}',
+            'Тип: ${problem.type}',
+            'Создана: ${_formatDateTime(problem.createdAt)}',
+            'Задача: ${problem.taskId ?? '-'}',
+            'Станок: ${problem.machineId}',
           ],
         ),
         const SizedBox(height: 12),
         Text(
-          'Problem Thread',
+          'Переписка по проблеме',
           style: Theme.of(
             context,
           ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
@@ -491,8 +497,8 @@ class _ProblemThreadSection extends StatelessWidget {
             child: _DetailTile(
               title: message.authorId,
               lines: [
-                'Sent at: ${_formatDateTime(message.createdAt)}',
-                'Message: ${message.message}',
+                'Отправлено: ${_formatDateTime(message.createdAt)}',
+                'Сообщение: ${message.message}',
               ],
             ),
           ),
@@ -538,7 +544,7 @@ class _TaskTile extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                'Required ${task.requiredQuantity} | Reported ${task.reportedQuantity} | Remaining ${task.remainingQuantity}',
+                'Запланировано ${task.requiredQuantity} шт. | Выполнено ${task.reportedQuantity} шт. | Осталось ${task.remainingQuantity} шт.',
               ),
             ],
           ),
@@ -580,7 +586,7 @@ class _ProblemTile extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                '${problem.type} | ${problem.status} | messages: ${problem.messageCount}',
+                '${problem.type} | ${problem.status} | сообщений: ${problem.messageCount}',
               ),
             ],
           ),

@@ -29,6 +29,9 @@ Run commands from the package or app directory you are working in.
 ## Coding Style & Naming Conventions
 Follow standard Dart style: 2-space indentation, trailing commas where formatter adds them, `PascalCase` for types, `camelCase` for members, and `snake_case.dart` for files. Keep widgets small and reusable; shared visual building blocks belong in `packages/shared_ui/lib/src/`. Do not hand-edit generated or transient output such as `build/`, `.dart_tool/`, or platform-generated registrants.
 
+## UI Language
+All user-facing application interface text must be in Russian. This applies to `apps/admin_windows`, `apps/master_mobile`, dialogs, buttons, labels, validation messages, empty states, notifications, and any newly added UI copy. English may be used only for code identifiers, API contracts, logs, and developer-facing documentation.
+
 ## Testing Guidelines
 This repo uses `flutter_test` for Flutter targets and `package:test` for Dart packages. Name tests `*_test.dart`. Add or update tests in the same module you change, for example `packages/domain/test/` or `apps/admin_windows/test/`. Prefer fast unit tests for domain/import logic and widget tests for UI shells.
 

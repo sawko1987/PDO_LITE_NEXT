@@ -62,15 +62,15 @@ class _AuditWorkspaceState extends State<AuditWorkspace> {
                   runSpacing: 12,
                   children: [
                     _dropdown(
-                      label: 'Entity Type',
+                      label: 'Тип сущности',
                       value: _entityType,
                       options: const [
-                        'plan',
-                        'task',
-                        'problem',
-                        'wip_entry',
-                        'user',
-                        'backup',
+                        'план',
+                        'задача',
+                        'проблема',
+                        'нзп',
+                        'пользователь',
+                        'резервная копия',
                       ],
                       onChanged: (value) {
                         setState(() => _entityType = value);
@@ -78,14 +78,14 @@ class _AuditWorkspaceState extends State<AuditWorkspace> {
                       },
                     ),
                     _dropdown(
-                      label: 'Action',
+                      label: 'Действие',
                       value: _action,
                       options: const [
-                        'created',
-                        'updated',
-                        'closed',
-                        'archived',
-                        'published',
+                        'создано',
+                        'обновлено',
+                        'закрыто',
+                        'архивировано',
+                        'опубликовано',
                       ],
                       onChanged: (value) {
                         setState(() => _action = value);
@@ -97,7 +97,7 @@ class _AuditWorkspaceState extends State<AuditWorkspace> {
                       child: DropdownButtonFormField<String>(
                         initialValue: _changedBy,
                         decoration: const InputDecoration(
-                          labelText: 'Changed By',
+                          labelText: 'Автор изменений',
                           border: OutlineInputBorder(),
                         ),
                         items: widget.controller.users
@@ -119,7 +119,7 @@ class _AuditWorkspaceState extends State<AuditWorkspace> {
                       child: TextField(
                         controller: _entityIdController,
                         decoration: const InputDecoration(
-                          labelText: 'Entity Id',
+                          labelText: 'Идентификатор сущности',
                           border: OutlineInputBorder(),
                         ),
                         onChanged: widget.controller.setEntityId,
@@ -130,8 +130,8 @@ class _AuditWorkspaceState extends State<AuditWorkspace> {
                       child: TextField(
                         controller: _fromDateController,
                         decoration: const InputDecoration(
-                          labelText: 'From',
-                          hintText: 'YYYY-MM-DD',
+                          labelText: 'С',
+                          hintText: 'ГГГГ-ММ-ДД',
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -141,8 +141,8 @@ class _AuditWorkspaceState extends State<AuditWorkspace> {
                       child: TextField(
                         controller: _toDateController,
                         decoration: const InputDecoration(
-                          labelText: 'To',
-                          hintText: 'YYYY-MM-DD',
+                          labelText: 'По',
+                          hintText: 'ГГГГ-ММ-ДД',
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -154,8 +154,8 @@ class _AuditWorkspaceState extends State<AuditWorkspace> {
                       icon: const Icon(Icons.search_outlined),
                       label: Text(
                         widget.controller.isLoading
-                            ? 'Loading...'
-                            : 'Apply Filters',
+                            ? 'Загрузка...'
+                            : 'Применить фильтры',
                       ),
                     ),
                     OutlinedButton.icon(
@@ -163,7 +163,7 @@ class _AuditWorkspaceState extends State<AuditWorkspace> {
                           ? null
                           : _exportCsv,
                       icon: const Icon(Icons.download_outlined),
-                      label: const Text('Export CSV'),
+                      label: const Text('Экспорт CSV'),
                     ),
                   ],
                 ),
@@ -187,28 +187,28 @@ class _AuditWorkspaceState extends State<AuditWorkspace> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Audit Entries',
+                      'Записи аудита',
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Loaded ${widget.controller.entries.length} of ${widget.controller.total ?? widget.controller.entries.length}.',
+                      'Загружено ${widget.controller.entries.length} из ${widget.controller.total ?? widget.controller.entries.length}.',
                     ),
                     const SizedBox(height: 16),
                     if (widget.controller.entries.isEmpty)
-                      const Text('No audit entries loaded yet.')
+                      const Text('Записи аудита ещё не загружены.')
                     else
                       SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: DataTable(
                           columns: const [
-                            DataColumn(label: Text('Time')),
-                            DataColumn(label: Text('Author')),
-                            DataColumn(label: Text('Entity')),
-                            DataColumn(label: Text('Action')),
-                            DataColumn(label: Text('Field')),
-                            DataColumn(label: Text('Before')),
-                            DataColumn(label: Text('After')),
+                            DataColumn(label: Text('Время')),
+                            DataColumn(label: Text('Автор')),
+                            DataColumn(label: Text('Сущность')),
+                            DataColumn(label: Text('Действие')),
+                            DataColumn(label: Text('Поле')),
+                            DataColumn(label: Text('Было')),
+                            DataColumn(label: Text('Стало')),
                           ],
                           rows: widget.controller.entries
                               .map(
@@ -295,7 +295,7 @@ class _AuditWorkspaceState extends State<AuditWorkspace> {
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Audit export saved to ${file.path}')),
+      SnackBar(content: Text('Экспорт аудита сохранён в ${file.path}')),
     );
   }
 }

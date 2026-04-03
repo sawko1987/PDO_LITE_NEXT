@@ -13,6 +13,18 @@ const _problemTypeOptions = <String>[
   'other',
 ];
 
+const _problemTypeLabels = <String, String>{
+  'equipment': 'оборудование',
+  'materials': 'материалы',
+  'documentation': 'документация',
+  'planning_error': 'ошибка планирования',
+  'technology_error': 'ошибка технологии',
+  'blocked_by_other_workshop': 'блокировано другим цехом',
+  'other': 'другое',
+};
+
+String _problemTypeLabel(String type) => _problemTypeLabels[type] ?? type;
+
 class ProblemsWorkspace extends StatefulWidget {
   const ProblemsWorkspace({
     super.key,
@@ -62,12 +74,12 @@ class _ProblemsWorkspaceState extends State<ProblemsWorkspace> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Problems',
+                      'Проблемы',
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
                     const SizedBox(height: 6),
                     const Text(
-                      'Dedicated problem screen with filters, thread management, and desktop transitions.',
+                      'Управление проблемами с фильтрами, перепиской и переходами между разделами.',
                     ),
                     const SizedBox(height: 18),
                     Wrap(
@@ -81,8 +93,8 @@ class _ProblemsWorkspaceState extends State<ProblemsWorkspace> {
                           icon: const Icon(Icons.refresh_outlined),
                           label: Text(
                             widget.controller.isLoading
-                                ? 'Refreshing...'
-                                : 'Refresh Problems',
+                                ? 'Обновление...'
+                                : 'Обновить проблемы',
                           ),
                         ),
                         _Chip(
@@ -103,7 +115,7 @@ class _ProblemsWorkspaceState extends State<ProblemsWorkspace> {
               Padding(
                 padding: const EdgeInsets.only(top: 16),
                 child: _Banner(
-                  title: 'Problem error',
+                  title: 'Ошибка проблемы',
                   message: message,
                   color: const Color(0xFF991B1B),
                 ),
@@ -112,7 +124,7 @@ class _ProblemsWorkspaceState extends State<ProblemsWorkspace> {
               Padding(
                 padding: const EdgeInsets.only(top: 16),
                 child: _Banner(
-                  title: 'Problem updated',
+                  title: 'Проблема обновлена',
                   message: message,
                   color: const Color(0xFF166534),
                 ),
@@ -126,14 +138,14 @@ class _ProblemsWorkspaceState extends State<ProblemsWorkspace> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Create Problem',
+                        'Создать проблему',
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
                         initialValue: _createTaskId,
                         decoration: const InputDecoration(
-                          labelText: 'Task',
+                          labelText: 'Задача',
                           border: OutlineInputBorder(),
                         ),
                         items: widget.controller.tasks
@@ -153,14 +165,14 @@ class _ProblemsWorkspaceState extends State<ProblemsWorkspace> {
                       DropdownButtonFormField<String>(
                         initialValue: _createType,
                         decoration: const InputDecoration(
-                          labelText: 'Type',
+                          labelText: 'Тип',
                           border: OutlineInputBorder(),
                         ),
                         items: _problemTypeOptions
                             .map(
                               (type) => DropdownMenuItem<String>(
                                 value: type,
-                                child: Text(type),
+                                child: Text(_problemTypeLabel(type)),
                               ),
                             )
                             .toList(growable: false),
@@ -175,7 +187,7 @@ class _ProblemsWorkspaceState extends State<ProblemsWorkspace> {
                         key: const Key('problemTitleField'),
                         controller: _titleController,
                         decoration: const InputDecoration(
-                          labelText: 'Title',
+                          labelText: 'Название',
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -186,7 +198,7 @@ class _ProblemsWorkspaceState extends State<ProblemsWorkspace> {
                         minLines: 2,
                         maxLines: 3,
                         decoration: const InputDecoration(
-                          labelText: 'Description',
+                          labelText: 'Описание',
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -203,7 +215,7 @@ class _ProblemsWorkspaceState extends State<ProblemsWorkspace> {
                                 description: _descriptionController.text,
                               ),
                         icon: const Icon(Icons.report_problem_outlined),
-                        label: const Text('Create Problem'),
+                        label: const Text('Создать проблему'),
                       ),
                     ],
                   ),
@@ -220,9 +232,9 @@ class _ProblemsWorkspaceState extends State<ProblemsWorkspace> {
                 builder: (context, constraints) {
                   final useColumn = constraints.maxWidth < 1080;
                   final listPane = _Pane(
-                    title: 'Problem Index',
+                    title: 'Реестр проблем',
                     child: widget.controller.visibleProblems.isEmpty
-                        ? const Text('No problems match the current filters.')
+                        ? const Text('Нет проблем, соответствующих фильтрам.')
                         : Column(
                             children: widget.controller.visibleProblems
                                 .map(
@@ -242,9 +254,11 @@ class _ProblemsWorkspaceState extends State<ProblemsWorkspace> {
                           ),
                   );
                   final detailPane = _Pane(
-                    title: 'Problem Detail',
+                    title: 'Детали проблемы',
                     child: selectedProblem == null
-                        ? const Text('Select a problem to inspect its thread.')
+                        ? const Text(
+                            'Выберите проблему для просмотра переписки.',
+                          )
                         : Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -252,10 +266,10 @@ class _ProblemsWorkspaceState extends State<ProblemsWorkspace> {
                                 title:
                                     '${selectedProblem.title ?? selectedProblem.id} | ${selectedProblem.status}',
                                 lines: [
-                                  'Type: ${selectedProblem.type}',
-                                  'Machine: ${selectedProblem.machineId}',
-                                  'Task: ${selectedProblem.taskId ?? '-'}',
-                                  'Messages: ${selectedProblem.messages.length}',
+                                  'Тип: ${_problemTypeLabel(selectedProblem.type)}',
+                                  'Оборудование: ${selectedProblem.machineId}',
+                                  'Задача: ${selectedProblem.taskId ?? '-'}',
+                                  'Сообщений: ${selectedProblem.messages.length}',
                                 ],
                               ),
                               const SizedBox(height: 12),
@@ -270,7 +284,7 @@ class _ProblemsWorkspaceState extends State<ProblemsWorkspace> {
                                             selectedProblem.taskId!,
                                           ),
                                     icon: const Icon(Icons.task_outlined),
-                                    label: const Text('Open Task'),
+                                    label: const Text('Открыть задачу'),
                                   ),
                                   OutlinedButton.icon(
                                     onPressed: selectedProblem.taskId == null
@@ -281,7 +295,7 @@ class _ProblemsWorkspaceState extends State<ProblemsWorkspace> {
                                     icon: const Icon(
                                       Icons.inventory_2_outlined,
                                     ),
-                                    label: const Text('Open WIP'),
+                                    label: const Text('Открыть НЗП'),
                                   ),
                                   OutlinedButton.icon(
                                     key: const Key('problemInProgressButton'),
@@ -296,7 +310,7 @@ class _ProblemsWorkspaceState extends State<ProblemsWorkspace> {
                                                 'inProgress',
                                               ),
                                     icon: const Icon(Icons.play_arrow_outlined),
-                                    label: const Text('Move To In Progress'),
+                                    label: const Text('Взять в работу'),
                                   ),
                                   OutlinedButton.icon(
                                     key: const Key('problemClosedButton'),
@@ -311,7 +325,7 @@ class _ProblemsWorkspaceState extends State<ProblemsWorkspace> {
                                     icon: const Icon(
                                       Icons.check_circle_outline,
                                     ),
-                                    label: const Text('Close Problem'),
+                                    label: const Text('Закрыть проблему'),
                                   ),
                                 ],
                               ),
@@ -335,7 +349,7 @@ class _ProblemsWorkspaceState extends State<ProblemsWorkspace> {
                                 minLines: 1,
                                 maxLines: 3,
                                 decoration: const InputDecoration(
-                                  labelText: 'Thread message',
+                                  labelText: 'Сообщение',
                                   border: OutlineInputBorder(),
                                 ),
                               ),
@@ -350,7 +364,7 @@ class _ProblemsWorkspaceState extends State<ProblemsWorkspace> {
                                         _messageController.text,
                                       ),
                                 icon: const Icon(Icons.send_outlined),
-                                label: const Text('Send Message'),
+                                label: const Text('Отправить'),
                               ),
                             ],
                           ),
@@ -398,7 +412,7 @@ class _FilterBar extends StatelessWidget {
           runSpacing: 12,
           children: [
             _DropdownFilter(
-              label: 'Status',
+              label: 'Статус',
               value: controller.statusFilter,
               options: controller.statusOptions,
               onChanged: (value) {
@@ -406,7 +420,7 @@ class _FilterBar extends StatelessWidget {
               },
             ),
             _DropdownFilter(
-              label: 'Type',
+              label: 'Тип',
               value: controller.typeFilter,
               options: controller.typeOptions,
               onChanged: (value) {
@@ -414,7 +428,7 @@ class _FilterBar extends StatelessWidget {
               },
             ),
             _DropdownFilter(
-              label: 'Machine',
+              label: 'Оборудование',
               value: controller.machineFilter,
               options: controller.machineOptions,
               onChanged: (value) {
@@ -422,7 +436,7 @@ class _FilterBar extends StatelessWidget {
               },
             ),
             _DropdownFilter(
-              label: 'Task',
+              label: 'Задача',
               value: controller.taskFilter,
               options: controller.tasks
                   .map((task) => task.id)
@@ -545,7 +559,7 @@ class _ProblemTile extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                '${problem.type} | ${problem.status} | task ${problem.taskId ?? '-'}',
+                '${_problemTypeLabel(problem.type)} | ${problem.status} | задача ${problem.taskId ?? '-'}',
               ),
             ],
           ),

@@ -6,20 +6,20 @@ import 'master_outbox_item.dart';
 import 'master_workspace_controller.dart';
 
 const _problemTypeOptions = <({String label, String value})>[
-  (label: 'Equipment', value: 'equipment'),
-  (label: 'Materials', value: 'materials'),
-  (label: 'Documentation', value: 'documentation'),
-  (label: 'Planning Error', value: 'planning_error'),
-  (label: 'Technology Error', value: 'technology_error'),
-  (label: 'Blocked by Other Workshop', value: 'blocked_by_other_workshop'),
-  (label: 'Other', value: 'other'),
+  (label: 'Оборудование', value: 'equipment'),
+  (label: 'Материалы', value: 'materials'),
+  (label: 'Документация', value: 'documentation'),
+  (label: 'Ошибка планирования', value: 'planning_error'),
+  (label: 'Ошибка технологии', value: 'technology_error'),
+  (label: 'Блокировано другим цехом', value: 'blocked_by_other_workshop'),
+  (label: 'Другое', value: 'other'),
 ];
 
 const _reportOutcomeOptions = <({String label, String value})>[
-  (label: 'Completed', value: 'completed'),
-  (label: 'Partial', value: 'partial'),
-  (label: 'Not Completed', value: 'not_completed'),
-  (label: 'Overrun', value: 'overrun'),
+  (label: 'Завершено', value: 'completed'),
+  (label: 'Частично', value: 'partial'),
+  (label: 'Не завершено', value: 'not_completed'),
+  (label: 'Перевыполнение', value: 'overrun'),
 ];
 
 class MasterWorkspace extends StatefulWidget {
@@ -70,9 +70,9 @@ class _MasterWorkspaceState extends State<MasterWorkspace> {
           child: ListView(
             children: [
               const FeatureCard(
-                title: 'Assigned Tasks',
+                title: 'Назначенные задачи',
                 description:
-                    'Master sends execution facts and raises task-scoped problems from the same workspace.',
+                    'Мастер отправляет факты выполнения и создаёт проблемы по задачам из этого же рабочего пространства.',
                 icon: Icons.assignment_turned_in_outlined,
               ),
               const SizedBox(height: 16),
@@ -111,7 +111,7 @@ class _MasterWorkspaceState extends State<MasterWorkspace> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text(
-                              'Enter a valid reported quantity greater than zero.',
+                              'Введите корректное количество больше нуля.',
                             ),
                           ),
                         );
@@ -125,7 +125,7 @@ class _MasterWorkspaceState extends State<MasterWorkspace> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
-                            'Completed must equal remaining quantity: ${task.remainingQuantity}.',
+                            '«Завершено» должно равняться оставшемуся количеству: ${task.remainingQuantity}.',
                           ),
                         ),
                       );
@@ -136,7 +136,7 @@ class _MasterWorkspaceState extends State<MasterWorkspace> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
-                            'Partial must be above 0 and below ${task.remainingQuantity}.',
+                            '«Частично» должно быть больше 0 и меньше ${task.remainingQuantity}.',
                           ),
                         ),
                       );
@@ -147,7 +147,7 @@ class _MasterWorkspaceState extends State<MasterWorkspace> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text(
-                            'Not completed keeps reported quantity at 0.',
+                            '«Не завершено» означает количество 0.',
                           ),
                         ),
                       );
@@ -158,7 +158,7 @@ class _MasterWorkspaceState extends State<MasterWorkspace> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
-                            'Overrun must exceed remaining quantity: ${task.remainingQuantity}.',
+                            '«Перевыполнение» должно превышать оставшееся количество: ${task.remainingQuantity}.',
                           ),
                         ),
                       );
@@ -170,7 +170,7 @@ class _MasterWorkspaceState extends State<MasterWorkspace> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text(
-                            'Reason is required for partial and not completed reports.',
+                            'Причина обязательна для отчётов «Частично» и «Не завершено».',
                           ),
                         ),
                       );
@@ -236,7 +236,7 @@ class _MasterWorkspaceState extends State<MasterWorkspace> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Raise Problem for ${task.operationName}',
+                    'Создать проблему: ${task.operationName}',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),
@@ -246,7 +246,7 @@ class _MasterWorkspaceState extends State<MasterWorkspace> {
                     key: const Key('problemTypeDropdown'),
                     initialValue: selectedType,
                     decoration: const InputDecoration(
-                      labelText: 'Problem type',
+                      labelText: 'Тип проблемы',
                       border: OutlineInputBorder(),
                     ),
                     items: _problemTypeOptions
@@ -269,7 +269,7 @@ class _MasterWorkspaceState extends State<MasterWorkspace> {
                     key: const Key('problemTitleField'),
                     controller: titleController,
                     decoration: const InputDecoration(
-                      labelText: 'Title',
+                      labelText: 'Название',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -280,7 +280,7 @@ class _MasterWorkspaceState extends State<MasterWorkspace> {
                     minLines: 2,
                     maxLines: 4,
                     decoration: const InputDecoration(
-                      labelText: 'First message',
+                      labelText: 'Первое сообщение',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -298,7 +298,7 @@ class _MasterWorkspaceState extends State<MasterWorkspace> {
                           messenger.showSnackBar(
                             const SnackBar(
                               content: Text(
-                                'Problem title and first message are required.',
+                                'Название и первое сообщение обязательны.',
                               ),
                             ),
                           );
@@ -316,7 +316,7 @@ class _MasterWorkspaceState extends State<MasterWorkspace> {
                         }
                       },
                       icon: const Icon(Icons.report_problem_outlined),
-                      label: const Text('Create problem'),
+                      label: const Text('Создать проблему'),
                     ),
                   ),
                 ],
@@ -415,8 +415,8 @@ class _FilterCard extends StatelessWidget {
                 controller: searchController,
                 onChanged: onSearchChanged,
                 decoration: const InputDecoration(
-                  labelText: 'Search tasks',
-                  hintText: 'Task, operation, item, machine, workshop',
+                  labelText: 'Поиск задач',
+                  hintText: 'Задача, операция, деталь, оборудование, цех',
                   prefixIcon: Icon(Icons.search),
                   border: OutlineInputBorder(),
                 ),
@@ -424,15 +424,15 @@ class _FilterCard extends StatelessWidget {
             ),
             Chip(
               avatar: const Icon(Icons.person_outline, size: 18),
-              label: Text('Assignee: $assigneeId'),
+              label: Text('Исполнитель: $assigneeId'),
             ),
             ChoiceChip(
-              label: const Text('Active'),
+              label: const Text('Активные'),
               selected: filter == MasterTaskFilter.active,
               onSelected: (_) => onChanged(MasterTaskFilter.active),
             ),
             ChoiceChip(
-              label: const Text('Completed'),
+              label: const Text('Завершённые'),
               selected: filter == MasterTaskFilter.completed,
               onSelected: (_) => onChanged(MasterTaskFilter.completed),
             ),
@@ -463,23 +463,23 @@ class _TaskListCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Assigned Task List',
+              'Список назначенных задач',
               style: Theme.of(
                 context,
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 12),
             if (tasks.isEmpty)
-              const Text('No tasks match the current filter.')
+              const Text('Нет задач, соответствующих фильтру.')
             else
               for (final task in tasks) ...[
                 ListTile(
                   key: Key('taskTile-${task.id}'),
                   selected: task.id == selectedTaskId,
                   contentPadding: EdgeInsets.zero,
-                  title: Text('Task ${task.id}'),
+                  title: Text('Задача ${task.id}'),
                   subtitle: Text(
-                    'Required ${task.requiredQuantity} - ${task.status}',
+                    'Запланировано ${task.requiredQuantity} - ${task.status}',
                   ),
                   trailing: task.isClosed
                       ? const Icon(Icons.check_circle_outline)
@@ -533,7 +533,7 @@ class _TaskDetailCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Task Detail',
+              'Детали задачи',
               style: Theme.of(
                 context,
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
@@ -545,7 +545,7 @@ class _TaskDetailCard extends StatelessWidget {
               children: [
                 Chip(label: Text(task.structureDisplayName)),
                 Chip(label: Text(task.operationName)),
-                Chip(label: Text('Workshop ${task.workshop}')),
+                Chip(label: Text('Цех ${task.workshop}')),
                 Chip(label: Text(task.status)),
               ],
             ),
@@ -575,7 +575,7 @@ class _TaskDetailCard extends StatelessWidget {
                 decimal: true,
               ),
               decoration: const InputDecoration(
-                labelText: 'Reported quantity',
+                labelText: 'Количество',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -586,7 +586,7 @@ class _TaskDetailCard extends StatelessWidget {
               minLines: 1,
               maxLines: 2,
               decoration: const InputDecoration(
-                labelText: 'Reason / comment',
+                labelText: 'Причина / комментарий',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -596,7 +596,7 @@ class _TaskDetailCard extends StatelessWidget {
               onPressed: isSubmitting || task.isClosed ? null : onSubmitReport,
               icon: const Icon(Icons.send_outlined),
               label: Text(
-                isSubmitting ? 'Sending...' : 'Send execution report',
+                isSubmitting ? 'Отправка...' : 'Отправить отчёт о выполнении',
               ),
             ),
             if (reportFeedbackMessage case final message?) ...[
@@ -615,7 +615,7 @@ class _TaskDetailCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Problems',
+                  'Проблемы',
                   style: Theme.of(
                     context,
                   ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
@@ -624,12 +624,12 @@ class _TaskDetailCard extends StatelessWidget {
                   key: const Key('openCreateProblemSheetButton'),
                   onPressed: onCreateProblem,
                   icon: const Icon(Icons.add_comment_outlined),
-                  label: const Text('Raise problem'),
+                  label: const Text('Создать проблему'),
                 ),
               ],
             ),
             if (problems.isEmpty)
-              const Text('No problems for this task.')
+              const Text('Нет проблем по этой задаче.')
             else
               for (final problem in problems) ...[
                 ListTile(
@@ -637,7 +637,7 @@ class _TaskDetailCard extends StatelessWidget {
                   contentPadding: EdgeInsets.zero,
                   title: Text(problem.title ?? problem.id),
                   subtitle: Text(
-                    '${problem.type} - ${problem.status} - ${problem.messageCount} msgs',
+                    '${problem.type} - ${problem.status} - ${problem.messageCount} сообщ.',
                   ),
                   trailing: const Icon(Icons.chat_bubble_outline),
                   onTap: () => onOpenProblem(problem),
@@ -646,20 +646,20 @@ class _TaskDetailCard extends StatelessWidget {
               ],
             const SizedBox(height: 20),
             Text(
-              'Accepted Reports',
+              'Принятые отчёты',
               style: Theme.of(
                 context,
               ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             if (reports.isEmpty)
-              const Text('No accepted reports yet.')
+              const Text('Принятых отчётов ещё нет.')
             else
               for (final report in reports) ...[
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(
-                    '${report.reportedQuantity} pcs by ${report.reportedBy}',
+                    '${report.reportedQuantity} шт. от ${report.reportedBy}',
                   ),
                   subtitle: Text(
                     '${report.outcome} - ${report.reportedAt.toIso8601String()}'
@@ -748,7 +748,7 @@ class _ProblemDetailSheet extends StatelessWidget {
                 maxLines: 3,
                 enabled: !isClosed,
                 decoration: const InputDecoration(
-                  labelText: 'Add message',
+                  labelText: 'Сообщение',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -766,7 +766,7 @@ class _ProblemDetailSheet extends StatelessWidget {
                             if (message.isEmpty) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Problem message is required.'),
+                                  content: Text('Сообщение обязательно.'),
                                 ),
                               );
                               return;
@@ -778,7 +778,7 @@ class _ProblemDetailSheet extends StatelessWidget {
                             messageController.clear();
                           },
                     icon: const Icon(Icons.send_outlined),
-                    label: const Text('Send message'),
+                    label: const Text('Отправить'),
                   ),
                   OutlinedButton.icon(
                     key: const Key('startProblemButton'),
@@ -789,7 +789,7 @@ class _ProblemDetailSheet extends StatelessWidget {
                             toStatus: 'inProgress',
                           ),
                     icon: const Icon(Icons.play_arrow_outlined),
-                    label: const Text('Start work'),
+                    label: const Text('Взять в работу'),
                   ),
                   OutlinedButton.icon(
                     key: const Key('closeProblemButton'),
@@ -800,7 +800,7 @@ class _ProblemDetailSheet extends StatelessWidget {
                             toStatus: 'closed',
                           ),
                     icon: const Icon(Icons.check_circle_outline),
-                    label: const Text('Close problem'),
+                    label: const Text('Закрыть проблему'),
                   ),
                 ],
               ),
@@ -827,19 +827,19 @@ class _OutboxCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Offline Outbox',
+              'Исходящая очередь',
               style: Theme.of(
                 context,
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             Text(
-              'Execution reports and problem operations are staged locally as pending, failed, or sent.',
+              'Отчёты о выполнении и проблемы сохраняются локально со статусами: ожидание, ошибка, отправлено.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 12),
             if (items.isEmpty)
-              const Text('No outbox items yet.')
+              const Text('Исходящих записей ещё нет.')
             else
               for (final item in items.take(8)) ...[
                 ListTile(
@@ -852,7 +852,7 @@ class _OutboxCard extends StatelessWidget {
                   trailing: item.status == MasterOutboxStatus.failed
                       ? TextButton(
                           onPressed: () => onRetry(item.localId),
-                          child: const Text('Retry'),
+                          child: const Text('Повторить'),
                         )
                       : null,
                 ),

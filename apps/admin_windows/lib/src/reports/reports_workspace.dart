@@ -103,9 +103,9 @@ class _ReportsWorkspaceState extends State<ReportsWorkspace> {
         return ListView(
           children: [
             _SectionCard(
-              title: 'Reports',
+              title: 'Отчёты',
               subtitle:
-                  'Operational summaries for plan-fact, shift execution, problems, and overall production health.',
+                  'Оперативные сводки: план-факт, сменное выполнение, проблемы и общее состояние производства.',
               child: Wrap(
                 spacing: 12,
                 runSpacing: 12,
@@ -115,7 +115,7 @@ class _ReportsWorkspaceState extends State<ReportsWorkspace> {
                         ? null
                         : widget.controller.bootstrap,
                     icon: const Icon(Icons.refresh_outlined),
-                    label: const Text('Refresh All'),
+                    label: const Text('Обновить всё'),
                   ),
                   _InfoChip(
                     label: '${widget.controller.machines.length} machines',
@@ -132,7 +132,7 @@ class _ReportsWorkspaceState extends State<ReportsWorkspace> {
               Padding(
                 padding: const EdgeInsets.only(top: 16),
                 child: _Banner(
-                  title: 'Reports error',
+                  title: 'Ошибка отчётов',
                   message: message,
                   color: const Color(0xFF991B1B),
                 ),
@@ -140,8 +140,9 @@ class _ReportsWorkspaceState extends State<ReportsWorkspace> {
             Padding(
               padding: const EdgeInsets.only(top: 16),
               child: _SectionCard(
-                title: 'Summary',
-                subtitle: 'Aggregated production indicators by current scope.',
+                title: 'Сводка',
+                subtitle:
+                    'Агрегированные производственные показатели по текущей области.',
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -151,7 +152,7 @@ class _ReportsWorkspaceState extends State<ReportsWorkspace> {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         _MachineDropdown(
-                          label: 'Machine',
+                          label: 'Оборудование',
                           value: effectiveSummaryMachineId,
                           machines: widget.controller.machines,
                           onChanged: (value) {
@@ -168,38 +169,38 @@ class _ReportsWorkspaceState extends State<ReportsWorkspace> {
                           icon: const Icon(Icons.analytics_outlined),
                           label: Text(
                             widget.controller.isSummaryLoading
-                                ? 'Loading...'
-                                : 'Refresh Summary',
+                                ? 'Загрузка...'
+                                : 'Обновить сводку',
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 18),
                     if (summary == null)
-                      const Text('Summary is not loaded yet.')
+                      const Text('Сводка ещё не загружена.')
                     else
                       Wrap(
                         spacing: 12,
                         runSpacing: 12,
                         children: [
                           _MetricCard(
-                            label: 'Total Plans',
+                            label: 'Всего планов',
                             value: summary.totalPlans.toString(),
                           ),
                           _MetricCard(
-                            label: 'Active Tasks',
+                            label: 'Активных задач',
                             value: summary.activeTasks.toString(),
                           ),
                           _MetricCard(
-                            label: 'Open Problems',
+                            label: 'Открытых проблем',
                             value: summary.openProblems.toString(),
                           ),
                           _MetricCard(
-                            label: 'Blocking WIP',
+                            label: 'Блокирующих НЗП',
                             value: summary.blockingWipEntries.toString(),
                           ),
                           _MetricCard(
-                            label: 'Total Reports',
+                            label: 'Всего отчётов',
                             value: summary.totalExecutionReports.toString(),
                           ),
                         ],
@@ -211,8 +212,8 @@ class _ReportsWorkspaceState extends State<ReportsWorkspace> {
             Padding(
               padding: const EdgeInsets.only(top: 16),
               child: _SectionCard(
-                title: 'Plan-Fact',
-                subtitle: 'Execution balance by structure occurrence.',
+                title: 'План-факт',
+                subtitle: 'Баланс выполнения по вхождениям структуры.',
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -221,7 +222,7 @@ class _ReportsWorkspaceState extends State<ReportsWorkspace> {
                       runSpacing: 12,
                       children: [
                         _MachineDropdown(
-                          label: 'Machine',
+                          label: 'Оборудование',
                           value: effectivePlanFactMachineId,
                           machines: widget.controller.machines,
                           onChanged: (value) {
@@ -238,7 +239,7 @@ class _ReportsWorkspaceState extends State<ReportsWorkspace> {
                           },
                         ),
                         _DateField(
-                          label: 'From',
+                          label: 'С',
                           controller: _planFactFromController,
                           onChanged: (value) {
                             widget.controller.setPlanFactDateRange(
@@ -248,7 +249,7 @@ class _ReportsWorkspaceState extends State<ReportsWorkspace> {
                           },
                         ),
                         _DateField(
-                          label: 'To',
+                          label: 'По',
                           controller: _planFactToController,
                           onChanged: (value) {
                             widget.controller.setPlanFactDateRange(
@@ -270,8 +271,8 @@ class _ReportsWorkspaceState extends State<ReportsWorkspace> {
                           icon: const Icon(Icons.download_outlined),
                           label: Text(
                             widget.controller.isPlanFactLoading
-                                ? 'Loading...'
-                                : 'Load',
+                                ? 'Загрузка...'
+                                : 'Загрузить',
                           ),
                         ),
                       ],
@@ -284,14 +285,14 @@ class _ReportsWorkspaceState extends State<ReportsWorkspace> {
                     else
                       _ScrollableTable(
                         columns: const [
-                          DataColumn(label: Text('Display Name')),
-                          DataColumn(label: Text('Operation')),
-                          DataColumn(label: Text('Workshop')),
-                          DataColumn(label: Text('Requested')),
-                          DataColumn(label: Text('Reported')),
-                          DataColumn(label: Text('Remaining')),
-                          DataColumn(label: Text('Completion %')),
-                          DataColumn(label: Text('Tasks')),
+                          DataColumn(label: Text('Название')),
+                          DataColumn(label: Text('Операция')),
+                          DataColumn(label: Text('Цех')),
+                          DataColumn(label: Text('Запланировано')),
+                          DataColumn(label: Text('Выполнено')),
+                          DataColumn(label: Text('Осталось')),
+                          DataColumn(label: Text('Выполнение %')),
+                          DataColumn(label: Text('Задачи')),
                         ],
                         rows: widget.controller.planFactReport
                             .map(
@@ -331,8 +332,8 @@ class _ReportsWorkspaceState extends State<ReportsWorkspace> {
             Padding(
               padding: const EdgeInsets.only(top: 16),
               child: _SectionCard(
-                title: 'Shift Report',
-                subtitle: 'Tasks with execution facts for a selected day.',
+                title: 'Сменный отчёт',
+                subtitle: 'Задачи с фактами выполнения за выбранный день.',
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -341,14 +342,14 @@ class _ReportsWorkspaceState extends State<ReportsWorkspace> {
                       runSpacing: 12,
                       children: [
                         _DateField(
-                          label: 'Date',
+                          label: 'Дата',
                           controller: _shiftDateController,
                           onChanged: (value) {
                             widget.controller.setShiftDate(value);
                           },
                         ),
                         _MachineDropdown(
-                          label: 'Machine',
+                          label: 'Оборудование',
                           value: effectiveShiftMachineId,
                           machines: widget.controller.machines,
                           onChanged: (value) {
@@ -361,8 +362,8 @@ class _ReportsWorkspaceState extends State<ReportsWorkspace> {
                           child: TextField(
                             controller: _shiftAssigneeController,
                             decoration: const InputDecoration(
-                              labelText: 'Master',
-                              hintText: 'assigneeId',
+                              labelText: 'Мастер',
+                              hintText: 'Идентификатор исполнителя',
                               border: OutlineInputBorder(),
                             ),
                             onChanged: widget.controller.setShiftAssigneeFilter,
@@ -379,8 +380,8 @@ class _ReportsWorkspaceState extends State<ReportsWorkspace> {
                           icon: const Icon(Icons.schedule_outlined),
                           label: Text(
                             widget.controller.isShiftLoading
-                                ? 'Loading...'
-                                : 'Load',
+                                ? 'Загрузка...'
+                                : 'Загрузить',
                           ),
                         ),
                       ],
@@ -401,8 +402,8 @@ class _ReportsWorkspaceState extends State<ReportsWorkspace> {
             Padding(
               padding: const EdgeInsets.only(top: 16),
               child: _SectionCard(
-                title: 'Problems Report',
-                subtitle: 'Problem list with task drill-down context.',
+                title: 'Отчёт по проблемам',
+                subtitle: 'Список проблем с детализацией по задачам.',
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -411,7 +412,7 @@ class _ReportsWorkspaceState extends State<ReportsWorkspace> {
                       runSpacing: 12,
                       children: [
                         _MachineDropdown(
-                          label: 'Machine',
+                          label: 'Оборудование',
                           value: effectiveProblemMachineId,
                           machines: widget.controller.machines,
                           onChanged: (value) {
@@ -420,25 +421,25 @@ class _ReportsWorkspaceState extends State<ReportsWorkspace> {
                           },
                         ),
                         _DropdownField(
-                          label: 'Status',
+                          label: 'Статус',
                           value: _problemStatus,
-                          options: const ['open', 'inProgress', 'closed'],
+                          options: const ['открыт', 'в работе', 'закрыт'],
                           onChanged: (value) {
                             setState(() => _problemStatus = value);
                             widget.controller.setProblemStatusFilter(value);
                           },
                         ),
                         _DropdownField(
-                          label: 'Type',
+                          label: 'Тип',
                           value: _problemType,
                           options: const [
-                            'equipment',
-                            'materials',
-                            'documentation',
-                            'planning_error',
-                            'technology_error',
-                            'blocked_by_other_workshop',
-                            'other',
+                            'оборудование',
+                            'материалы',
+                            'документация',
+                            'ошибка планирования',
+                            'ошибка технологии',
+                            'блокировано другим цехом',
+                            'другое',
                           ],
                           onChanged: (value) {
                             setState(() => _problemType = value);
@@ -446,7 +447,7 @@ class _ReportsWorkspaceState extends State<ReportsWorkspace> {
                           },
                         ),
                         _DateField(
-                          label: 'From',
+                          label: 'С',
                           controller: _problemFromController,
                           onChanged: (value) {
                             widget.controller.setProblemDateRange(
@@ -456,7 +457,7 @@ class _ReportsWorkspaceState extends State<ReportsWorkspace> {
                           },
                         ),
                         _DateField(
-                          label: 'To',
+                          label: 'По',
                           controller: _problemToController,
                           onChanged: (value) {
                             widget.controller.setProblemDateRange(
@@ -478,8 +479,8 @@ class _ReportsWorkspaceState extends State<ReportsWorkspace> {
                           icon: const Icon(Icons.warning_amber_outlined),
                           label: Text(
                             widget.controller.isProblemLoading
-                                ? 'Loading...'
-                                : 'Load',
+                                ? 'Загрузка...'
+                                : 'Загрузить',
                           ),
                         ),
                       ],
@@ -628,7 +629,7 @@ class _PlanDropdown extends StatelessWidget {
         key: ValueKey('plan-$value-${plans.length}'),
         initialValue: value,
         decoration: const InputDecoration(
-          labelText: 'Plan',
+          labelText: 'План',
           border: OutlineInputBorder(),
         ),
         items: plans
@@ -700,7 +701,7 @@ class _DateField extends StatelessWidget {
         controller: controller,
         decoration: InputDecoration(
           labelText: label,
-          hintText: 'YYYY-MM-DD',
+          hintText: 'ГГГГ-ММ-ДД',
           border: const OutlineInputBorder(),
         ),
         onChanged: onChanged,
@@ -813,15 +814,15 @@ class _ShiftRowTile extends StatelessWidget {
         ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
       ),
       subtitle: Text(
-        'Task ${item.taskId} | ${item.status} | ${item.reportedQuantity}/${item.requiredQuantity} pcs',
+        'Задача ${item.taskId} | ${item.status} | ${item.reportedQuantity}/${item.requiredQuantity} шт.',
       ),
       children: [
         _DetailTile(
           title: item.workshop,
           lines: [
-            'Remaining: ${item.remainingQuantity}',
-            'Closed: ${item.isClosed ? 'yes' : 'no'}',
-            'Assignee: ${item.assigneeId ?? '-'}',
+            'Осталось: ${item.remainingQuantity}',
+            'Закрыта: ${item.isClosed ? 'да' : 'нет'}',
+            'Исполнитель: ${item.assigneeId ?? '-'}',
           ],
         ),
         const SizedBox(height: 10),
@@ -832,8 +833,8 @@ class _ShiftRowTile extends StatelessWidget {
               title: report.reportedBy,
               lines: [
                 report.reportedAt.toIso8601String(),
-                'Outcome: ${report.outcome}',
-                'Quantity: ${report.reportedQuantity}',
+                'Исход: ${report.outcome}',
+                'Количество: ${report.reportedQuantity}',
                 if (report.reason != null) report.reason!,
               ],
             ),
@@ -853,13 +854,13 @@ class _ProblemTable extends StatelessWidget {
   Widget build(BuildContext context) {
     return _ScrollableTable(
       columns: const [
-        DataColumn(label: Text('Title')),
-        DataColumn(label: Text('Type')),
-        DataColumn(label: Text('Status')),
-        DataColumn(label: Text('Structure')),
-        DataColumn(label: Text('Operation')),
-        DataColumn(label: Text('Created At')),
-        DataColumn(label: Text('Messages')),
+        DataColumn(label: Text('Название')),
+        DataColumn(label: Text('Тип')),
+        DataColumn(label: Text('Статус')),
+        DataColumn(label: Text('Структура')),
+        DataColumn(label: Text('Операция')),
+        DataColumn(label: Text('Создана')),
+        DataColumn(label: Text('Сообщения')),
       ],
       rows: items
           .map(

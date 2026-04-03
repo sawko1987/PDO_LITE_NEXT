@@ -26,9 +26,9 @@ class WipWorkspace extends StatelessWidget {
         return ListView(
           children: [
             _SectionCard(
-              title: 'WIP Monitor',
+              title: 'Монитор НЗП',
               subtitle:
-                  'Focused screen for open and historical WIP entries with quick links back to task, plan, and problem flows.',
+                  'Просмотр открытых и архивных записей НЗП с быстрым переходом к задачам, планам и проблемам.',
               child: Wrap(
                 spacing: 12,
                 runSpacing: 12,
@@ -37,13 +37,13 @@ class WipWorkspace extends StatelessWidget {
                     onPressed: controller.isLoading ? null : controller.refresh,
                     icon: const Icon(Icons.refresh_outlined),
                     label: Text(
-                      controller.isLoading ? 'Refreshing...' : 'Refresh WIP',
+                      controller.isLoading ? 'Обновление...' : 'Обновить НЗП',
                     ),
                   ),
                   _InfoChip(label: '${controller.entries.length} entries'),
                   _InfoChip(
                     label:
-                        '${controller.entries.where((entry) => entry.blocksCompletion).length} blocking completion',
+                        '${controller.entries.where((entry) => entry.blocksCompletion).length} блокируют завершение',
                   ),
                 ],
               ),
@@ -52,7 +52,7 @@ class WipWorkspace extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 16),
                 child: _Banner(
-                  title: 'WIP error',
+                  title: 'Ошибка НЗП',
                   message: message,
                   color: const Color(0xFF991B1B),
                 ),
@@ -60,9 +60,9 @@ class WipWorkspace extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 16),
               child: _SectionCard(
-                title: 'Filters',
+                title: 'Фильтры',
                 subtitle:
-                    'Filter by machine, version, status, workshop, operation, or task context from another tab.',
+                    'Фильтрация по оборудованию, версии, статусу, цеху, операции или задаче.',
                 child: Wrap(
                   spacing: 12,
                   runSpacing: 12,

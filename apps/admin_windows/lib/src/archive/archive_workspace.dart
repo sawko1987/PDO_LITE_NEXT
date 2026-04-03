@@ -62,7 +62,7 @@ class _ArchiveWorkspaceState extends State<ArchiveWorkspace> {
                       child: DropdownButtonFormField<String>(
                         initialValue: _machineId,
                         decoration: const InputDecoration(
-                          labelText: 'Machine',
+                          labelText: 'Оборудование',
                           border: OutlineInputBorder(),
                         ),
                         items: widget.controller.machines
@@ -86,8 +86,8 @@ class _ArchiveWorkspaceState extends State<ArchiveWorkspace> {
                       child: TextField(
                         controller: _fromDateController,
                         decoration: const InputDecoration(
-                          labelText: 'From',
-                          hintText: 'YYYY-MM-DD',
+                          labelText: 'С',
+                          hintText: 'ГГГГ-ММ-ДД',
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -97,8 +97,8 @@ class _ArchiveWorkspaceState extends State<ArchiveWorkspace> {
                       child: TextField(
                         controller: _toDateController,
                         decoration: const InputDecoration(
-                          labelText: 'To',
-                          hintText: 'YYYY-MM-DD',
+                          labelText: 'По',
+                          hintText: 'ГГГГ-ММ-ДД',
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -108,17 +108,17 @@ class _ArchiveWorkspaceState extends State<ArchiveWorkspace> {
                       child: DropdownButtonFormField<String>(
                         initialValue: _status,
                         decoration: const InputDecoration(
-                          labelText: 'Status',
+                          labelText: 'Статус',
                           border: OutlineInputBorder(),
                         ),
                         items: const [
                           DropdownMenuItem(
-                            value: 'completed',
-                            child: Text('completed'),
+                            value: 'завершён',
+                            child: Text('завершён'),
                           ),
                           DropdownMenuItem(
-                            value: 'cancelled',
-                            child: Text('cancelled'),
+                            value: 'отменён',
+                            child: Text('отменён'),
                           ),
                         ],
                         onChanged: (value) {
@@ -135,8 +135,8 @@ class _ArchiveWorkspaceState extends State<ArchiveWorkspace> {
                       icon: const Icon(Icons.history_outlined),
                       label: Text(
                         widget.controller.isLoading
-                            ? 'Loading...'
-                            : 'Load Archive',
+                            ? 'Загрузка...'
+                            : 'Загрузить архив',
                       ),
                     ),
                   ],
@@ -242,7 +242,7 @@ class _ArchiveDetailPane extends StatelessWidget {
     if (plan == null) {
       return const Center(
         child: Text(
-          'Choose an archived plan to inspect revisions and execution.',
+          'Выберите архивный план для просмотра ревизий и выполнения.',
         ),
       );
     }
@@ -250,8 +250,8 @@ class _ArchiveDetailPane extends StatelessWidget {
       children: [
         Text(plan!.title, style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 8),
-        Text('Status: ${plan!.status}'),
-        Text('Created: ${plan!.createdAt.toIso8601String()}'),
+        Text('Статус: ${plan!.status}'),
+        Text('Создан: ${plan!.createdAt.toIso8601String()}'),
         const SizedBox(height: 16),
         if (summary != null) ...[
           Wrap(
@@ -259,26 +259,26 @@ class _ArchiveDetailPane extends StatelessWidget {
             runSpacing: 12,
             children: [
               _MetricChip(
-                label: 'Requested',
+                label: 'Запланировано',
                 value: summary!.totalRequested.toStringAsFixed(0),
               ),
               _MetricChip(
-                label: 'Reported',
+                label: 'Выполнено',
                 value: summary!.totalReported.toStringAsFixed(0),
               ),
               _MetricChip(
-                label: 'Closed Tasks',
+                label: 'Закрытых задач',
                 value: '${summary!.closedTaskCount}/${summary!.taskCount}',
               ),
               _MetricChip(
-                label: 'Problems',
+                label: 'Проблемы',
                 value: summary!.problemCount.toString(),
               ),
             ],
           ),
           const SizedBox(height: 16),
         ],
-        Text('Plan Items', style: Theme.of(context).textTheme.titleMedium),
+        Text('Элементы плана', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         ...plan!.items.map(
           (item) => ListTile(
@@ -289,15 +289,15 @@ class _ArchiveDetailPane extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        Text('Revisions', style: Theme.of(context).textTheme.titleMedium),
+        Text('Ревизии', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         if (plan!.revisions.isEmpty)
-          const Text('No revisions were recorded for this archived plan.')
+          const Text('Для этого архивного плана ревизии не записаны.')
         else
           ...plan!.revisions.map(
             (revision) => ListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text('Revision ${revision.revisionNumber}'),
+              title: Text('Ревизия ${revision.revisionNumber}'),
               subtitle: Text(
                 '${revision.changedBy} | ${revision.changedAt.toIso8601String()}',
               ),
@@ -309,7 +309,7 @@ class _ArchiveDetailPane extends StatelessWidget {
           child: FilledButton.icon(
             onPressed: onOpenInReports,
             icon: const Icon(Icons.open_in_new_outlined),
-            label: const Text('Open In Reports'),
+            label: const Text('Открыть в отчётах'),
           ),
         ),
       ],

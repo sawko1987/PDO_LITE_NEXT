@@ -69,9 +69,9 @@ class _PlanWorkspaceState extends State<PlanWorkspace> {
         return ListView(
           children: [
             _PlanSectionCard(
-              title: 'Plan Board',
+              title: 'Планирование',
               subtitle:
-                  'Create draft plans from structure occurrences, inspect plan details, and release tasks by operation.',
+                  'Создание черновиков планов, просмотр деталей и запуск задач по операциям.',
               child: Wrap(
                 spacing: 12,
                 runSpacing: 12,
@@ -83,8 +83,8 @@ class _PlanWorkspaceState extends State<PlanWorkspace> {
                     icon: const Icon(Icons.refresh_outlined),
                     label: Text(
                       widget.controller.isPlansLoading
-                          ? 'Refreshing...'
-                          : 'Refresh Plans',
+                          ? 'Обновление...'
+                          : 'Обновить планы',
                     ),
                   ),
                   OutlinedButton.icon(
@@ -94,8 +94,8 @@ class _PlanWorkspaceState extends State<PlanWorkspace> {
                     icon: const Icon(Icons.precision_manufacturing_outlined),
                     label: Text(
                       widget.controller.isMachinesLoading
-                          ? 'Loading Machines...'
-                          : 'Refresh Machines',
+                          ? 'Загрузка оборудования...'
+                          : 'Обновить оборудование',
                     ),
                   ),
                   _InfoChip(
@@ -116,7 +116,7 @@ class _PlanWorkspaceState extends State<PlanWorkspace> {
               Padding(
                 padding: const EdgeInsets.only(top: 16),
                 child: _Banner(
-                  title: 'Planning error',
+                  title: 'Ошибка планирования',
                   message: message,
                   color: const Color(0xFF991B1B),
                 ),
@@ -124,16 +124,16 @@ class _PlanWorkspaceState extends State<PlanWorkspace> {
             Padding(
               padding: const EdgeInsets.only(top: 16),
               child: _PlanSectionCard(
-                title: 'Draft Builder',
+                title: 'Конструктор плана',
                 subtitle:
-                    'Choose machine and version, then assemble a draft plan from the machine tree: whole machine, node, place, or detail.',
+                    'Выберите оборудование и версию, затем соберите черновик плана из дерева оборудования.',
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     DropdownButtonFormField<String>(
                       initialValue: widget.controller.selectedMachineId,
                       decoration: const InputDecoration(
-                        labelText: 'Machine',
+                        labelText: 'Оборудование',
                         border: OutlineInputBorder(),
                       ),
                       items: widget.controller.machines
@@ -153,7 +153,7 @@ class _PlanWorkspaceState extends State<PlanWorkspace> {
                       ),
                       initialValue: widget.controller.selectedVersionId,
                       decoration: const InputDecoration(
-                        labelText: 'Machine version',
+                        labelText: 'Версия оборудования',
                         border: OutlineInputBorder(),
                       ),
                       items: widget.controller.versions
@@ -172,7 +172,7 @@ class _PlanWorkspaceState extends State<PlanWorkspace> {
                     TextField(
                       controller: _titleController,
                       decoration: const InputDecoration(
-                        labelText: 'Plan title',
+                        labelText: 'Название плана',
                         border: OutlineInputBorder(),
                       ),
                     ),
@@ -184,8 +184,8 @@ class _PlanWorkspaceState extends State<PlanWorkspace> {
                       icon: const Icon(Icons.playlist_add_check_outlined),
                       label: Text(
                         widget.controller.isSavingPlan
-                            ? 'Creating Draft...'
-                            : 'Create Draft Plan',
+                            ? 'Создание...'
+                            : 'Создать черновик плана',
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -239,11 +239,11 @@ class _PlanWorkspaceState extends State<PlanWorkspace> {
             Padding(
               padding: const EdgeInsets.only(top: 16),
               child: _PlanSectionCard(
-                title: 'WIP Monitor',
+                title: 'Монитор НЗП',
                 subtitle:
-                    'Current WIP entries for the selected machine/version or active plan context.',
+                    'Текущие записи НЗП для выбранного оборудования/версии или активного плана.',
                 child: widget.controller.visibleWipEntries.isEmpty
-                    ? const Text('No WIP entries in the current scope.')
+                    ? const Text('Записей НЗП в текущей области нет.')
                     : Column(
                         children: widget.controller.visibleWipEntries
                             .map(
@@ -269,9 +269,9 @@ class _PlanWorkspaceState extends State<PlanWorkspace> {
               Padding(
                 padding: const EdgeInsets.only(top: 16),
                 child: _PlanSectionCard(
-                  title: 'Active Plan',
+                  title: 'Активный план',
                   subtitle:
-                      'Current plan detail loaded from backend, including source occurrence context.',
+                      'Детали текущего плана, включая контекст вхождений источника.',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -292,8 +292,8 @@ class _PlanWorkspaceState extends State<PlanWorkspace> {
                         icon: const Icon(Icons.rocket_launch_outlined),
                         label: Text(
                           widget.controller.isReleasingPlan
-                              ? 'Releasing...'
-                              : 'Release Plan',
+                              ? 'Запуск...'
+                              : 'Запустить план',
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -309,8 +309,8 @@ class _PlanWorkspaceState extends State<PlanWorkspace> {
                             icon: const Icon(Icons.rule_folder_outlined),
                             label: Text(
                               widget.controller.isCheckingCompletion
-                                  ? 'Checking...'
-                                  : 'Check Completion',
+                                  ? 'Проверка...'
+                                  : 'Проверить завершение',
                             ),
                           ),
                           FilledButton.icon(
@@ -321,8 +321,8 @@ class _PlanWorkspaceState extends State<PlanWorkspace> {
                             icon: const Icon(Icons.verified_outlined),
                             label: Text(
                               widget.controller.isCompletingPlan
-                                  ? 'Confirming...'
-                                  : 'Confirm Completion',
+                                  ? 'Подтверждение...'
+                                  : 'Подтвердить завершение',
                             ),
                           ),
                         ],
@@ -356,9 +356,9 @@ class _PlanWorkspaceState extends State<PlanWorkspace> {
               Padding(
                 padding: const EdgeInsets.only(top: 16),
                 child: _Banner(
-                  title: 'Plan released',
+                  title: 'План запущен',
                   message:
-                      'Plan ${release.planId} moved to ${release.status} and generated ${release.generatedTaskCount} task(s).',
+                      'План ${release.planId} переведён в ${release.status} и создал ${release.generatedTaskCount} задач.',
                   color: const Color(0xFF14532D),
                 ),
               ),
@@ -366,20 +366,20 @@ class _PlanWorkspaceState extends State<PlanWorkspace> {
               Padding(
                 padding: const EdgeInsets.only(top: 16),
                 child: _Banner(
-                  title: 'Plan completed',
+                  title: 'План завершён',
                   message:
-                      'Plan ${completion.planId} moved to ${completion.status}. Completion was confirmed by supervisor flow.',
+                      'План ${completion.planId} переведён в ${completion.status}. Завершение подтверждено диспетчером.',
                   color: const Color(0xFF14532D),
                 ),
               ),
             Padding(
               padding: const EdgeInsets.only(top: 16),
               child: _PlanSectionCard(
-                title: 'Plan Index',
+                title: 'Реестр планов',
                 subtitle:
-                    'All plans currently available from backend. Open any plan to inspect details.',
+                    'Все планы, доступные на сервере. Откройте план для просмотра деталей.',
                 child: widget.controller.plans.isEmpty
-                    ? const Text('No plans available.')
+                    ? const Text('Планов нет.')
                     : Column(
                         children: widget.controller.plans
                             .map(
@@ -390,7 +390,7 @@ class _PlanWorkspaceState extends State<PlanWorkspace> {
                                   subtitle:
                                       'Status: ${plan.status}\nItems: ${plan.itemCount} | Revisions: ${plan.revisionCount}',
                                   selected: activePlan?.id == plan.id,
-                                  actionLabel: 'Open',
+                                  actionLabel: 'Открыть',
                                   onAdd: () =>
                                       widget.controller.openPlan(plan.id),
                                 ),
@@ -415,11 +415,11 @@ class _DraftSelectionsPane extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _PaneSurface(
-      title: 'Draft Selections',
+      title: 'Выбранные вхождения',
       subtitle:
-          'The backend still receives a flat occurrence list. You can fine-tune quantity per row after bulk add.',
+          'Сервер получает плоский список вхождений. Вы можете настроить количество для каждой строки.',
       child: controller.draftSelections.isEmpty
-          ? const Text('No occurrences added to the draft yet.')
+          ? const Text('Вхождения ещё не добавлены в черновик.')
           : Column(
               children: controller.draftSelections
                   .map(
@@ -459,14 +459,14 @@ class _TreeSelectionPane extends StatelessWidget {
   Widget build(BuildContext context) {
     final bulkAddResult = controller.lastBulkDraftAddResult;
     return _PaneSurface(
-      title: 'Structure Tree',
+      title: 'Дерево структуры',
       subtitle:
-          'Select the whole machine, a branch, a place, or an individual detail and add all descendant occurrences with one quantity.',
+          'Выберите оборудование целиком, ветку, место или отдельную деталь и добавьте все дочерние вхождения.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (controller.planningTreeRoot == null)
-            const Text('No planning source loaded yet.')
+            const Text('Источник планирования ещё не загружен.')
           else ...[
             Container(
               key: const Key('planningTreePane'),
@@ -495,7 +495,7 @@ class _TreeSelectionPane extends StatelessWidget {
                 decimal: true,
               ),
               decoration: const InputDecoration(
-                labelText: 'Quantity for new draft rows',
+                labelText: 'Количество для новых строк',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -513,22 +513,22 @@ class _TreeSelectionPane extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Selected branch: ${preview!.selectedNodeLabel}',
+                      'Выбранная ветка: ${preview!.selectedNodeLabel}',
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Occurrences in branch: ${preview!.totalOccurrenceCount}',
+                      'Вхождений в ветке: ${preview!.totalOccurrenceCount}',
                       key: const Key('bulkPreviewTotalCount'),
                     ),
                     Text(
-                      'Will add new rows: ${preview!.newOccurrenceCount}',
+                      'Будет добавлено строк: ${preview!.newOccurrenceCount}',
                       key: const Key('bulkPreviewNewCount'),
                     ),
                     Text(
-                      'Skipped as duplicates: ${preview!.skippedOccurrenceCount}',
+                      'Пропущено как дубликаты: ${preview!.skippedOccurrenceCount}',
                       key: const Key('bulkPreviewSkippedCount'),
                     ),
                   ],
@@ -541,15 +541,15 @@ class _TreeSelectionPane extends StatelessWidget {
                   ? controller.addSelectedPlanningNodeToDraft
                   : null,
               icon: const Icon(Icons.account_tree_outlined),
-              label: const Text('Add Selection To Draft'),
+              label: const Text('Добавить в черновик'),
             ),
           ],
           if (bulkAddResult != null) ...[
             const SizedBox(height: 16),
             _Banner(
-              title: 'Selection merged into draft',
+              title: 'Выбранные вхождения добавлены в черновик',
               message:
-                  '${bulkAddResult.selectedNodeLabel}: ${bulkAddResult.addedOccurrenceCount} added, ${bulkAddResult.skippedOccurrenceCount} skipped as duplicates, quantity ${bulkAddResult.requestedQuantity}.',
+                  '${bulkAddResult.selectedNodeLabel}: ${bulkAddResult.addedOccurrenceCount} добавлено, ${bulkAddResult.skippedOccurrenceCount} пропущено как дубликаты, количество ${bulkAddResult.requestedQuantity}.',
               color: const Color(0xFF14532D),
             ),
           ],
@@ -660,8 +660,8 @@ class _CompletionDecisionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     if (decision.canComplete) {
       return const _Banner(
-        title: 'Completion check passed',
-        message: 'No open tasks, problems, or WIP are blocking this plan.',
+        title: 'Проверка завершения пройдена',
+        message: 'Нет открытых задач, проблем или НЗП, блокирующих этот план.',
         color: Color(0xFF14532D),
       );
     }
@@ -678,7 +678,7 @@ class _CompletionDecisionCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Completion blockers',
+            'Блокировщики завершения',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w700,
               color: const Color(0xFF92400E),
@@ -875,7 +875,7 @@ class _SourceTile extends StatelessWidget {
           const SizedBox(width: 16),
           OutlinedButton(
             onPressed: selected ? null : onAdd,
-            child: Text(selected ? 'Selected' : actionLabel),
+            child: Text(selected ? 'Выбрано' : actionLabel),
           ),
         ],
       ),
@@ -931,7 +931,7 @@ class _DraftItemTile extends StatelessWidget {
                 decimal: true,
               ),
               decoration: const InputDecoration(
-                labelText: 'Qty',
+                labelText: 'Кол-во',
                 border: OutlineInputBorder(),
               ),
               onChanged: onQuantityChanged,
@@ -988,9 +988,9 @@ class _DetailTile extends StatelessWidget {
 
 String _formatBlockerType(String value) {
   return switch (value) {
-    'openTasks' => 'Open tasks',
-    'openProblems' => 'Open problems',
-    'openWip' => 'Open WIP',
+    'openTasks' => 'Открытые задачи',
+    'openProblems' => 'Открытые проблемы',
+    'openWip' => 'Открытые НЗП',
     _ => value,
   };
 }

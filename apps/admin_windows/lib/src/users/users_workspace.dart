@@ -42,9 +42,9 @@ class _UsersWorkspaceState extends State<UsersWorkspace> {
         return ListView(
           children: [
             _SectionCard(
-              title: 'Users',
+              title: 'Пользователи',
               subtitle:
-                  'Create pilot accounts, deactivate access, and reset passwords for desktop users.',
+                  'Создание учётных записей, отключение доступа и сброс паролей пользователей.',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -57,7 +57,7 @@ class _UsersWorkspaceState extends State<UsersWorkspace> {
                         child: TextField(
                           controller: _loginController,
                           decoration: const InputDecoration(
-                            labelText: 'Login',
+                            labelText: 'Логин',
                             border: OutlineInputBorder(),
                           ),
                         ),
@@ -67,7 +67,7 @@ class _UsersWorkspaceState extends State<UsersWorkspace> {
                         child: TextField(
                           controller: _displayNameController,
                           decoration: const InputDecoration(
-                            labelText: 'Display Name',
+                            labelText: 'Отображаемое имя',
                             border: OutlineInputBorder(),
                           ),
                         ),
@@ -78,7 +78,7 @@ class _UsersWorkspaceState extends State<UsersWorkspace> {
                           controller: _passwordController,
                           obscureText: true,
                           decoration: const InputDecoration(
-                            labelText: 'Temporary Password',
+                            labelText: 'Временный пароль',
                             border: OutlineInputBorder(),
                           ),
                         ),
@@ -88,21 +88,21 @@ class _UsersWorkspaceState extends State<UsersWorkspace> {
                         child: DropdownButtonFormField<String>(
                           initialValue: _role,
                           decoration: const InputDecoration(
-                            labelText: 'Role',
+                            labelText: 'Роль',
                             border: OutlineInputBorder(),
                           ),
                           items: const [
                             DropdownMenuItem(
                               value: 'planner',
-                              child: Text('planner'),
+                              child: Text('Планировщик'),
                             ),
                             DropdownMenuItem(
                               value: 'supervisor',
-                              child: Text('supervisor'),
+                              child: Text('Диспетчер'),
                             ),
                             DropdownMenuItem(
                               value: 'master',
-                              child: Text('master'),
+                              child: Text('Мастер'),
                             ),
                           ],
                           onChanged: (value) {
@@ -119,7 +119,9 @@ class _UsersWorkspaceState extends State<UsersWorkspace> {
                             : _createUser,
                         icon: const Icon(Icons.person_add_alt_1_outlined),
                         label: Text(
-                          widget.controller.isSaving ? 'Saving...' : 'Add User',
+                          widget.controller.isSaving
+                              ? 'Сохранение...'
+                              : 'Добавить пользователя',
                         ),
                       ),
                       OutlinedButton.icon(
@@ -127,7 +129,7 @@ class _UsersWorkspaceState extends State<UsersWorkspace> {
                             ? null
                             : widget.controller.loadUsers,
                         icon: const Icon(Icons.refresh_outlined),
-                        label: const Text('Refresh'),
+                        label: const Text('Обновить'),
                       ),
                     ],
                   ),
@@ -156,21 +158,21 @@ class _UsersWorkspaceState extends State<UsersWorkspace> {
             ),
             const SizedBox(height: 16),
             _SectionCard(
-              title: 'User List',
+              title: 'Список пользователей',
               subtitle:
-                  'Current planner, supervisor, and master accounts with activity status.',
+                  'Текущие учётные записи планировщиков, диспетчеров и мастеров со статусом активности.',
               child: widget.controller.users.isEmpty
-                  ? const Text('No users loaded yet.')
+                  ? const Text('Пользователи ещё не загружены.')
                   : SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: DataTable(
                         columns: const [
-                          DataColumn(label: Text('Login')),
-                          DataColumn(label: Text('Display Name')),
-                          DataColumn(label: Text('Role')),
-                          DataColumn(label: Text('Status')),
-                          DataColumn(label: Text('Created')),
-                          DataColumn(label: Text('Actions')),
+                          DataColumn(label: Text('Логин')),
+                          DataColumn(label: Text('Отображаемое имя')),
+                          DataColumn(label: Text('Роль')),
+                          DataColumn(label: Text('Статус')),
+                          DataColumn(label: Text('Создан')),
+                          DataColumn(label: Text('Действия')),
                         ],
                         rows: widget.controller.users
                             .map((user) => _buildRow(context, user))
@@ -190,7 +192,7 @@ class _UsersWorkspaceState extends State<UsersWorkspace> {
         DataCell(Text(user.login)),
         DataCell(Text(user.displayName)),
         DataCell(Text(user.role)),
-        DataCell(Text(user.isActive ? 'Active' : 'Disabled')),
+        DataCell(Text(user.isActive ? 'Активен' : 'Отключён')),
         DataCell(Text(user.createdAt.toIso8601String())),
         DataCell(
           Wrap(
@@ -200,13 +202,13 @@ class _UsersWorkspaceState extends State<UsersWorkspace> {
                 onPressed: user.isActive && !widget.controller.isBusy
                     ? () => widget.controller.deactivateUser(user.id)
                     : null,
-                child: const Text('Deactivate'),
+                child: const Text('Отключить'),
               ),
               TextButton(
                 onPressed: widget.controller.isBusy
                     ? null
                     : () => _showResetPasswordDialog(context, user),
-                child: const Text('Reset Password'),
+                child: const Text('Сбросить пароль'),
               ),
             ],
           ),
@@ -241,23 +243,23 @@ class _UsersWorkspaceState extends State<UsersWorkspace> {
         context: context,
         builder: (context) {
           return AlertDialog(
-            title: Text('Reset Password: ${user.login}'),
+            title: Text('Сброс пароля: ${user.login}'),
             content: TextField(
               controller: controller,
               obscureText: true,
               decoration: const InputDecoration(
-                labelText: 'New Password',
+                labelText: 'Новый пароль',
                 border: OutlineInputBorder(),
               ),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
+                child: const Text('Отмена'),
               ),
               FilledButton(
                 onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Reset'),
+                child: const Text('Сбросить'),
               ),
             ],
           );

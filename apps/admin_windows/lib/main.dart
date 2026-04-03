@@ -72,7 +72,7 @@ class AdminWindowsApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'PDO Lite Next Admin',
+      title: 'PDO Lite Next — Администрирование',
       theme: buildPdoTheme(),
       home: _AdminRoot(
         authController: authController,
@@ -461,14 +461,14 @@ class _AdminHomePageState extends State<AdminHomePage>
     return AppShell(
       title: 'PDO Lite Next',
       subtitle:
-          'Windows panel for import sessions, machine versions, planning, reports, archive, audit, and recovery workflows.',
+          'Панель управления импортом, версиями оборудования, планированием, отчётами, архивом, аудитом и восстановлением.',
       child: Column(
         children: [
           Row(
             children: [
               Expanded(
                 child: Text(
-                  'Signed in as ${widget.currentDisplayName} (${widget.currentUserRole})',
+                  'Вы вошли как ${widget.currentDisplayName} (${_translateRole(widget.currentUserRole)})',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
@@ -476,7 +476,7 @@ class _AdminHomePageState extends State<AdminHomePage>
                 FilledButton.tonalIcon(
                   onPressed: widget.onLogout,
                   icon: const Icon(Icons.logout_outlined),
-                  label: const Text('Logout'),
+                  label: const Text('Выйти'),
                 ),
             ],
           ),
@@ -700,7 +700,10 @@ class _AdminHomePageState extends State<AdminHomePage>
   Future<void> _pickFile() async {
     final file = await openFile(
       acceptedTypeGroups: const [
-        XTypeGroup(label: 'Machine import files', extensions: ['xlsx', 'mxl']),
+        XTypeGroup(
+          label: 'Файлы импорта оборудования',
+          extensions: ['xlsx', 'mxl'],
+        ),
       ],
     );
     if (file == null) {
@@ -713,20 +716,29 @@ class _AdminHomePageState extends State<AdminHomePage>
 }
 
 enum _AdminTab {
-  machines('Machines'),
-  import('Import'),
-  structure('Structure'),
-  plans('Plans'),
-  execution('Execution'),
-  wip('WIP'),
-  problems('Problems'),
-  reports('Reports'),
-  archive('Archive'),
-  audit('Audit'),
-  users('Users'),
-  settings('Settings');
+  machines('Оборудование'),
+  import('Импорт'),
+  structure('Структура'),
+  plans('Планы'),
+  execution('Выполнение'),
+  wip('НЗП'),
+  problems('Проблемы'),
+  reports('Отчёты'),
+  archive('Архив'),
+  audit('Аудит'),
+  users('Пользователи'),
+  settings('Настройки');
 
   const _AdminTab(this.label);
 
   final String label;
+}
+
+String _translateRole(String role) {
+  return switch (role) {
+    'planner' => 'Планировщик',
+    'supervisor' => 'Диспетчер',
+    'master' => 'Мастер',
+    _ => role,
+  };
 }

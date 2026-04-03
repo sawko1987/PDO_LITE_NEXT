@@ -19,24 +19,24 @@ void main() {
     await tester.pumpWidget(MasterMobileApp(controller: controller));
     await tester.pumpAndSettle();
 
-    expect(find.text('Assigned Task List'), findsOneWidget);
+    expect(find.text('Список назначенных задач'), findsOneWidget);
     await tester.scrollUntilVisible(
-      find.text('Task Detail'),
+      find.text('Детали задачи'),
       200,
       scrollable: find.byType(Scrollable).first,
     );
 
-    expect(find.text('Task Detail'), findsOneWidget);
-    expect(find.text('Problems'), findsOneWidget);
+    expect(find.text('Детали задачи'), findsOneWidget);
+    expect(find.text('Проблемы'), findsOneWidget);
     expect(find.text('Coolant leak'), findsOneWidget);
 
     await tester.scrollUntilVisible(
-      find.text('Offline Outbox'),
+      find.text('Исходящая очередь'),
       200,
       scrollable: find.byType(Scrollable).first,
     );
 
-    expect(find.text('Offline Outbox'), findsOneWidget);
+    expect(find.text('Исходящая очередь'), findsOneWidget);
   });
 }
 

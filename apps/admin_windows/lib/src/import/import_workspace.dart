@@ -23,9 +23,9 @@ class ImportWorkspace extends StatelessWidget {
         return ListView(
           children: [
             _SectionCard(
-              title: 'Import Workspace',
+              title: 'Импорт',
               subtitle:
-                  'Select a local Excel/MXL file, inspect preview, and confirm import through the backend session flow.',
+                  'Выберите файл Excel/MXL, просмотрите предварительный результат и подтвердите импорт.',
               child: Wrap(
                 spacing: 12,
                 runSpacing: 12,
@@ -34,7 +34,7 @@ class ImportWorkspace extends StatelessWidget {
                   FilledButton.icon(
                     onPressed: controller.isBusy ? null : onPickFile,
                     icon: const Icon(Icons.file_open_outlined),
-                    label: const Text('Select File'),
+                    label: const Text('Выбрать файл'),
                   ),
                   OutlinedButton.icon(
                     onPressed: controller.canBuildPreview
@@ -43,8 +43,8 @@ class ImportWorkspace extends StatelessWidget {
                     icon: const Icon(Icons.preview_outlined),
                     label: Text(
                       controller.isPreviewLoading
-                          ? 'Building Preview...'
-                          : 'Build Preview',
+                          ? 'Формирование...'
+                          : 'Сформировать предпросмотр',
                     ),
                   ),
                   TextButton.icon(
@@ -54,8 +54,8 @@ class ImportWorkspace extends StatelessWidget {
                     icon: const Icon(Icons.sync_outlined),
                     label: Text(
                       controller.isMachinesLoading
-                          ? 'Refreshing...'
-                          : 'Refresh Machines',
+                          ? 'Обновление...'
+                          : 'Обновить оборудование',
                     ),
                   ),
                   if (session != null)
@@ -64,10 +64,10 @@ class ImportWorkspace extends StatelessWidget {
                           ? null
                           : controller.refreshSession,
                       icon: const Icon(Icons.refresh_outlined),
-                      label: const Text('Refresh Session'),
+                      label: const Text('Обновить сессию'),
                     ),
                   _ChipLabel(
-                    label: controller.selectedFileName ?? 'No file selected',
+                    label: controller.selectedFileName ?? 'Файл не выбран',
                     icon: Icons.description_outlined,
                   ),
                   _ChipLabel(
@@ -81,7 +81,7 @@ class ImportWorkspace extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 16),
                 child: _StatusBanner(
-                  title: 'Transport or validation error',
+                  title: 'Ошибка передачи или проверки',
                   message: message,
                   tone: _StatusTone.error,
                 ),
@@ -89,13 +89,13 @@ class ImportWorkspace extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 16),
               child: _SectionCard(
-                title: 'Session Summary',
+                title: 'Сводка сессии',
                 subtitle: session == null
-                    ? 'Preview has not been created yet.'
-                    : 'Current backend import session and machine draft metadata.',
+                    ? 'Предпросмотр ещё не сформирован.'
+                    : 'Текущая сессия импорта и метаданные черновика оборудования.',
                 child: session == null
                     ? const Text(
-                        'Load a file and build preview to inspect the import session.',
+                        'Загрузите файл и сформируйте предпросмотр для просмотра сессии импорта.',
                       )
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -105,49 +105,49 @@ class ImportWorkspace extends StatelessWidget {
                             runSpacing: 10,
                             children: [
                               _MetricChip(
-                                label: 'Session',
+                                label: 'Сессия',
                                 value: session.sessionId,
                               ),
                               _MetricChip(
-                                label: 'Status',
+                                label: 'Статус',
                                 value: session.status,
                               ),
                               _MetricChip(
-                                label: 'Format',
+                                label: 'Формат',
                                 value: preview!.sourceFormat,
                               ),
                               _MetricChip(
-                                label: 'Can confirm',
+                                label: 'Готов к подтверждению',
                                 value: preview.canConfirm ? 'yes' : 'no',
                                 tone: preview.canConfirm
                                     ? _StatusTone.success
                                     : _StatusTone.error,
                               ),
                               _MetricChip(
-                                label: 'Rows',
+                                label: 'Строки',
                                 value: '${preview.rowCount}',
                               ),
                               _MetricChip(
-                                label: 'Catalog',
+                                label: 'Каталог',
                                 value: '${preview.catalogItemCount}',
                               ),
                               _MetricChip(
-                                label: 'Structure',
+                                label: 'Структура',
                                 value: '${preview.structureOccurrenceCount}',
                               ),
                               _MetricChip(
-                                label: 'Operations',
+                                label: 'Операции',
                                 value: '${preview.operationOccurrenceCount}',
                               ),
                               _MetricChip(
-                                label: 'Conflicts',
+                                label: 'Конфликты',
                                 value: '${preview.conflictCount}',
                                 tone: preview.conflictCount == 0
                                     ? _StatusTone.normal
                                     : _StatusTone.error,
                               ),
                               _MetricChip(
-                                label: 'Warnings',
+                                label: 'Предупреждения',
                                 value: '${preview.warningCount}',
                                 tone: preview.warningCount == 0
                                     ? _StatusTone.normal
@@ -167,15 +167,15 @@ class ImportWorkspace extends StatelessWidget {
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            'Machine draft',
+                            'Черновик оборудования',
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            'Name: ${preview.machineName ?? 'not detected'}',
+                            'Название: ${preview.machineName ?? 'не определено'}',
                           ),
                           Text(
-                            'Code: ${preview.machineCode ?? 'not detected'}',
+                            'Код: ${preview.machineCode ?? 'не определено'}',
                           ),
                         ],
                       ),
@@ -184,12 +184,12 @@ class ImportWorkspace extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 16),
               child: _SectionCard(
-                title: 'Confirm Mode',
+                title: 'Режим подтверждения',
                 subtitle:
-                    'Choose whether the preview becomes a new machine or a new version of an existing machine.',
+                    'Выберите: создать новое оборудование или новую версию существующего.',
                 child: session == null
                     ? const Text(
-                        'Confirmation is available after preview is built.',
+                        'Подтверждение доступно после формирования предпросмотра.',
                       )
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -198,12 +198,12 @@ class ImportWorkspace extends StatelessWidget {
                             segments: const [
                               ButtonSegment(
                                 value: ImportConfirmMode.createMachine,
-                                label: Text('Create Machine'),
+                                label: Text('Создать оборудование'),
                                 icon: Icon(Icons.add_box_outlined),
                               ),
                               ButtonSegment(
                                 value: ImportConfirmMode.createVersion,
-                                label: Text('Create Version'),
+                                label: Text('Создать версию'),
                                 icon: Icon(Icons.layers_outlined),
                               ),
                             ],
@@ -223,7 +223,7 @@ class ImportWorkspace extends StatelessWidget {
                                 ? controller.targetMachineId
                                 : null,
                             decoration: const InputDecoration(
-                              labelText: 'Target machine',
+                              labelText: 'Целевое оборудование',
                               border: OutlineInputBorder(),
                             ),
                             items: controller.machines
@@ -258,15 +258,15 @@ class ImportWorkspace extends StatelessWidget {
                                 : const Icon(Icons.cloud_upload_outlined),
                             label: Text(
                               controller.isConfirming
-                                  ? 'Confirming...'
-                                  : 'Confirm Import',
+                                  ? 'Подтверждение...'
+                                  : 'Подтвердить импорт',
                             ),
                           ),
                           if (!preview!.canConfirm)
                             const Padding(
                               padding: EdgeInsets.only(top: 12),
                               child: Text(
-                                'Preview has blocking conflicts. Resolve them before confirmation.',
+                                'Предпросмотр содержит блокирующие конфликты. Устраните их перед подтверждением.',
                               ),
                             ),
                           if (controller.confirmMode ==
@@ -275,7 +275,7 @@ class ImportWorkspace extends StatelessWidget {
                             const Padding(
                               padding: EdgeInsets.only(top: 12),
                               child: Text(
-                                'Select a target machine to create a new version.',
+                                'Выберите целевое оборудование для создания новой версии.',
                               ),
                             ),
                         ],
@@ -285,45 +285,45 @@ class ImportWorkspace extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 16),
               child: _SectionCard(
-                title: 'Diagnostics',
+                title: 'Диагностика',
                 subtitle:
-                    'Conflicts block confirmation. Warnings stay visible but do not block import.',
+                    'Конфликты блокируют подтверждение. Предупреждения отображаются, но не блокируют импорт.',
                 child: session == null
                     ? const Text(
-                        'Diagnostics will appear after preview is built.',
+                        'Диагностика появится после формирования предпросмотра.',
                       )
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Conflicts',
+                            'Конфликты',
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                           const SizedBox(height: 8),
                           if (preview!.conflicts.isEmpty)
-                            const Text('No blocking conflicts.')
+                            const Text('Блокирующих конфликтов нет.')
                           else
                             ...preview.conflicts.map(
                               (conflict) => Padding(
                                 padding: const EdgeInsets.only(bottom: 10),
                                 child: _IssueTile(
                                   title:
-                                      'Row ${conflict.rowNumber}: ${conflict.reason}',
+                                      'Строка ${conflict.rowNumber}: ${conflict.reason}',
                                   body: conflict.candidates.isEmpty
-                                      ? 'No candidate owners were provided by backend.'
-                                      : 'Candidates: ${conflict.candidates.join(', ')}',
+                                      ? 'Кандидаты-владельцы не предоставлены сервером.'
+                                      : 'Кандидаты: ${conflict.candidates.join(', ')}',
                                   tone: _StatusTone.error,
                                 ),
                               ),
                             ),
                           const SizedBox(height: 16),
                           Text(
-                            'Warnings',
+                            'Предупреждения',
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                           const SizedBox(height: 8),
                           if (preview.warnings.isEmpty)
-                            const Text('No warnings.')
+                            const Text('Предупреждений нет.')
                           else
                             ...preview.warnings.map(
                               (warning) => Padding(
@@ -332,7 +332,7 @@ class ImportWorkspace extends StatelessWidget {
                                   title: warning.code,
                                   body: warning.rowNumber == null
                                       ? warning.message
-                                      : 'Row ${warning.rowNumber}: ${warning.message}',
+                                      : 'Строка ${warning.rowNumber}: ${warning.message}',
                                   tone: _StatusTone.warning,
                                 ),
                               ),
@@ -344,15 +344,15 @@ class ImportWorkspace extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 16),
               child: _SectionCard(
-                title: 'Structure Preview',
+                title: 'Структура',
                 subtitle:
-                    'Occurrences that will become the normalized machine structure.',
+                    'Вхождения, которые станут нормализованной структурой оборудования.',
                 child: preview == null
                     ? const Text(
-                        'Structure preview is empty until session is available.',
+                        'Предпросмотр структуры пуст, пока сессия не доступна.',
                       )
                     : _OccurrenceList(
-                        emptyLabel: 'No structure occurrences.',
+                        emptyLabel: 'Вхождений структуры нет.',
                         children: preview.structureOccurrences
                             .map(
                               (occurrence) => _PreviewTile(
@@ -360,8 +360,8 @@ class ImportWorkspace extends StatelessWidget {
                                 lines: [
                                   'Path: ${occurrence.pathKey}',
                                   'Qty/machine: ${occurrence.quantityPerMachine}',
-                                  'Workshop: ${occurrence.workshop ?? 'inherit/none'}',
-                                  'Parent: ${occurrence.parentOccurrenceId ?? 'root'}',
+                                  'Цех: ${occurrence.workshop ?? 'наследуется/нет'}',
+                                  'Родитель: ${occurrence.parentOccurrenceId ?? 'корень'}',
                                 ],
                               ),
                             )
@@ -372,15 +372,15 @@ class ImportWorkspace extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 16),
               child: _SectionCard(
-                title: 'Operation Preview',
+                title: 'Операции',
                 subtitle:
-                    'Operation occurrences produced by the import engine for the current draft.',
+                    'Вхождения операций, созданные движком импорта для текущего черновика.',
                 child: preview == null
                     ? const Text(
-                        'Operation preview is empty until session is available.',
+                        'Предпросмотр операций пуст, пока сессия не доступна.',
                       )
                     : _OccurrenceList(
-                        emptyLabel: 'No operation occurrences.',
+                        emptyLabel: 'Вхождений операций нет.',
                         children: preview.operationOccurrences
                             .map(
                               (occurrence) => _PreviewTile(
@@ -388,8 +388,8 @@ class ImportWorkspace extends StatelessWidget {
                                 lines: [
                                   'Structure occurrence: ${occurrence.structureOccurrenceId}',
                                   'Qty/machine: ${occurrence.quantityPerMachine}',
-                                  'Workshop: ${occurrence.workshop ?? 'inherit/none'}',
-                                  'Source position: ${occurrence.sourcePositionNumber ?? 'n/a'}',
+                                  'Цех: ${occurrence.workshop ?? 'наследуется/нет'}',
+                                  'Позиция источника: ${occurrence.sourcePositionNumber ?? 'н/д'}',
                                 ],
                               ),
                             )
@@ -400,11 +400,11 @@ class ImportWorkspace extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 16),
               child: _SectionCard(
-                title: 'Machine Index',
+                title: 'Реестр оборудования',
                 subtitle:
-                    'Fresh machine list from backend used for create_version mode and post-confirm verification.',
+                    'Актуальный список оборудования для режима создания версии и проверки после подтверждения.',
                 child: controller.machines.isEmpty
-                    ? const Text('Machine list is empty.')
+                    ? const Text('Список оборудования пуст.')
                     : Column(
                         children: controller.machines
                             .map(
@@ -414,7 +414,7 @@ class ImportWorkspace extends StatelessWidget {
                                   title: '${machine.code} - ${machine.name}',
                                   lines: [
                                     'Id: ${machine.id}',
-                                    'Active version: ${machine.activeVersionId ?? 'not set'}',
+                                    'Активная версия: ${machine.activeVersionId ?? 'не установлена'}',
                                   ],
                                 ),
                               ),
@@ -427,11 +427,11 @@ class ImportWorkspace extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 16),
                 child: _SectionCard(
-                  title: 'Import Result',
+                  title: 'Результат импорта',
                   subtitle:
-                      'Latest successful confirmation result returned by backend.',
+                      'Последний успешный результат подтверждения от сервера.',
                   child: _StatusBanner(
-                    title: 'Import confirmed',
+                    title: 'Импорт подтверждён',
                     message:
                         'Mode: ${result.mode}\nMachine: ${result.machineId}\nVersion: ${result.versionId}\nLabel: ${result.versionLabel}',
                     tone: _StatusTone.success,
