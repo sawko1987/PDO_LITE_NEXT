@@ -73,18 +73,18 @@ class _StructureWorkspaceState extends State<StructureWorkspace> {
                     ),
                   ),
                   _InfoChip(
-                    label: '${widget.controller.machines.length} machines',
+                    label: '${widget.controller.machines.length} машин',
                   ),
                   _InfoChip(
-                    label: '${widget.controller.versions.length} versions',
-                  ),
-                  _InfoChip(
-                    label:
-                        '${detail?.structureOccurrences.length ?? 0} structure rows',
+                    label: '${widget.controller.versions.length} версий',
                   ),
                   _InfoChip(
                     label:
-                        '${detail?.operationOccurrences.length ?? 0} operations',
+                        '${detail?.structureOccurrences.length ?? 0} строк структуры',
+                  ),
+                  _InfoChip(
+                    label:
+                        '${detail?.operationOccurrences.length ?? 0} операций',
                   ),
                 ],
               ),
@@ -481,7 +481,7 @@ class _SelectedNodePane extends StatelessWidget {
           controller: childQuantityController,
           enabled: isDraft,
           decoration: const InputDecoration(
-            labelText: 'Child quantity',
+            labelText: 'Количество дочернего узла',
             border: OutlineInputBorder(),
           ),
         ),
@@ -491,7 +491,7 @@ class _SelectedNodePane extends StatelessWidget {
           controller: childWorkshopController,
           enabled: isDraft,
           decoration: const InputDecoration(
-            labelText: 'Child workshop',
+            labelText: 'Цех дочернего узла',
             border: OutlineInputBorder(),
           ),
         ),
@@ -507,18 +507,18 @@ class _SelectedNodePane extends StatelessWidget {
                   parentOccurrenceId: controller.selectedOccurrenceId,
                 ),
           icon: const Icon(Icons.subdirectory_arrow_right),
-          label: const Text('Add Child Node'),
+          label: const Text('Добавить дочерний узел'),
         ),
         const SizedBox(height: 20),
         Text(
-          'Operations',
+          'Операции',
           style: Theme.of(
             context,
           ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 8),
         if (controller.selectedOccurrenceOperations.isEmpty)
-          const Text('No operations linked to this node yet.')
+          const Text('К этому узлу пока не привязано ни одной операции.')
         else
           Column(
             children: controller.selectedOccurrenceOperations
@@ -540,7 +540,7 @@ class _SelectedNodePane extends StatelessWidget {
           controller: operationNameController,
           enabled: isDraft,
           decoration: const InputDecoration(
-            labelText: 'Operation name',
+            labelText: 'Название операции',
             border: OutlineInputBorder(),
           ),
         ),
@@ -550,7 +550,7 @@ class _SelectedNodePane extends StatelessWidget {
           controller: operationQuantityController,
           enabled: isDraft,
           decoration: const InputDecoration(
-            labelText: 'Operation quantity',
+            labelText: 'Количество операции',
             border: OutlineInputBorder(),
           ),
         ),
@@ -560,7 +560,7 @@ class _SelectedNodePane extends StatelessWidget {
           controller: operationWorkshopController,
           enabled: isDraft,
           decoration: const InputDecoration(
-            labelText: 'Operation workshop',
+            labelText: 'Цех операции',
             border: OutlineInputBorder(),
           ),
         ),
@@ -587,8 +587,8 @@ class _SelectedNodePane extends StatelessWidget {
               icon: const Icon(Icons.build_outlined),
               label: Text(
                 controller.selectedOperation == null
-                    ? 'Add Operation'
-                    : 'Save Operation',
+                    ? 'Добавить операцию'
+                    : 'Сохранить операцию',
               ),
             ),
             OutlinedButton.icon(
@@ -600,7 +600,7 @@ class _SelectedNodePane extends StatelessWidget {
                   ? null
                   : controller.deleteSelectedOperation,
               icon: const Icon(Icons.delete_outline),
-              label: const Text('Delete Operation'),
+              label: const Text('Удалить операцию'),
             ),
           ],
         ),
@@ -729,7 +729,7 @@ class _TreeNodeTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${occurrence.pathKey}\nQty/machine: ${occurrence.quantityPerMachine} | Workshop: ${occurrence.workshop ?? '-'}',
+                    '${occurrence.pathKey}\nКоличество на машину: ${occurrence.quantityPerMachine} | Цех: ${occurrence.workshop ?? '-'}',
                   ),
                 ],
               ),
@@ -780,7 +780,7 @@ class _OperationTile extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'Qty/machine: ${operation.quantityPerMachine} | Workshop: ${operation.workshop ?? '-'}',
+                'Количество на машину: ${operation.quantityPerMachine} | Цех: ${operation.workshop ?? '-'}',
               ),
             ],
           ),

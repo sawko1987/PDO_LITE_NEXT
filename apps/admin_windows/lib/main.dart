@@ -7,6 +7,7 @@ import 'src/archive/archive_workspace.dart';
 import 'src/audit/audit_board_controller.dart';
 import 'src/audit/audit_workspace.dart';
 import 'src/auth/auth_controller.dart';
+import 'src/auth/auth_session_store.dart';
 import 'src/auth/login_screen.dart';
 import 'src/execution/execution_board_controller.dart';
 import 'src/execution/execution_workspace.dart';
@@ -136,6 +137,7 @@ class _AdminRootState extends State<_AdminRoot> {
   AuthController? _authController;
   late final bool _ownsClient;
   late final bool _ownsAuthController;
+  late final AuthSessionStore _authSessionStore;
 
   bool get _hasInjectedControllers =>
       widget.controller != null ||
@@ -156,8 +158,12 @@ class _AdminRootState extends State<_AdminRoot> {
     super.initState();
     _ownsClient = widget.client == null;
     _client = widget.client ?? HttpAdminBackendClient();
+    _authSessionStore = AuthSessionStore();
     _ownsAuthController = widget.authController == null;
-    _authController = widget.authController ?? AuthController(client: _client!);
+    _authController =
+        widget.authController ??
+        AuthController(client: _client!, sessionStore: _authSessionStore);
+    _authController?.restoreSession();
   }
 
   @override
@@ -197,6 +203,11 @@ class _AdminRootState extends State<_AdminRoot> {
     return AnimatedBuilder(
       animation: _authController!,
       builder: (context, _) {
+        if (_authController!.isRestoring) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
         if (!_authController!.isAuthenticated) {
           return LoginScreen(controller: _authController!);
         }
@@ -711,7 +722,12 @@ class _AdminHomePageState extends State<AdminHomePage>
     }
 
     final bytes = await file.readAsBytes();
-    _importController?.setSelectedFile(fileName: file.name, bytes: bytes);
+    final controller = _importController;
+    if (controller == null) {
+      return;
+    }
+    controller.setSelectedFile(fileName: file.name, bytes: bytes);
+    await controller.createPreview();
   }
 }
 

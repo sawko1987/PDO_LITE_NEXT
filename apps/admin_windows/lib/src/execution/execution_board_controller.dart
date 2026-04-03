@@ -331,45 +331,45 @@ class ExecutionBoardController extends ChangeNotifier {
 
   String? _validateReportForm(TaskDetailDto task) {
     if (_reportAuthor.trim().isEmpty) {
-      return 'Reported by is required.';
+      return 'Нужно указать автора отчёта.';
     }
 
     final quantity = _parseReportQuantity();
     if (quantity == null) {
       return _reportOutcome == 'not_completed'
-          ? 'Reported quantity must be 0 for not completed.'
-          : 'Enter a valid reported quantity.';
+          ? 'Для статуса "не завершено" количество должно быть равно 0.'
+          : 'Введите корректное количество в отчёте.';
     }
 
     switch (_reportOutcome) {
       case 'completed':
         if (quantity != task.remainingQuantity) {
-          return 'Completed must equal remaining quantity: ${task.remainingQuantity}.';
+          return 'Для статуса "завершено" количество должно совпадать с остатком: ${task.remainingQuantity}.';
         }
         break;
       case 'partial':
         if (quantity <= 0 || quantity >= task.remainingQuantity) {
-          return 'Partial must be above 0 and below ${task.remainingQuantity}.';
+          return 'Для частичного выполнения количество должно быть больше 0 и меньше ${task.remainingQuantity}.';
         }
         if (_normalizedReason() == null) {
-          return 'Reason is required for partial report.';
+          return 'Для частичного выполнения нужно указать причину.';
         }
         break;
       case 'not_completed':
         if (quantity != 0) {
-          return 'Not completed keeps reported quantity at 0.';
+          return 'Для статуса "не завершено" количество должно оставаться 0.';
         }
         if (_normalizedReason() == null) {
-          return 'Reason is required for not completed report.';
+          return 'Для статуса "не завершено" нужно указать причину.';
         }
         break;
       case 'overrun':
         if (quantity <= task.remainingQuantity) {
-          return 'Overrun must exceed remaining quantity: ${task.remainingQuantity}.';
+          return 'Для перевыполнения количество должно превышать остаток: ${task.remainingQuantity}.';
         }
         break;
       default:
-        return 'Select a supported report outcome.';
+        return 'Выберите допустимый результат отчёта.';
     }
 
     return null;
@@ -420,26 +420,26 @@ class ExecutionBoardController extends ChangeNotifier {
   String _describeExecutionResult(CreateExecutionReportResultDto result) {
     final effect = result.wipEffect;
     if (effect == null || effect.type == 'none') {
-      return 'Execution report sent.';
+      return 'Отчёт о выполнении отправлен.';
     }
     final balance = effect.balanceQuantity;
-    final formattedBalance = balance == null ? '' : ' ($balance pcs)';
+    final formattedBalance = balance == null ? '' : ' (${balance.toStringAsFixed(1)} шт.)';
     final wipMessage = switch (effect.type) {
-      'created' => 'WIP created$formattedBalance.',
-      'updated' => 'WIP updated$formattedBalance.',
-      'consumed' => 'Existing WIP was consumed.',
+      'created' => 'Запись НЗП создана$formattedBalance.',
+      'updated' => 'Запись НЗП обновлена$formattedBalance.',
+      'consumed' => 'Связанное НЗП было поглощено.',
       _ => null,
     };
     if (wipMessage == null) {
-      return 'Execution report sent.';
+      return 'Отчёт о выполнении отправлен.';
     }
-    return 'Execution report sent. $wipMessage';
+    return 'Отчёт о выполнении отправлен. $wipMessage';
   }
 
   String _describeError(Object error) {
     if (error is AdminBackendException) {
       return error.message;
     }
-    return 'Unexpected error: $error';
+    return 'Непредвиденная ошибка: $error';
   }
 }

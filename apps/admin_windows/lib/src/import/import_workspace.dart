@@ -71,7 +71,7 @@ class ImportWorkspace extends StatelessWidget {
                     icon: Icons.description_outlined,
                   ),
                   _ChipLabel(
-                    label: '${controller.machines.length} machines loaded',
+                    label: '${controller.machines.length} машин загружено',
                     icon: Icons.precision_manufacturing_outlined,
                   ),
                 ],
@@ -118,7 +118,7 @@ class ImportWorkspace extends StatelessWidget {
                               ),
                               _MetricChip(
                                 label: 'Готов к подтверждению',
-                                value: preview.canConfirm ? 'yes' : 'no',
+                                value: preview.canConfirm ? 'да' : 'нет',
                                 tone: preview.canConfirm
                                     ? _StatusTone.success
                                     : _StatusTone.error,
@@ -157,12 +157,12 @@ class ImportWorkspace extends StatelessWidget {
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            'Source file: ${preview.fileName}',
+                            'Исходный файл: ${preview.fileName}',
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            'Detection: ${preview.detectionReason}',
+                            'Определение: ${preview.detectionReason}',
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
                           const SizedBox(height: 12),
@@ -358,8 +358,8 @@ class ImportWorkspace extends StatelessWidget {
                               (occurrence) => _PreviewTile(
                                 title: occurrence.displayName,
                                 lines: [
-                                  'Path: ${occurrence.pathKey}',
-                                  'Qty/machine: ${occurrence.quantityPerMachine}',
+                                  'Путь: ${occurrence.pathKey}',
+                                  'Количество на машину: ${occurrence.quantityPerMachine}',
                                   'Цех: ${occurrence.workshop ?? 'наследуется/нет'}',
                                   'Родитель: ${occurrence.parentOccurrenceId ?? 'корень'}',
                                 ],
@@ -386,8 +386,8 @@ class ImportWorkspace extends StatelessWidget {
                               (occurrence) => _PreviewTile(
                                 title: occurrence.name,
                                 lines: [
-                                  'Structure occurrence: ${occurrence.structureOccurrenceId}',
-                                  'Qty/machine: ${occurrence.quantityPerMachine}',
+                                  'Вхождение структуры: ${occurrence.structureOccurrenceId}',
+                                  'Количество на машину: ${occurrence.quantityPerMachine}',
                                   'Цех: ${occurrence.workshop ?? 'наследуется/нет'}',
                                   'Позиция источника: ${occurrence.sourcePositionNumber ?? 'н/д'}',
                                 ],
@@ -413,7 +413,7 @@ class ImportWorkspace extends StatelessWidget {
                                 child: _PreviewTile(
                                   title: '${machine.code} - ${machine.name}',
                                   lines: [
-                                    'Id: ${machine.id}',
+                                    'Идентификатор: ${machine.id}',
                                     'Активная версия: ${machine.activeVersionId ?? 'не установлена'}',
                                   ],
                                 ),
@@ -433,7 +433,7 @@ class ImportWorkspace extends StatelessWidget {
                   child: _StatusBanner(
                     title: 'Импорт подтверждён',
                     message:
-                        'Mode: ${result.mode}\nMachine: ${result.machineId}\nVersion: ${result.versionId}\nLabel: ${result.versionLabel}',
+                        'Режим: ${result.mode}\nМашина: ${result.machineId}\nВерсия: ${result.versionId}\nМетка: ${result.versionLabel}',
                     tone: _StatusTone.success,
                   ),
                 ),

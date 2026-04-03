@@ -98,7 +98,7 @@ void main() {
         expect(controller.scopedWipEntries.first.balanceQuantity, 1);
         expect(
           controller.submissionMessage,
-          'Execution report sent. WIP updated (1.0 pcs).',
+      'Отчёт о выполнении отправлен. Запись НЗП обновлена (1.0 шт.).',
         );
         expect(controller.reportOutcome, 'completed');
         expect(controller.reportQuantity, isEmpty);

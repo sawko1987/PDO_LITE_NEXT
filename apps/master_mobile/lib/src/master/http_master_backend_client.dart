@@ -13,6 +13,27 @@ class HttpMasterBackendClient implements MasterBackendClient {
 
   final Uri _baseUri;
   final http.Client _httpClient;
+  String? _authToken;
+
+  @override
+  Future<LoginResponseDto> login(LoginRequestDto request) async {
+    final json = await _postJsonObject('/v1/auth/login', request.toJson());
+    final response = LoginResponseDto.fromJson(json);
+    _authToken = response.token;
+    return response;
+  }
+
+  @override
+  Future<void> logout() async {
+    if (_authToken == null) {
+      return;
+    }
+    try {
+      await _postJsonObject('/v1/auth/logout', const <String, Object?>{});
+    } finally {
+      _authToken = null;
+    }
+  }
 
   @override
   Future<ApiListResponseDto<TaskSummaryDto>> listTasks({
@@ -128,6 +149,11 @@ class HttpMasterBackendClient implements MasterBackendClient {
     _httpClient.close();
   }
 
+  @override
+  void setAuthToken(String? token) {
+    _authToken = token;
+  }
+
   Future<Map<String, Object?>> _getJsonObject(
     String path, {
     Map<String, String>? queryParameters,
@@ -136,7 +162,7 @@ class HttpMasterBackendClient implements MasterBackendClient {
       final uri = _baseUri
           .resolve(path)
           .replace(queryParameters: queryParameters);
-      final response = await _httpClient.get(uri);
+      final response = await _httpClient.get(uri, headers: _buildHeaders());
       return _decodeResponseObject(response);
     } on SocketException catch (error) {
       throw MasterBackendException(
@@ -156,7 +182,7 @@ class HttpMasterBackendClient implements MasterBackendClient {
     try {
       final response = await _httpClient.post(
         _baseUri.resolve(path),
-        headers: const {'content-type': 'application/json'},
+        headers: _buildHeaders(includeJsonContentType: true),
         body: jsonEncode(body),
       );
       return _decodeResponseObject(response);
@@ -189,5 +215,12 @@ class HttpMasterBackendClient implements MasterBackendClient {
       ApiErrorDto.fromJson(body),
       statusCode: response.statusCode,
     );
+  }
+
+  Map<String, String> _buildHeaders({bool includeJsonContentType = false}) {
+    return {
+      if (includeJsonContentType) 'content-type': 'application/json',
+      if (_authToken != null) 'authorization': 'Bearer $_authToken',
+    };
   }
 }

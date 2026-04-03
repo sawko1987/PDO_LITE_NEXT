@@ -49,15 +49,15 @@ class MachinesWorkspace extends StatelessWidget {
                           : 'Обновить реестр',
                     ),
                   ),
-                  _InfoChip(label: '${controller.machines.length} machines'),
-                  _InfoChip(label: '${controller.versions.length} versions'),
+                  _InfoChip(label: '${controller.machines.length} машин'),
+                  _InfoChip(label: '${controller.versions.length} версий'),
                   _InfoChip(
                     label:
-                        '${controller.selectedVersionOccurrenceCount} structure rows',
+                        '${controller.selectedVersionOccurrenceCount} строк структуры',
                   ),
                   _InfoChip(
                     label:
-                        '${controller.selectedVersionOperationCount} operations',
+                        '${controller.selectedVersionOperationCount} операций',
                   ),
                 ],
               ),
@@ -291,11 +291,11 @@ class _MachineDetailPane extends StatelessWidget {
                         ),
                         _InfoChip(
                           label:
-                              '${controller.selectedVersionOccurrenceCount} structure rows',
+                              '${controller.selectedVersionOccurrenceCount} строк структуры',
                         ),
                         _InfoChip(
                           label:
-                              '${controller.selectedVersionOperationCount} operations',
+                              '${controller.selectedVersionOperationCount} операций',
                         ),
                         _InfoChip(
                           label: controller.selectedVersionIsActive
@@ -338,10 +338,10 @@ class _StructureNodeTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final subtitle = node.isLeaf
-        ? '${node.pathKey}\nQty/machine: ${node.occurrence!.quantityPerMachine} | Operations: ${node.occurrence!.operationCount}'
+        ? '${node.pathKey}\nКоличество на машину: ${node.occurrence!.quantityPerMachine} | Операций: ${node.occurrence!.operationCount}'
         : node.pathKey.isEmpty
-        ? '${node.descendantOccurrenceIds.length} occurrence(s) in this machine'
-        : '${node.descendantOccurrenceIds.length} occurrence(s) in ${node.pathKey}';
+        ? '${node.descendantOccurrenceIds.length} вхождений в этой машине'
+        : '${node.descendantOccurrenceIds.length} вхождений в ${node.pathKey}';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -385,7 +385,7 @@ class _StructureNodeTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 10),
-                _InfoChip(label: '${node.descendantOccurrenceIds.length} occ'),
+                _InfoChip(label: '${node.descendantOccurrenceIds.length} вх.'),
               ],
             ),
           ),
@@ -488,7 +488,7 @@ class _VersionTile extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'Status: ${version.status}\nCreated: ${version.createdAt.toIso8601String().split('T').first}',
+              'Статус: ${version.status}\nСоздана: ${version.createdAt.toIso8601String().split('T').first}',
             ),
           ],
         ),

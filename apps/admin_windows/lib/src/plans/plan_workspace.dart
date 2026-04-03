@@ -99,15 +99,15 @@ class _PlanWorkspaceState extends State<PlanWorkspace> {
                     ),
                   ),
                   _InfoChip(
-                    label: '${widget.controller.plans.length} plans loaded',
+                    label: '${widget.controller.plans.length} планов загружено',
                   ),
                   _InfoChip(
                     label:
-                        '${widget.controller.planningSource.length} source occurrences',
+                        '${widget.controller.planningSource.length} вхождений в источнике',
                   ),
                   _InfoChip(
                     label:
-                        '${widget.controller.visibleWipEntries.length} WIP entries in scope',
+                        '${widget.controller.visibleWipEntries.length} записей НЗП в области',
                   ),
                 ],
               ),
@@ -252,11 +252,11 @@ class _PlanWorkspaceState extends State<PlanWorkspace> {
                                 child: _DetailTile(
                                   title: entry.id,
                                   lines: [
-                                    'Operation: ${entry.operationOccurrenceId}',
-                                    'Balance: ${entry.balanceQuantity}',
-                                    'Status: ${entry.status}',
-                                    'Task: ${entry.taskId ?? '-'}',
-                                    'Outcome: ${entry.sourceOutcome ?? '-'}',
+                                    'Операция: ${entry.operationOccurrenceId}',
+                                    'Баланс: ${entry.balanceQuantity}',
+                                    'Статус: ${entry.status}',
+                                    'Задача: ${entry.taskId ?? '-'}',
+                                    'Результат: ${entry.sourceOutcome ?? '-'}',
                                   ],
                                 ),
                               ),
@@ -279,9 +279,9 @@ class _PlanWorkspaceState extends State<PlanWorkspace> {
                         spacing: 10,
                         runSpacing: 10,
                         children: [
-                          _InfoChip(label: 'Plan ${activePlan.id}'),
-                          _InfoChip(label: 'Status ${activePlan.status}'),
-                          _InfoChip(label: 'Items ${activePlan.itemCount}'),
+                          _InfoChip(label: 'План ${activePlan.id}'),
+                          _InfoChip(label: 'Статус ${activePlan.status}'),
+                          _InfoChip(label: 'Позиций ${activePlan.itemCount}'),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -340,10 +340,10 @@ class _PlanWorkspaceState extends State<PlanWorkspace> {
                           child: _DetailTile(
                             title: item.displayName,
                             lines: [
-                              'Path: ${item.pathKey}',
-                              'Requested: ${item.requestedQuantity}',
-                              'Recorded execution: ${item.hasRecordedExecution ? 'yes' : 'no'}',
-                              'Can edit: ${item.canEdit ? 'yes' : 'no'}',
+                              'Путь: ${item.pathKey}',
+                              'Запрошено: ${item.requestedQuantity}',
+                              'Факт записан: ${item.hasRecordedExecution ? 'да' : 'нет'}',
+                              'Можно редактировать: ${item.canEdit ? 'да' : 'нет'}',
                             ],
                           ),
                         ),
@@ -388,7 +388,7 @@ class _PlanWorkspaceState extends State<PlanWorkspace> {
                                 child: _SourceTile(
                                   title: plan.title,
                                   subtitle:
-                                      'Status: ${plan.status}\nItems: ${plan.itemCount} | Revisions: ${plan.revisionCount}',
+                                      'Статус: ${plan.status}\nПозиции: ${plan.itemCount} | Ревизии: ${plan.revisionCount}',
                                   selected: activePlan?.id == plan.id,
                                   actionLabel: 'Открыть',
                                   onAdd: () =>
@@ -574,10 +574,10 @@ class _PlanningNodeTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final isSelected = node.id == selectedNodeId;
     final subtitle = node.isLeaf
-        ? '${node.pathKey}\nQty/machine: ${node.occurrence!.quantityPerMachine} | Operations: ${node.occurrence!.operationCount}'
+        ? '${node.pathKey}\nКоличество на машину: ${node.occurrence!.quantityPerMachine} | Операций: ${node.occurrence!.operationCount}'
         : node.pathKey.isEmpty
-        ? '${node.descendantOccurrenceIds.length} occurrence(s) in this machine'
-        : '${node.descendantOccurrenceIds.length} occurrence(s) in ${node.pathKey}';
+        ? '${node.descendantOccurrenceIds.length} вхождений в этой машине'
+        : '${node.descendantOccurrenceIds.length} вхождений в ${node.pathKey}';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -632,7 +632,7 @@ class _PlanningNodeTile extends StatelessWidget {
                   ),
                   const SizedBox(width: 10),
                   _InfoChip(
-                    label: '${node.descendantOccurrenceIds.length} occ',
+                    label: '${node.descendantOccurrenceIds.length} вх.',
                   ),
                 ],
               ),

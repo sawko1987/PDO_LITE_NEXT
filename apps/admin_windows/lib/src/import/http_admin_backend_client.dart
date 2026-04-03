@@ -6,7 +6,8 @@ import 'package:http/http.dart' as http;
 
 import 'admin_backend_client.dart';
 
-class HttpAdminBackendClient implements AdminBackendClient {
+class HttpAdminBackendClient
+    implements AdminBackendClient, SessionAwareAdminBackendClient {
   HttpAdminBackendClient({Uri? baseUri, http.Client? httpClient})
     : _baseUri = baseUri ?? Uri.parse('http://127.0.0.1:8080'),
       _httpClient = httpClient ?? http.Client();
@@ -33,6 +34,16 @@ class HttpAdminBackendClient implements AdminBackendClient {
     } finally {
       _authToken = null;
     }
+  }
+
+  @override
+  void restoreSession(LoginResponseDto session) {
+    _authToken = session.token;
+  }
+
+  @override
+  void clearSession() {
+    _authToken = null;
   }
 
   @override

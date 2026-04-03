@@ -206,7 +206,7 @@ class ProblemsBoardController extends ChangeNotifier {
       return null;
     }
     if (message.trim().isEmpty) {
-      _errorMessage = 'Message cannot be empty.';
+      _errorMessage = 'Сообщение не может быть пустым.';
       notifyListeners();
       return null;
     }
@@ -315,6 +315,6 @@ class ProblemsBoardController extends ChangeNotifier {
     if (error is AdminBackendException) {
       return error.message;
     }
-    return 'Unexpected error: $error';
+    return 'Непредвиденная ошибка: $error';
   }
 }

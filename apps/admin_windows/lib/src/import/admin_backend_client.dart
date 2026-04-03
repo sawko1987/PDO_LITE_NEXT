@@ -209,6 +209,12 @@ abstract interface class AdminBackendClient {
   void dispose();
 }
 
+abstract interface class SessionAwareAdminBackendClient {
+  void restoreSession(LoginResponseDto session);
+
+  void clearSession();
+}
+
 class AdminBackendException implements Exception {
   const AdminBackendException({
     required this.message,

@@ -450,7 +450,7 @@ class _FilterBar extends StatelessWidget {
                 controller.clearFilters();
               },
               icon: const Icon(Icons.clear_all_outlined),
-              label: const Text('Clear Filters'),
+              label: const Text('Сбросить фильтры'),
             ),
           ],
         ),

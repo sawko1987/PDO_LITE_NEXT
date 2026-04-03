@@ -13,13 +13,15 @@ class MasterWorkspaceController extends ChangeNotifier {
   MasterWorkspaceController({
     required MasterBackendClient client,
     required MasterOutboxRepository outboxRepository,
-    this.assigneeId = 'master-1',
+    required this.assigneeId,
+    this.onUnauthorized,
   }) : _client = client,
        _outboxRepository = outboxRepository;
 
   final String assigneeId;
   final MasterBackendClient _client;
   final MasterOutboxRepository _outboxRepository;
+  final Future<void> Function(String message)? onUnauthorized;
   final Random _random = Random();
 
   bool _bootstrapped = false;
@@ -299,9 +301,10 @@ class MasterWorkspaceController extends ChangeNotifier {
     try {
       await action();
     } on MasterBackendException catch (error) {
+      await _handleUnauthorized(error);
       _errorMessage = error.message;
     } catch (error) {
-      _errorMessage = 'Unexpected error: $error';
+      _errorMessage = 'Непредвиденная ошибка: $error';
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -376,6 +379,7 @@ class MasterWorkspaceController extends ChangeNotifier {
       await _persistOutbox();
       await _refreshTasksAndSelection();
     } on MasterBackendException catch (error) {
+      await _handleUnauthorized(error);
       _outboxItems = [
         for (var i = 0; i < _outboxItems.length; i++)
           if (i == index)
@@ -391,6 +395,15 @@ class MasterWorkspaceController extends ChangeNotifier {
     }
   }
 
+  Future<void> _handleUnauthorized(MasterBackendException error) async {
+    if ((error.statusCode == 401 || error.statusCode == 403) &&
+        onUnauthorized != null) {
+      await onUnauthorized!(
+        'Сессия завершилась или доступ больше недоступен. Войдите снова.',
+      );
+    }
+  }
+
   void _handleExecutionReportResult(CreateExecutionReportResultDto result) {
     _reportFeedbackMessage = _describeWipEffect(result);
   }
@@ -403,9 +416,9 @@ class MasterWorkspaceController extends ChangeNotifier {
     final balance = effect.balanceQuantity;
     final formattedBalance = balance == null ? '' : ' ($balance pcs)';
     return switch (effect.type) {
-      'created' => 'WIP created$formattedBalance.',
-      'updated' => 'WIP updated$formattedBalance.',
-      'consumed' => 'Existing WIP was consumed.',
+      'created' => 'Создана запись НЗП$formattedBalance.',
+      'updated' => 'Обновлена запись НЗП$formattedBalance.',
+      'consumed' => 'Существующая запись НЗП была погашена.',
       _ => null,
     };
   }

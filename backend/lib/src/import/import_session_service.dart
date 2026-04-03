@@ -41,9 +41,10 @@ class ImportSessionService {
 
     final bytes = _decodeBase64(request.fileContentBase64);
     final sessionId = 'import-session-${++_sessionSequence}';
-    final previewResult = _previewService.buildPreview(
-      machineVersionId: 'preview-$sessionId',
-      source: ImportSourceFile(fileName: request.fileName, bytes: bytes),
+    final previewResult = _buildPreviewResult(
+      sessionId: sessionId,
+      fileName: request.fileName,
+      bytes: bytes,
     );
     final session = ImportSessionRecord(
       sessionId: sessionId,
@@ -55,6 +56,35 @@ class ImportSessionService {
     _sessionsById[sessionId] = session;
     _sessionIdByPreviewRequestId[request.requestId] = sessionId;
     return _toSessionDto(session);
+  }
+
+  ImportPreviewResult _buildPreviewResult({
+    required String sessionId,
+    required String fileName,
+    required List<int> bytes,
+  }) {
+    try {
+      return _previewService.buildPreview(
+        machineVersionId: 'preview-$sessionId',
+        source: ImportSourceFile(fileName: fileName, bytes: bytes),
+      );
+    } on FormatException catch (error) {
+      throw ImportSessionException(
+        statusCode: 422,
+        code: 'invalid_import_source',
+        message:
+            'Не удалось разобрать файл импорта. Проверьте, что выбран корректный .xlsx или .mxl.',
+        details: {'fileName': fileName, 'cause': error.message},
+      );
+    } on Exception catch (error) {
+      throw ImportSessionException(
+        statusCode: 422,
+        code: 'invalid_import_source',
+        message:
+            'Не удалось разобрать файл импорта. Проверьте, что выбран корректный .xlsx или .mxl.',
+        details: {'fileName': fileName, 'cause': '$error'},
+      );
+    }
   }
 
   ImportSessionSummaryDto getSession(String sessionId) {

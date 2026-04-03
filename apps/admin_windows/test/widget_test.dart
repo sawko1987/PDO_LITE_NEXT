@@ -125,7 +125,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Structure Tree'), findsOneWidget);
+    expect(find.text('Дерево структуры'), findsOneWidget);
     expect(find.byKey(const Key('planningTreePane')), findsOneWidget);
     expect(find.byKey(const Key('bulkPlanningQuantityField')), findsOneWidget);
     expect(find.byKey(const Key('addPlanningSelectionButton')), findsOneWidget);
@@ -170,9 +170,9 @@ void main() {
       '3',
     );
 
-    expect(find.text('Occurrences in branch: 2'), findsOneWidget);
-    expect(find.text('Will add new rows: 2'), findsOneWidget);
-    expect(find.text('Skipped as duplicates: 0'), findsOneWidget);
+    expect(find.text('Вхождений в ветке: 2'), findsOneWidget);
+    expect(find.text('Будет добавлено строк: 2'), findsOneWidget);
+    expect(find.text('Пропущено как дубликаты: 0'), findsOneWidget);
 
     await tester.scrollUntilVisible(
       find.byKey(const Key('addPlanningSelectionButton')),
@@ -183,9 +183,9 @@ void main() {
     await tester.tap(find.byKey(const Key('addPlanningSelectionButton')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Selection merged into draft'), findsOneWidget);
+    expect(find.text('Выбранные вхождения добавлены в черновик'), findsOneWidget);
     expect(
-      find.textContaining('2 added, 0 skipped as duplicates'),
+      find.textContaining('2 добавлено, 0 пропущено как дубликаты'),
       findsOneWidget,
     );
     expect(find.text('Body Panel Left'), findsWidgets);
@@ -193,7 +193,7 @@ void main() {
 
     planController.selectPlanningNode('root');
     await tester.pumpAndSettle();
-    expect(find.text('Skipped as duplicates: 2'), findsOneWidget);
+    expect(find.text('Пропущено как дубликаты: 2'), findsOneWidget);
 
     await tester.enterText(
       find.byKey(const Key('bulkPlanningQuantityField')),
@@ -209,7 +209,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.textContaining('2 added, 2 skipped as duplicates'),
+      find.textContaining('2 добавлено, 2 пропущено как дубликаты'),
       findsOneWidget,
     );
     expect(find.text('Clamp'), findsWidgets);
@@ -239,16 +239,16 @@ void main() {
       );
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(
-        find.text('Check Completion'),
+        find.text('Проверить завершение'),
         300,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Check Completion'), findsOneWidget);
-      expect(find.text('Confirm Completion'), findsOneWidget);
-      expect(find.text('Completion blockers'), findsOneWidget);
-      expect(find.textContaining('Open tasks: task-1'), findsOneWidget);
+      expect(find.text('Проверить завершение'), findsOneWidget);
+      expect(find.text('Подтвердить завершение'), findsOneWidget);
+      expect(find.text('Блокировщики завершения'), findsOneWidget);
+      expect(find.textContaining('Открытые задачи: task-1'), findsOneWidget);
     },
   );
 
@@ -283,7 +283,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Machine Detail'), findsOneWidget);
+    expect(find.text('Детали оборудования'), findsOneWidget);
     expect(find.byKey(const Key('machinesListPane')), findsOneWidget);
     expect(find.byKey(const Key('machineVersionsPane')), findsOneWidget);
     expect(find.byKey(const Key('machineStructureTreePane')), findsOneWidget);
@@ -298,7 +298,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('versionTile-ver-2')));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Label v2-import'), findsOneWidget);
+    expect(find.textContaining('Метка v2-import'), findsOneWidget);
     expect(find.text('Upgrade Kit'), findsWidgets);
   });
 
@@ -382,16 +382,16 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Execution Control'), findsOneWidget);
-    expect(find.text('Task Monitor'), findsOneWidget);
+    expect(find.text('Управление выполнением'), findsOneWidget);
+    expect(find.text('Монитор задач'), findsOneWidget);
     await tester.scrollUntilVisible(
-      find.text('Task Detail'),
+      find.text('Детали задачи'),
       300,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
-    expect(find.text('Task Detail'), findsOneWidget);
-    expect(find.text('Manual Execution Report'), findsOneWidget);
+    expect(find.text('Детали задачи'), findsOneWidget);
+    expect(find.text('Ручной отчёт о выполнении'), findsOneWidget);
     expect(find.byKey(const Key('executionReportedByField')), findsOneWidget);
     expect(
       find.byKey(const Key('submitExecutionReportButton')),
@@ -411,7 +411,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('НЗП задачи'), findsOneWidget);
-    expect(find.textContaining('Task: task-1'), findsWidgets);
+    expect(find.textContaining('Задача: task-1'), findsWidgets);
   });
 
   testWidgets(
@@ -470,7 +470,7 @@ void main() {
 
       expect(
         executionController.errorMessage,
-        'Reason is required for partial report.',
+        'Для частичного выполнения нужно указать причину.',
       );
       expect(find.text('3'), findsOneWidget);
       expect(find.text('supervisor-1'), findsOneWidget);
@@ -529,14 +529,14 @@ void main() {
       await tester.tap(find.byKey(const Key('submitExecutionReportButton')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Execution sent'), findsOneWidget);
+      expect(find.text('Отчёт отправлен'), findsOneWidget);
       expect(
-        find.text('Execution report sent. WIP updated (1.0 pcs).'),
+        find.text('Отчёт о выполнении отправлен. Запись НЗП обновлена (1.0 шт.).'),
         findsOneWidget,
       );
-      expect(find.textContaining('Reported: 13.0'), findsOneWidget);
-      expect(find.textContaining('Remaining: 0.0'), findsOneWidget);
-      expect(find.textContaining('WIP updated (1.0 pcs).'), findsOneWidget);
+      expect(find.textContaining('Выполнено: 13.0'), findsOneWidget);
+      expect(find.textContaining('Осталось: 0.0'), findsOneWidget);
+      expect(find.textContaining('Запись НЗП обновлена (1.0 шт.).'), findsOneWidget);
     },
   );
 }

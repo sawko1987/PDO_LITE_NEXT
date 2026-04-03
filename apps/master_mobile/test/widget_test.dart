@@ -2,45 +2,60 @@ import 'package:data_models/data_models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:master_mobile/main.dart';
+import 'package:master_mobile/src/auth/master_session_repository.dart';
 import 'package:master_mobile/src/master/master_backend_client.dart';
 import 'package:master_mobile/src/master/master_outbox_item.dart';
 import 'package:master_mobile/src/master/master_outbox_repository.dart';
 import 'package:master_mobile/src/master/master_workspace_controller.dart';
 
 void main() {
-  testWidgets('master app renders task detail problems and outbox sections', (
-    tester,
-  ) async {
-    final controller = MasterWorkspaceController(
-      client: _WidgetFakeBackendClient(),
+  testWidgets('master home page renders authenticated shell', (tester) async {
+    final client = _WidgetFakeBackendClient();
+    final workspaceController = MasterWorkspaceController(
+      client: client,
       outboxRepository: _WidgetMemoryOutboxRepository(),
+      assigneeId: 'master-1',
     );
+    await workspaceController.bootstrap();
 
-    await tester.pumpWidget(MasterMobileApp(controller: controller));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MasterHomePage(
+          controller: workspaceController,
+          currentDisplayName: 'Master One',
+          currentUserId: 'master-1',
+          onLogout: () async {},
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
 
-    expect(find.text('Список назначенных задач'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.text('Детали задачи'),
-      200,
-      scrollable: find.byType(Scrollable).first,
+    expect(find.text('Рабочее место мастера'), findsOneWidget);
+    expect(find.textContaining('Вы вошли как Master One'), findsOneWidget);
+    expect(find.byKey(const Key('logoutButton')), findsOneWidget);
+    expect(find.byType(Scrollable), findsWidgets);
+  });
+
+  testWidgets('master app shows login screen without session', (tester) async {
+    final client = _WidgetFakeBackendClient();
+
+    await tester.pumpWidget(
+      MasterMobileApp(
+        client: client,
+        outboxRepository: _WidgetMemoryOutboxRepository(),
+        sessionRepository: _MemorySessionRepository(),
+      ),
     );
+    await tester.pumpAndSettle();
 
-    expect(find.text('Детали задачи'), findsOneWidget);
-    expect(find.text('Проблемы'), findsOneWidget);
-    expect(find.text('Coolant leak'), findsOneWidget);
-
-    await tester.scrollUntilVisible(
-      find.text('Исходящая очередь'),
-      200,
-      scrollable: find.byType(Scrollable).first,
-    );
-
-    expect(find.text('Исходящая очередь'), findsOneWidget);
+    expect(find.text('Вход мастера'), findsOneWidget);
+    expect(find.byKey(const Key('signInButton')), findsOneWidget);
   });
 }
 
 class _WidgetFakeBackendClient implements MasterBackendClient {
+  String? authToken;
+
   @override
   Future<ProblemDetailDto> addProblemMessage(
     String problemId,
@@ -174,6 +189,28 @@ class _WidgetFakeBackendClient implements MasterBackendClient {
   }
 
   @override
+  Future<LoginResponseDto> login(LoginRequestDto request) async {
+    authToken = 'token-${request.login}';
+    return LoginResponseDto(
+      token: authToken!,
+      userId: request.login,
+      role: 'master',
+      displayName: 'Master ${request.login}',
+      expiresAt: DateTime.now().toUtc().add(const Duration(hours: 8)),
+    );
+  }
+
+  @override
+  Future<void> logout() async {
+    authToken = null;
+  }
+
+  @override
+  void setAuthToken(String? token) {
+    authToken = token;
+  }
+
+  @override
   Future<ProblemDetailDto> transitionProblem(
     String problemId,
     TransitionProblemRequestDto request,
@@ -208,4 +245,21 @@ class _WidgetMemoryOutboxRepository implements MasterOutboxRepository {
 
   @override
   Future<void> saveItems(List<MasterOutboxItem> items) async {}
+}
+
+class _MemorySessionRepository implements MasterSessionRepository {
+  LoginResponseDto? _session;
+
+  @override
+  Future<void> clearSession() async {
+    _session = null;
+  }
+
+  @override
+  Future<LoginResponseDto?> loadSession() async => _session;
+
+  @override
+  Future<void> saveSession(LoginResponseDto session) async {
+    _session = session;
+  }
 }

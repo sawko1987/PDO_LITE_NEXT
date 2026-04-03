@@ -40,7 +40,7 @@ class WipWorkspace extends StatelessWidget {
                       controller.isLoading ? 'Обновление...' : 'Обновить НЗП',
                     ),
                   ),
-                  _InfoChip(label: '${controller.entries.length} entries'),
+                  _InfoChip(label: '${controller.entries.length} записей'),
                   _InfoChip(
                     label:
                         '${controller.entries.where((entry) => entry.blocksCompletion).length} блокируют завершение',
@@ -68,31 +68,31 @@ class WipWorkspace extends StatelessWidget {
                   runSpacing: 12,
                   children: [
                     _FilterDropdown(
-                      label: 'Machine',
+                      label: 'Машина',
                       value: controller.machineFilter,
                       options: controller.machineOptions,
                       onChanged: controller.setMachineFilter,
                     ),
                     _FilterDropdown(
-                      label: 'Version',
+                      label: 'Версия',
                       value: controller.versionFilter,
                       options: controller.versionOptions,
                       onChanged: controller.setVersionFilter,
                     ),
                     _FilterDropdown(
-                      label: 'Status',
+                      label: 'Статус',
                       value: controller.statusFilter,
                       options: controller.statusOptions,
                       onChanged: controller.setStatusFilter,
                     ),
                     _FilterDropdown(
-                      label: 'Workshop',
+                      label: 'Цех',
                       value: controller.workshopFilter,
                       options: controller.workshopOptions,
                       onChanged: controller.setWorkshopFilter,
                     ),
                     _FilterDropdown(
-                      label: 'Operation',
+                      label: 'Операция',
                       value: controller.operationFilter,
                       options: controller.operationOptions,
                       onChanged: controller.setOperationFilter,
@@ -100,7 +100,7 @@ class WipWorkspace extends StatelessWidget {
                     OutlinedButton.icon(
                       onPressed: controller.clearFilters,
                       icon: const Icon(Icons.clear_all_outlined),
-                      label: const Text('Clear Filters'),
+                      label: const Text('Сбросить фильтры'),
                     ),
                   ],
                 ),
@@ -112,11 +112,11 @@ class WipWorkspace extends StatelessWidget {
                 builder: (context, constraints) {
                   final useColumn = constraints.maxWidth < 1080;
                   final listPane = _Pane(
-                    title: 'Entries',
-                    subtitle: 'Select an entry to inspect its context.',
+                    title: 'Записи',
+                    subtitle: 'Выберите запись, чтобы просмотреть ее контекст.',
                     child: controller.visibleEntries.isEmpty
                         ? const Text(
-                            'No WIP entries match the current filters.',
+                            'Нет записей НЗП, подходящих под текущие фильтры.',
                           )
                         : Column(
                             children: controller.visibleEntries
@@ -136,19 +136,19 @@ class WipWorkspace extends StatelessWidget {
                           ),
                   );
                   final detailPane = _Pane(
-                    title: 'Detail',
+                    title: 'Детали',
                     subtitle:
-                        'Use quick links to continue investigation in task, plan, or problems.',
+                        'Используйте быстрые переходы, чтобы продолжить разбор в задаче, плане или проблемах.',
                     child: entry == null
-                        ? const Text('Select a WIP entry.')
+                        ? const Text('Выберите запись НЗП.')
                         : Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               if (entry.blocksCompletion)
                                 const _Banner(
-                                  title: 'Blocking WIP',
+                                  title: 'Блокирующее НЗП',
                                   message:
-                                      'This entry still blocks completion of the linked product flow.',
+                                      'Эта запись по-прежнему блокирует завершение связанного изделия.',
                                   color: Color(0xFF92400E),
                                 ),
                               if (entry.blocksCompletion)
@@ -157,15 +157,15 @@ class WipWorkspace extends StatelessWidget {
                                 title:
                                     '${entry.structureDisplayName ?? entry.structureOccurrenceId} | ${entry.operationName ?? entry.operationOccurrenceId}',
                                 lines: [
-                                  'Entry: ${entry.id}',
-                                  'Machine: ${entry.machineId}',
-                                  'Version: ${entry.versionId}',
-                                  'Status: ${entry.status}',
-                                  'Workshop: ${entry.workshop ?? '-'}',
-                                  'Balance: ${entry.balanceQuantity}',
-                                  'Task: ${entry.taskId ?? '-'}',
-                                  'Plan: ${entry.planId ?? '-'}',
-                                  'Source outcome: ${entry.sourceOutcome ?? '-'}',
+                                  'Запись: ${entry.id}',
+                                  'Машина: ${entry.machineId}',
+                                  'Версия: ${entry.versionId}',
+                                  'Статус: ${entry.status}',
+                                  'Цех: ${entry.workshop ?? '-'}',
+                                  'Баланс: ${entry.balanceQuantity}',
+                                  'Задача: ${entry.taskId ?? '-'}',
+                                  'План: ${entry.planId ?? '-'}',
+                                  'Исходный результат: ${entry.sourceOutcome ?? '-'}',
                                 ],
                               ),
                               const SizedBox(height: 12),
@@ -178,14 +178,14 @@ class WipWorkspace extends StatelessWidget {
                                         ? null
                                         : () => onOpenTask(entry.taskId!),
                                     icon: const Icon(Icons.task_outlined),
-                                    label: const Text('Open Task'),
+                                    label: const Text('Открыть задачу'),
                                   ),
                                   OutlinedButton.icon(
                                     onPressed: entry.planId == null
                                         ? null
                                         : () => onOpenPlan(entry.planId!),
                                     icon: const Icon(Icons.playlist_add_check),
-                                    label: const Text('Open Plan'),
+                                    label: const Text('Открыть план'),
                                   ),
                                   OutlinedButton.icon(
                                     onPressed: entry.taskId == null
@@ -194,7 +194,7 @@ class WipWorkspace extends StatelessWidget {
                                     icon: const Icon(
                                       Icons.report_problem_outlined,
                                     ),
-                                    label: const Text('Open Problems'),
+                                    label: const Text('Открыть проблемы'),
                                   ),
                                 ],
                               ),

@@ -457,6 +457,7 @@ class _TaskListCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      key: const Key('taskListCard'),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -527,6 +528,7 @@ class _TaskDetailCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      key: const Key('taskDetailCard'),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -821,6 +823,7 @@ class _OutboxCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      key: const Key('outboxCard'),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

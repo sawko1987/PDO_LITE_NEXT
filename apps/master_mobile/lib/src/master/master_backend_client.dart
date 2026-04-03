@@ -1,6 +1,10 @@
 import 'package:data_models/data_models.dart';
 
 abstract interface class MasterBackendClient {
+  Future<LoginResponseDto> login(LoginRequestDto request);
+
+  Future<void> logout();
+
   Future<ApiListResponseDto<TaskSummaryDto>> listTasks({
     String? assigneeId,
     String? status,
@@ -36,6 +40,8 @@ abstract interface class MasterBackendClient {
     String taskId,
     CreateExecutionReportRequestDto request,
   );
+
+  void setAuthToken(String? token);
 
   void dispose();
 }

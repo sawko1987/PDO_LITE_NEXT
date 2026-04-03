@@ -11,6 +11,7 @@ void main() {
       final controller = MasterWorkspaceController(
         client: _FakeMasterBackendClient(),
         outboxRepository: _MemoryOutboxRepository(),
+        assigneeId: 'master-1',
       );
 
       await controller.bootstrap();
@@ -27,6 +28,7 @@ void main() {
         final controller = MasterWorkspaceController(
           client: _FakeMasterBackendClient(),
           outboxRepository: _MemoryOutboxRepository(),
+          assigneeId: 'master-1',
         );
 
         await controller.bootstrap();
@@ -45,7 +47,10 @@ void main() {
         expect(controller.outboxItems.first.reportOutcome, 'partial');
         expect(controller.selectedTask?.reportedQuantity, 9);
         expect(controller.selectedTask?.remainingQuantity, 3);
-        expect(controller.reportFeedbackMessage, 'WIP updated (3.0 pcs).');
+        expect(
+          controller.reportFeedbackMessage,
+          'Обновлена запись НЗП (3.0 pcs).',
+        );
       },
     );
 
@@ -54,6 +59,7 @@ void main() {
       final controller = MasterWorkspaceController(
         client: client,
         outboxRepository: _MemoryOutboxRepository(),
+        assigneeId: 'master-1',
       );
 
       await controller.bootstrap();
@@ -78,6 +84,7 @@ void main() {
         final controller = MasterWorkspaceController(
           client: _FakeMasterBackendClient(),
           outboxRepository: _MemoryOutboxRepository(),
+          assigneeId: 'master-1',
         );
 
         await controller.bootstrap();
@@ -97,6 +104,7 @@ void main() {
         final controller = MasterWorkspaceController(
           client: _FakeMasterBackendClient(),
           outboxRepository: _MemoryOutboxRepository(),
+          assigneeId: 'master-1',
         );
 
         await controller.bootstrap();
@@ -116,6 +124,7 @@ void main() {
         final controller = MasterWorkspaceController(
           client: _FakeMasterBackendClient(),
           outboxRepository: _MemoryOutboxRepository(),
+          assigneeId: 'master-1',
         );
 
         await controller.bootstrap();
@@ -145,6 +154,7 @@ void main() {
         final controller = MasterWorkspaceController(
           client: _FakeMasterBackendClient(),
           outboxRepository: _MemoryOutboxRepository(),
+          assigneeId: 'master-1',
         );
 
         await controller.bootstrap();
@@ -180,6 +190,7 @@ void main() {
 
 class _FakeMasterBackendClient implements MasterBackendClient {
   bool failNextSubmit = false;
+  String? authToken;
 
   final Map<String, TaskDetailDto> _tasks = {
     'task-1': const TaskDetailDto(
@@ -457,6 +468,28 @@ class _FakeMasterBackendClient implements MasterBackendClient {
         )
         .toList(growable: false);
     return ApiListResponseDto(items: items, meta: const {'resource': 'tasks'});
+  }
+
+  @override
+  Future<LoginResponseDto> login(LoginRequestDto request) async {
+    authToken = 'token-${request.login}';
+    return LoginResponseDto(
+      token: authToken!,
+      userId: request.login,
+      role: 'master',
+      displayName: 'Master ${request.login}',
+      expiresAt: DateTime.now().toUtc().add(const Duration(hours: 8)),
+    );
+  }
+
+  @override
+  Future<void> logout() async {
+    authToken = null;
+  }
+
+  @override
+  void setAuthToken(String? token) {
+    authToken = token;
   }
 
   @override

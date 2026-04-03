@@ -1512,6 +1512,37 @@ void main() {
     );
   });
 
+  test(
+    'preview session returns import source error for broken mxl payload',
+    () async {
+      final handler = buildHandler();
+      final response = await _invoke(
+        handler,
+        _jsonRequest('POST', 'http://localhost/v1/import-sessions/preview', {
+          'requestId': 'preview-broken-mxl',
+          'fileName': 'broken.mxl',
+          'fileContentBase64': base64.encode(
+            utf8.encode('<?xml version="1.0"?><Workbook><Worksheet><Table>'),
+          ),
+        }),
+      );
+      final body =
+          jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+      final error = body['error'] as Map<String, dynamic>;
+
+      expect(response.statusCode, 422);
+      expect(error['code'], 'invalid_import_source');
+      expect(
+        error['message'],
+        'Не удалось разобрать файл импорта. Проверьте, что выбран корректный .xlsx или .mxl.',
+      );
+      expect(
+        (error['details'] as Map<String, dynamic>)['fileName'],
+        'broken.mxl',
+      );
+    },
+  );
+
   test('get import session returns previously created preview', () async {
     final handler = buildHandler();
     final previewResponse = await _invoke(

@@ -44,14 +44,14 @@ class ExecutionWorkspace extends StatelessWidget {
                       controller.isLoading ? 'Обновление...' : 'Обновить',
                     ),
                   ),
-                  _InfoChip(label: '${controller.tasks.length} tasks total'),
+                  _InfoChip(label: '${controller.tasks.length} задач всего'),
                   _InfoChip(
-                    label: '${controller.activeTaskCount} active tasks',
+                    label: '${controller.activeTaskCount} активных задач',
                   ),
                   _InfoChip(
-                    label: '${controller.openProblemCount} open problems',
+                    label: '${controller.openProblemCount} открытых проблем',
                   ),
-                  _InfoChip(label: '${controller.openWipCount} open WIP'),
+                  _InfoChip(label: '${controller.openWipCount} открытых НЗП'),
                 ],
               ),
             ),

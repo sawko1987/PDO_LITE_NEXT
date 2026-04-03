@@ -416,7 +416,7 @@ class PlanBoardController extends ChangeNotifier {
   Future<void> createPlan() async {
     if (!canCreatePlan) {
       _errorMessage =
-          'Select machine and version, set title, and add at least one occurrence with positive quantity.';
+          'Выберите машину и версию, задайте название и добавьте хотя бы одно вхождение с положительным количеством.';
       notifyListeners();
       return;
     }
@@ -625,7 +625,7 @@ class PlanBoardController extends ChangeNotifier {
     if (error is AdminBackendException) {
       return error.message;
     }
-    return 'Unexpected error: $error';
+    return 'Непредвиденная ошибка: $error';
   }
 
   void _rebuildPlanningTree() {

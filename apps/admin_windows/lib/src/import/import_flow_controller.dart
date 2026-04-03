@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:data_models/data_models.dart';
 import 'package:flutter/foundation.dart';
 
@@ -42,6 +44,8 @@ class ImportFlowController extends ChangeNotifier {
   bool get isPreviewLoading => _isPreviewLoading;
   bool get isConfirming => _isConfirming;
   bool get isBusy => _isMachinesLoading || _isPreviewLoading || _isConfirming;
+  bool get hasSelectedFile =>
+      _selectedFileName != null && _selectedFileBytes != null;
 
   bool get canBuildPreview =>
       !_isPreviewLoading &&
@@ -73,8 +77,10 @@ class ImportFlowController extends ChangeNotifier {
   void setSelectedFile({required String fileName, required Uint8List bytes}) {
     _selectedFileName = fileName;
     _selectedFileBytes = bytes;
+    _session = null;
     _confirmResult = null;
     _errorMessage = null;
+    debugPrint('[import] selected file: $fileName (${bytes.length} bytes)');
     notifyListeners();
   }
 
@@ -127,7 +133,8 @@ class ImportFlowController extends ChangeNotifier {
     final fileName = _selectedFileName;
     final fileBytes = _selectedFileBytes;
     if (fileName == null || fileBytes == null) {
-      _errorMessage = 'Select an Excel or MXL file before building preview.';
+      _errorMessage = 'Выберите файл Excel или MXL перед предпросмотром.';
+      debugPrint('[import] preview blocked: no file selected');
       notifyListeners();
       return;
     }
@@ -138,6 +145,7 @@ class ImportFlowController extends ChangeNotifier {
     notifyListeners();
 
     try {
+      debugPrint('[import] building preview for $fileName');
       final preview = await client.createImportPreview(
         CreateImportPreviewRequestDto(
           requestId: _nextRequestId('preview'),
@@ -146,12 +154,16 @@ class ImportFlowController extends ChangeNotifier {
         ),
       );
       _session = preview;
+      debugPrint(
+        '[import] preview ready: session=${preview.sessionId}, canConfirm=${preview.preview.canConfirm}, conflicts=${preview.preview.conflictCount}, warnings=${preview.preview.warningCount}',
+      );
       if (_confirmMode == ImportConfirmMode.createVersion &&
           !_machines.any((machine) => machine.id == _targetMachineId)) {
         _targetMachineId = null;
       }
     } catch (error) {
       _errorMessage = _describeError(error);
+      debugPrint('[import] preview failed: $_errorMessage');
     } finally {
       _isPreviewLoading = false;
       notifyListeners();
@@ -170,8 +182,10 @@ class ImportFlowController extends ChangeNotifier {
 
     try {
       _session = await client.getImportSession(sessionId);
+      debugPrint('[import] session refreshed: $sessionId');
     } catch (error) {
       _errorMessage = _describeError(error);
+      debugPrint('[import] refresh failed: $_errorMessage');
     } finally {
       _isPreviewLoading = false;
       notifyListeners();
@@ -181,14 +195,17 @@ class ImportFlowController extends ChangeNotifier {
   Future<void> confirmImport() async {
     final session = _session;
     if (session == null) {
-      _errorMessage = 'Build preview before confirming import.';
+      _errorMessage = 'Сначала сформируйте предпросмотр.';
+      debugPrint('[import] confirm blocked: preview not built');
       notifyListeners();
       return;
     }
+
     if (!canConfirm) {
       _errorMessage = _confirmMode == ImportConfirmMode.createVersion
-          ? 'Select target machine before creating a new version.'
-          : 'Current preview cannot be confirmed.';
+          ? 'Выберите целевое оборудование для новой версии.'
+          : 'Текущий предпросмотр нельзя подтвердить.';
+      debugPrint('[import] confirm blocked: $_errorMessage');
       notifyListeners();
       return;
     }
@@ -198,6 +215,9 @@ class ImportFlowController extends ChangeNotifier {
     notifyListeners();
 
     try {
+      debugPrint(
+        '[import] confirming session=${session.sessionId}, mode=${_confirmMode.apiValue}, targetMachineId=$_targetMachineId',
+      );
       _confirmResult = await client.confirmImport(
         session.sessionId,
         ConfirmImportRequestDto(
@@ -213,8 +233,12 @@ class ImportFlowController extends ChangeNotifier {
       _machines
         ..clear()
         ..addAll(refreshedMachines.items);
+      debugPrint(
+        '[import] confirm completed: machine=${_confirmResult?.machineId}, version=${_confirmResult?.versionId}',
+      );
     } catch (error) {
       _errorMessage = _describeError(error);
+      debugPrint('[import] confirm failed: $_errorMessage');
     } finally {
       _isConfirming = false;
       notifyListeners();
@@ -231,6 +255,6 @@ class ImportFlowController extends ChangeNotifier {
       return error.message;
     }
 
-    return 'Unexpected error: $error';
+    return 'Непредвиденная ошибка: $error';
   }
 }

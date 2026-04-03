@@ -171,7 +171,7 @@ class StructureEditorController extends ChangeNotifier {
     final versionId = _selectedVersionId;
     if (machineId == null || versionId == null) {
       _errorMessage =
-          'Select a machine version before creating an editable draft.';
+          'Выберите версию машины перед созданием редактируемого черновика.';
       notifyListeners();
       return null;
     }
@@ -195,7 +195,7 @@ class StructureEditorController extends ChangeNotifier {
           createdBy: actorId,
         ),
       );
-      _successMessage = 'Editable draft ${detail.label} created.';
+      _successMessage = 'Создан редактируемый черновик ${detail.label}.';
       await loadMachines();
       await openMachineVersion(machineId: machineId, versionId: detail.id);
       return _versionDetail;
@@ -218,7 +218,7 @@ class StructureEditorController extends ChangeNotifier {
     final versionId = _selectedVersionId;
     final parsedQuantity = _parseQuantity(quantityPerMachine);
     if (machineId == null || versionId == null) {
-      _errorMessage = 'Select a draft version before adding structure.';
+      _errorMessage = 'Выберите черновую версию перед добавлением структуры.';
       notifyListeners();
       return null;
     }
@@ -226,7 +226,7 @@ class StructureEditorController extends ChangeNotifier {
         parsedQuantity == null ||
         parsedQuantity <= 0) {
       _errorMessage =
-          'Enter display name and positive quantity for the new node.';
+          'Введите название и положительное количество для нового узла.';
       notifyListeners();
       return null;
     }
@@ -242,7 +242,7 @@ class StructureEditorController extends ChangeNotifier {
           workshop: _normalizeOptional(workshop),
         ),
       ),
-      successMessage: 'Structure node $displayName created.',
+      successMessage: 'Узел структуры $displayName создан.',
     );
   }
 
@@ -256,14 +256,15 @@ class StructureEditorController extends ChangeNotifier {
     final occurrence = selectedOccurrence;
     final parsedQuantity = _parseQuantity(quantityPerMachine);
     if (machineId == null || versionId == null || occurrence == null) {
-      _errorMessage = 'Select a draft occurrence before saving.';
+      _errorMessage = 'Выберите черновой узел перед сохранением.';
       notifyListeners();
       return null;
     }
     if (displayName.trim().isEmpty ||
         parsedQuantity == null ||
         parsedQuantity <= 0) {
-      _errorMessage = 'Enter display name and positive quantity before saving.';
+      _errorMessage =
+          'Введите название и положительное количество перед сохранением.';
       notifyListeners();
       return null;
     }
@@ -280,7 +281,7 @@ class StructureEditorController extends ChangeNotifier {
         ),
       ),
       preserveOccurrenceId: occurrence.id,
-      successMessage: 'Structure node ${occurrence.displayName} updated.',
+      successMessage: 'Узел структуры ${occurrence.displayName} обновлен.',
     );
   }
 
@@ -289,7 +290,7 @@ class StructureEditorController extends ChangeNotifier {
     final versionId = _selectedVersionId;
     final occurrence = selectedOccurrence;
     if (machineId == null || versionId == null || occurrence == null) {
-      _errorMessage = 'Select a draft occurrence before deleting.';
+      _errorMessage = 'Выберите черновой узел перед удалением.';
       notifyListeners();
       return null;
     }
@@ -303,7 +304,7 @@ class StructureEditorController extends ChangeNotifier {
         ),
       ),
       clearOccurrenceSelection: true,
-      successMessage: 'Structure node ${occurrence.displayName} deleted.',
+      successMessage: 'Узел структуры ${occurrence.displayName} удален.',
     );
   }
 
@@ -317,12 +318,12 @@ class StructureEditorController extends ChangeNotifier {
     final occurrence = selectedOccurrence;
     final parsedQuantity = _parseQuantity(quantityPerMachine);
     if (machineId == null || versionId == null || occurrence == null) {
-      _errorMessage = 'Select a draft occurrence before adding an operation.';
+      _errorMessage = 'Выберите черновой узел перед добавлением операции.';
       notifyListeners();
       return null;
     }
     if (name.trim().isEmpty || parsedQuantity == null || parsedQuantity <= 0) {
-      _errorMessage = 'Enter operation name and positive quantity.';
+      _errorMessage = 'Введите название операции и положительное количество.';
       notifyListeners();
       return null;
     }
@@ -339,7 +340,7 @@ class StructureEditorController extends ChangeNotifier {
         ),
       ),
       preserveOccurrenceId: occurrence.id,
-      successMessage: 'Operation $name created.',
+      successMessage: 'Операция $name создана.',
     );
   }
 
@@ -357,12 +358,12 @@ class StructureEditorController extends ChangeNotifier {
         versionId == null ||
         occurrence == null ||
         operation == null) {
-      _errorMessage = 'Select a draft operation before saving.';
+      _errorMessage = 'Выберите черновую операцию перед сохранением.';
       notifyListeners();
       return null;
     }
     if (name.trim().isEmpty || parsedQuantity == null || parsedQuantity <= 0) {
-      _errorMessage = 'Enter operation name and positive quantity.';
+      _errorMessage = 'Введите название операции и положительное количество.';
       notifyListeners();
       return null;
     }
@@ -380,7 +381,7 @@ class StructureEditorController extends ChangeNotifier {
       ),
       preserveOccurrenceId: occurrence.id,
       preserveOperationId: operation.id,
-      successMessage: 'Operation ${operation.name} updated.',
+      successMessage: 'Операция ${operation.name} обновлена.',
     );
   }
 
@@ -393,7 +394,7 @@ class StructureEditorController extends ChangeNotifier {
         versionId == null ||
         occurrence == null ||
         operation == null) {
-      _errorMessage = 'Select a draft operation before deleting.';
+      _errorMessage = 'Выберите черновую операцию перед удалением.';
       notifyListeners();
       return null;
     }
@@ -408,7 +409,7 @@ class StructureEditorController extends ChangeNotifier {
       ),
       preserveOccurrenceId: occurrence.id,
       clearOperationSelection: true,
-      successMessage: 'Operation ${operation.name} deleted.',
+      successMessage: 'Операция ${operation.name} удалена.',
     );
   }
 
@@ -417,12 +418,13 @@ class StructureEditorController extends ChangeNotifier {
     final versionId = _selectedVersionId;
     final detail = _versionDetail;
     if (machineId == null || versionId == null || detail == null) {
-      _errorMessage = 'Select a draft version before publishing.';
+      _errorMessage = 'Выберите черновую версию перед публикацией.';
       notifyListeners();
       return null;
     }
     if (detail.isImmutable) {
-      _errorMessage = 'Published versions are read-only. Create a draft first.';
+      _errorMessage =
+          'Опубликованные версии доступны только для чтения. Сначала создайте черновик.';
       notifyListeners();
       return null;
     }
@@ -440,7 +442,7 @@ class StructureEditorController extends ChangeNotifier {
           publishedBy: actorId,
         ),
       );
-      _successMessage = 'Version ${published.label} published and activated.';
+      _successMessage = 'Версия ${published.label} опубликована и активирована.';
       await loadMachines();
       await openMachineVersion(machineId: machineId, versionId: published.id);
       return _versionDetail;
@@ -672,7 +674,7 @@ class StructureEditorController extends ChangeNotifier {
     if (error is AdminBackendException) {
       return error.message;
     }
-    return 'Unexpected error: $error';
+    return 'Непредвиденная ошибка: $error';
   }
 }
 

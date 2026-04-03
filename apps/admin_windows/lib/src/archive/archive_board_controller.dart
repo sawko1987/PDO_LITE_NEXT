@@ -138,6 +138,6 @@ class ArchiveBoardController extends ChangeNotifier {
     if (error is AdminBackendException) {
       return error.message;
     }
-    return 'Unexpected error: $error';
+    return 'Непредвиденная ошибка: $error';
   }
 }
